@@ -285,19 +285,61 @@ stalls near EGMA.
 Sulfuric acid is diprotic. Its first dissociation is complete, the second is
 not:
 
-$$\mathrm{H_2SO_4} \to \mathrm{H^+} + \mathrm{HSO_4^-} \quad(\text{complete}), \qquad \mathrm{HSO_4^-} \rightleftharpoons \mathrm{H^+} + \mathrm{SO_4^{2-}} \quad (K_{a2} = 1.02\times10^{-2}\ \mathrm{M})$$
+$$\mathrm{H_2SO_4} \to \mathrm{H^+} + \mathrm{HSO_4^-} \quad(\text{complete}), \qquad \mathrm{HSO_4^-} \rightleftharpoons \mathrm{H^+} + \mathrm{SO_4^{2-}} \quad (K_{a2})$$
 
-So `[H⁺] ≠ 2[H₂SO₄]`. Solving the second equilibrium with `x` the extent of
-the second dissociation:
+So `[H⁺] ≠ 2[H₂SO₄]`, and getting the catalytic proton concentration right
+means getting this equilibrium right. **Two effects the naïve dilute-25 °C
+treatment misses are both large**, and each has its own config switch.
+
+**Temperature (`ka2_model`).** Bisulfate dissociation is exothermic with a
+large negative heat-capacity change (ΔH ≈ −22 kJ/mol, ΔCp ≈ −260 J mol⁻¹ K⁻¹;
+Hovey & Hepler 1990), so `Ka₂` *falls by ~2 orders of magnitude from 25 to
+150 °C* — the second dissociation essentially switches off in a hot reactor.
+Since we routinely run at 100–150 °C, this is not a small correction. The
+default `ka2_model: "tdep"` uses the Clarke–Glew constant-ΔCp equation
+anchored at the 25 °C value:
+
+$$\ln K_{a2}(T) = \ln K_{a2}^{\circ} - \frac{\Delta H^{\circ}}{R}\!\left(\frac1T - \frac1{T_0}\right) + \frac{\Delta C_p^{\circ}}{R}\!\left(\frac{T_0}{T} - 1 + \ln\frac{T}{T_0}\right)$$
+
+which reproduces the accepted `pKa₂` to ~0.1 units out to 250 °C
+(pKa₂ = 1.99 / 3.07 / 3.85 / 5.41 at 25 / 100 / 150 / 250 °C). `"constant"`
+recovers the legacy fixed 25 °C value.
+
+**Non-ideality (`activity_model`).** At *molar* acid the ionic strength is
+≫ 1 and `γ(SO₄²⁻) ≪ 1`, so a dilute-solution `Ka` formula is inappropriate —
+activity coefficients must be carried. `activity_model: "pitzer"` uses the
+Pitzer ion-interaction model with the temperature-dependent
+Pitzer–Roy–Silvester parameter package (refit over 0–170 °C by Sippola &
+Taskinen 2014), solving
+
+$$K_2 = \frac{m_{\mathrm{H}}\, m_{\mathrm{SO_4}}}{m_{\mathrm{HSO_4}}}\cdot\frac{\gamma_{\mathrm{H}}\,\gamma_{\mathrm{SO_4}}}{\gamma_{\mathrm{HSO_4}}}$$
+
+on a molality basis (the `K₂(T)` in that package was *co-fitted* with the
+interaction parameters, so it is used as a matched pair and `ka2_model` is
+then ignored). At 1 mol/kg, 25 °C this gives a sulfate fraction ≈ 0.22 and
+`[H⁺] ≈ 1.22` M — versus ≈ 1.01 M from the dilute quadratic, a real effect on
+the rate. In the dilute limit the two models agree to <2%. `"dilute"`
+(γ = 1) remains the default and is adequate below ~0.5 M acid.
+
+For reference, the dilute quadratic (used by `"dilute"`) solves the extent
+`x` of the second dissociation directly:
 
 $$K_{a2} = \frac{(c+x)\,x}{c-x} \;\Longrightarrow\; x^2 + (c + K_{a2})x - K_{a2}c = 0, \qquad [\mathrm{H^+}] = c + x$$
 
-At 1 M H₂SO₄ this gives ≈ 1.01 protons per molecule, not 2 — a factor-of-two
-error if you assume full diprotic dissociation. Set `h_plus_model:
-"stoichiometric"` with `n_eff_protons` to override.
+Because speciation now depends on temperature, the **micromixer is evaluated
+at the reactor temperature**, and the temperature-sweep study re-speciates at
+every point. The `stoichiometric` model (`[H⁺] = n_eff_protons·[H₂SO₄]`)
+remains available as a manual override.
+
+> **Scope.** These models give the equilibrium *concentration* `[H⁺]` that the
+> rate law consumes. In *very* concentrated acid the reaction rate also picks
+> up a Hammett-acidity (activity-of-the-transition-state) enhancement beyond
+> what `[H⁺]` alone captures; that is a correction to the rate law, not the
+> speciation, and is not modelled here.
 
 NaOH is a strong base with complete dissociation: `[OH⁻] = [NaOH]` at the
-inlet, then depleting.
+inlet, then depleting — no speciation equilibrium and no temperature or
+activity correction on the catalyst.
 
 ### 3.5 Chemical equilibrium (acid route)
 
@@ -674,6 +716,8 @@ Both single-run scripts have one `CONFIG` dict at the top. Edit and re-run.
 | `reactor.diameter_m` | m | Inner diameter. Affects τ (∝ D²) *and* plug-flow validity — narrow bore is better mixed radially. |
 | `h_plus_model` | — | `"equilibrium"` (solve HSO₄⁻ Ka₂, recommended) or `"stoichiometric"`. *Acid only.* |
 | `n_eff_protons` | — | Protons per H₂SO₄, stoichiometric model only. |
+| `ka2_model` | — | `"tdep"` (temperature-dependent Ka₂, recommended — it collapses ~100× by 150 °C) or `"constant"` (legacy 25 °C). *Acid only.* |
+| `activity_model` | — | `"dilute"` (γ = 1) or `"pitzer"` (activity coefficients for molar acid; uses its own co-fitted K₂(T)). *Acid only.* |
 | `equilibrium.reversible` | bool | `False` = legacy irreversible model, for comparison. *Acid only.* |
 | `equilibrium.K1_ref`, `K2_ref` | — | Hydrolysis equilibrium constants at 25 °C. *Acid only.* |
 | `equilibrium.dH1_kJ`, `dH2_kJ` | kJ/mol | van 't Hoff slopes, hydrolysis direction. *Acid only.* |
@@ -798,6 +842,16 @@ Read the diagnostics block. If you see the `t_rad >> tau` advisory, either
 narrow the tube, raise the flow, or add static mixing — and treat the
 predicted conversion as an optimistic bound until you do.
 
+**"Does the bisulfate speciation model matter for my case?"**
+```python
+VARY = {"ka2_model":      ["tdep", "constant"],
+        "temp_C":         [40.0, 100.0, 150.0]}
+```
+The `tdep`/`constant` gap is negligible at 40 °C and large at 150 °C (where
+`constant` overstates `[H⁺]` because it keeps the second dissociation open).
+For concentrated acid, add `"activity_model": ["dilute", "pitzer"]` — the gap
+there grows with catalyst molarity, not temperature.
+
 ### 5.8 Troubleshooting
 
 | Symptom | Cause and fix |
@@ -811,6 +865,8 @@ predicted conversion as an optimistic bound until you do.
 | A verification line says `FAIL` | Treat as a bug. Check for extreme parameters; report the config. |
 | `Water depletion QUESTIONABLE` | Concentrated feed — the reversible model handles it, but check the pseudo-order assumption if you set `reversible: False`. |
 | Conversion looks impossibly high/low | Check `[H⁺]` in the report (not 2 × [H₂SO₄]!), the NaOH stoichiometric ratio, and τ in the diagnostics. |
+| `Pitzer speciation is parameterized for 0-200 C` | You requested `activity_model: "pitzer"` outside its fitted range. Use `"dilute"` there, or keep the temperature within 0–200 °C. |
+| `[H⁺]` unexpectedly low at high T | Expected — with `ka2_model: "tdep"`, Ka₂ collapses with temperature so the second dissociation shuts off; `[H⁺] → [H₂SO₄]`. Set `"constant"` only to reproduce legacy 25 °C behaviour. |
 
 ---
 
@@ -820,7 +876,8 @@ predicted conversion as an optimistic bound until you do.
 PFR_H2SO4_digital_twin/
 ├── pfr_twin/
 │   ├── parameters.py    all constants, dataclasses, catalyst factory, provenance
-│   ├── mixer.py         ideal micromixer, H⁺/OH⁻ speciation → inlet state
+│   ├── mixer.py         ideal micromixer → inlet state (speciation at T)
+│   ├── speciation.py    Ka₂(T) (Clarke–Glew) + Pitzer activity model for H₂SO₄
 │   ├── kinetics.py      Arrhenius + van 't Hoff constants; per-route rate laws
 │   ├── reactor.py       1D PFR integration, per-route stoichiometry, result object
 │   ├── analytical.py    closed-form irreversible solution + equilibrium solver
@@ -917,6 +974,13 @@ the specific numbers used.
   [*J. Chem. Educ.* study of the rate constant](https://pubs.acs.org/doi/10.1021/acs.jchemed.5c00554)
   and the widely replicated
   [Arrhenius-parameter estimations](https://isca.me/rjcs/Archives/v5/i11/8.ISCA-RJCS-2015-150.pdf).
+- J. K. Hovey & L. G. Hepler, *J. Chem. Soc. Faraday Trans.* **86** (1990) 2831
+  — bisulfate second-dissociation thermochemistry (ΔH, ΔCp) and Ka₂ to 350 °C;
+  the anchor for the `ka2_model: "tdep"` Clarke–Glew correlation.
+- P. Sippola & P. Taskinen, *J. Chem. Eng. Data* **59** (2014) 2389, building
+  on K. S. Pitzer, R. N. Roy & L. F. Silvester, *J. Am. Chem. Soc.* **99**
+  (1977) 4930 — Pitzer parameters and K₂(T) for aqueous H₂SO₄ (the
+  `activity_model: "pitzer"` package).
 - G. Taylor / R. Aris — dispersion in laminar tube flow (the `Bo` diagnostic).
 - O. Levenspiel, *Chemical Reaction Engineering* — PFR design equations,
   series-reaction selectivity, residence-time distributions.

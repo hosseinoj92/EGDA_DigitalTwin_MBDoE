@@ -87,6 +87,8 @@ CONFIG = {
         "diameter_m": 0.018,
     },
     "h_plus_model": "equilibrium",
+    "ka2_model": "tdep",            # bisulfate Ka2(T): "tdep" | "constant" (25 C)
+    "activity_model": "dilute",     # "dilute" | "pitzer" (concentrated acid)
     "reversible": True,             # H2SO4 route only (NaOH is always irreversible)
     "forward_engine": "ode",        # "ode" | "analytical" (acid irreversible only)
 
@@ -150,7 +152,9 @@ def main() -> None:
                           h_plus_model=cfg["h_plus_model"],
                           engine=cfg["forward_engine"],
                           reversible=cfg["reversible"],
-                          catalyst=catalyst)
+                          catalyst=catalyst,
+                          ka2_model=cfg.get("ka2_model", "tdep"),
+                          activity_model=cfg.get("activity_model", "dilute"))
     L = bridge.geometry.length_m
     ports = L * np.arange(1, mcfg["n_ports"] + 1) / mcfg["n_ports"]
     species = tuple(mcfg["species"])

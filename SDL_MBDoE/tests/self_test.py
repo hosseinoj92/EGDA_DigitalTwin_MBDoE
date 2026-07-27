@@ -153,6 +153,58 @@ def test_naoh_limiting_reagent_and_invariants():
     assert res.eq_conc is None and not res.reversible
 
 
+def test_bisulfate_speciation_temperature_and_activity():
+    """Bisulfate speciation: (i) Ka2(T) anchored at 25 C and collapsing with
+    temperature (Hovey & Hepler thermochemistry), (ii) the Pitzer route
+    reproduces the known non-ideality at 1 mol/kg, (iii) it reduces to the
+    dilute limit at low concentration."""
+    import math
+    from pfr_twin.parameters import KA2_HSO4, default_kinetics
+    from pfr_twin.speciation import (bisulfate_pitzer, h_plus_concentration,
+                                     ka2_clarke_glew, ka2_prs)
+
+    # anchored at 25 C, ~2 orders of magnitude down by 150 C
+    assert abs(ka2_clarke_glew(298.15, KA2_HSO4) / KA2_HSO4 - 1.0) < 1e-12
+    for t_c, pk in ((100.0, 3.07), (150.0, 3.85), (250.0, 5.41)):
+        assert abs(-math.log10(ka2_clarke_glew(t_c + 273.15, KA2_HSO4)) - pk) < 0.15
+    assert abs(ka2_prs(298.15) - 0.0105) < 2e-4
+
+    # PRS Pitzer at 1 mol/kg, 25 C: sulfate fraction in the Raman/EMF band
+    sp = bisulfate_pitzer(1.0, 298.15)
+    assert 0.05 < sp["m_SO4"] < 0.45
+    assert sp["m_H"] > 1.05                     # >> dilute prediction (1.01)
+    q = sp["m_H"] * sp["m_SO4"] / sp["m_HSO4"] * sp["gamma_ratio"]
+    assert abs(q / sp["K2"] - 1.0) < 1e-9       # equilibrium exactly closed
+
+    # dilute limit: both activity models agree at 1e-4 M
+    kin_p = default_kinetics("H2SO4", activity_model="pitzer")
+    kin_d = default_kinetics("H2SO4", ka2_model="constant")
+    c_p, _ = h_plus_concentration(1e-4, 55.3, 298.15, kin_p)
+    c_d, _ = h_plus_concentration(1e-4, 55.3, 298.15, kin_d)
+    assert abs(c_p / c_d - 1.0) < 0.02
+
+    # hot reactor: second dissociation switches off for dilute acid
+    kin_t = default_kinetics("H2SO4")
+    c25, _ = h_plus_concentration(0.01, 55.3, 298.15, kin_t)
+    c150, _ = h_plus_concentration(0.01, 51.0, 423.15, kin_t)
+    assert c25 / 0.01 > 1.3 and c150 / 0.01 < 1.1
+
+
+def test_speciation_follows_experiment_temperature():
+    """The bridge must speciate at each experiment's own temperature: with
+    the default T-dependent Ka2, the same feed gives a (slightly) different
+    [H+] at 30 C than at 90 C."""
+    bridge = Layer1Bridge(GEOM, T_REF_K)
+    kin = bridge.kinetics_from_theta(TRUTH)
+    u30 = OperatingConditions(T_C=30.0, Q1_mL_min=5.0, Q2_mL_min=5.0,
+                              C_EGDA_M=1.0, C_cat_M=0.3)
+    u90 = OperatingConditions(T_C=90.0, Q1_mL_min=5.0, Q2_mL_min=5.0,
+                              C_EGDA_M=1.0, C_cat_M=0.3)
+    h30 = bridge._inlet(u30, kin).c_h_plus
+    h90 = bridge._inlet(u90, kin).c_h_plus
+    assert h30 > h90 > 0.0                      # Ka2 falls with temperature
+
+
 def test_naoh_parameter_space_is_4d():
     from sdl import param_keys_for
     keys = param_keys_for("NaOH")

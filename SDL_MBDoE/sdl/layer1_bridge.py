@@ -101,7 +101,8 @@ class Layer1Bridge:
     def __init__(self, geometry: Dict[str, float], t_ref_K: float,
                  h_plus_model: str = "equilibrium",
                  engine: str = "ode", n_points: int = 101,
-                 reversible: bool = True, catalyst: str = "H2SO4"):
+                 reversible: bool = True, catalyst: str = "H2SO4",
+                 ka2_model: str = "tdep", activity_model: str = "dilute"):
         if engine not in ("ode", "analytical"):
             raise ValueError(f"Unknown forward engine '{engine}'.")
         if catalyst not in ("H2SO4", "NaOH"):
@@ -119,6 +120,8 @@ class Layer1Bridge:
         self.engine = engine
         self.reversible = reversible
         self.catalyst = catalyst
+        self.ka2_model = ka2_model
+        self.activity_model = activity_model
         self.settings = SolverSettings(n_points=n_points, rtol=1e-8, atol=1e-11)
 
     # ------------------------------------------------------------------ #
@@ -138,19 +141,21 @@ class Layer1Bridge:
                                 dH_J=DH2_J, T_ref_K=self.t_ref_K),
             reversible=self.reversible,
             h_plus_model=self.h_plus_model,
+            ka2_model=self.ka2_model,
+            activity_model=self.activity_model,
         )
 
     def _inlet(self, u: OperatingConditions, kin: KineticParameters):
         # stream densities: linear dilute-solution estimates consistent with
         # the Layer 1 defaults (1005 g/L at 1 M EGDA, 1060 g/L at 1 M H2SO4,
-        # 1041 g/L at 1 M NaOH)
+        # 1041 g/L at 1 M NaOH).  Speciation at the experiment temperature.
         s1 = Stream("aq EGDA", u.Q1_mL_min, {"EGDA": u.C_EGDA_M},
                     density_g_L=1000.0 + 5.0 * u.C_EGDA_M)
         s2 = Stream(f"aq {self.catalyst}", u.Q2_mL_min,
                     {self.catalyst: u.C_cat_M},
                     density_g_L=1000.0
                     + _DENSITY_SLOPE[self.catalyst] * u.C_cat_M)
-        return mix_streams(s1, s2, kin)
+        return mix_streams(s1, s2, kin, T_K=u.T_C + 273.15)
 
     # ------------------------------------------------------------------ #
     def concentrations_at(self, theta_nat: Dict[str, float],

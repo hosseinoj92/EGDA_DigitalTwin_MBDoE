@@ -127,8 +127,13 @@ MOLAR_MASS: Dict[str, float] = {   # g/mol
 }
 
 # Second dissociation constant of H2SO4 (HSO4- <-> H+ + SO4^2-), 25 C, mol/L.
-# First dissociation is treated as complete.  T-dependence of Ka2 is weak over
-# 25-90 C compared to the Arrhenius terms and is neglected.
+# First dissociation is treated as complete.  NOTE: Ka2 is STRONGLY
+# temperature dependent (exothermic dissociation, dH ~ -22 kJ/mol, with a
+# large negative dCp ~ -260 J/mol/K; Hovey & Hepler, JCS Faraday Trans. 1990,
+# 86, 2831): it falls ~2 orders of magnitude from 25 to 150 C.  This constant
+# is only the 25 C anchor; see KineticParameters.ka2_model and speciation.py
+# for the temperature dependence and the activity-coefficient (Pitzer)
+# option for concentrated acid.
 KA2_HSO4 = 1.02e-2
 
 # Molarity of pure water at 25 C, mol/L.  Reference water concentration at
@@ -223,6 +228,20 @@ class KineticParameters:
     h_plus_model (acid route only):
         "equilibrium"    - complete 1st dissociation + HSO4- equilibrium (Ka2)
         "stoichiometric" - [H+] = n_eff_protons * [H2SO4]
+
+    ka2_model (acid route, h_plus_model = "equilibrium" only):
+        "tdep"     - temperature-dependent Ka2(T) (Clarke-Glew anchored at
+                     `ka2` at 25 C; Hovey & Hepler 1990 thermochemistry).
+                     Default: Ka2 falls ~2 orders of magnitude 25 -> 150 C,
+                     which matters whenever the reactor is not at ~25 C.
+        "constant" - legacy 25 C value at all temperatures.
+
+    activity_model (acid route, h_plus_model = "equilibrium" only):
+        "dilute" - ideal activities (gamma = 1); adequate for dilute acid.
+        "pitzer" - Pitzer-Roy-Silvester activity model with its own co-fitted
+                   K2(T) (ka2_model is then ignored); preferable at molar
+                   acid concentrations, where non-ideality raises the true
+                   [H+] well above the dilute prediction.  See speciation.py.
     """
     step1: ArrheniusStep = ArrheniusStep(A=1.0e6, Ea=55_000.0)
     step2: ArrheniusStep = ArrheniusStep(A=1.0e6, Ea=57_000.0)
@@ -234,6 +253,8 @@ class KineticParameters:
     h_plus_model: str = "equilibrium"
     n_eff_protons: float = 1.0       # used only by the stoichiometric model
     ka2: float = KA2_HSO4
+    ka2_model: str = "tdep"          # "tdep" | "constant"
+    activity_model: str = "dilute"   # "dilute" | "pitzer"
 
     def __post_init__(self):
         if self.catalyst not in CATALYSTS:
@@ -245,6 +266,10 @@ class KineticParameters:
                 "is irreversible (the released acetate is instantly "
                 "deprotonated; no re-esterification path exists). "
                 "Use default_kinetics('NaOH') for consistent defaults.")
+        if self.ka2_model not in ("tdep", "constant"):
+            raise ValueError(f"Unknown ka2_model '{self.ka2_model}'.")
+        if self.activity_model not in ("dilute", "pitzer"):
+            raise ValueError(f"Unknown activity_model '{self.activity_model}'.")
 
 
 def default_kinetics(catalyst: str = "H2SO4", *, reversible: bool = True,

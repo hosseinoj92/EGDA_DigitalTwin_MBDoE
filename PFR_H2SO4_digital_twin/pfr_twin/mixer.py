@@ -6,12 +6,15 @@ blended instantly and perfectly; the mixed composition is the inlet boundary
 condition of the PFR at x = 0.  Assumptions:
 
   * isothermal mixing (both streams pre-heated to the reactor temperature),
+    so catalyst speciation is evaluated AT the reactor temperature passed as
+    `T_K` (bisulfate Ka2 is strongly T-dependent - see speciation.py),
   * negligible volume change of mixing (volumetric flows are additive),
   * H2SO4 route: first dissociation complete; second dissociation either
-    solved from the HSO4-/SO4^2- equilibrium (default) or approximated
-    stoichiometrically; acetic acid produced downstream (pKa 4.76)
-    contributes negligible H+ against the strong-acid background, so [H+]
-    is constant along x,
+    solved from the HSO4-/SO4^2- equilibrium (default; temperature-dependent
+    Ka2 and optional Pitzer activity model per KineticParameters) or
+    approximated stoichiometrically; acetic acid produced downstream
+    (pKa 4.76) contributes negligible H+ against the strong-acid background,
+    so [H+] is constant along x,
   * NaOH route: complete dissociation, [OH-] = [NaOH] at the inlet.  OH- is
     NOT constant downstream - it is consumed 1:1 with acetate released
     (saponification), which the reactor tracks as a state variable.  Feeding
@@ -24,11 +27,11 @@ the solute mass:  [H2O] = (rho - sum_i C_i * M_i) / M_H2O.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from typing import Dict, List
 
 from .parameters import MOLAR_MASS, SPECIES, KineticParameters
+from .speciation import bisulfate_dilute, h_plus_concentration
 
 
 @dataclass
@@ -79,23 +82,20 @@ class InletState:
 
 
 def bisulfate_equilibrium(c_total: float, ka2: float) -> float:
-    """[H+] for H2SO4 of total molarity c_total.
-
-    First dissociation complete:  H2SO4 -> H+ + HSO4-.
-    Second dissociation extent x from  Ka2 = (c_total + x) x / (c_total - x):
-
-        x^2 + (c_total + Ka2) x - Ka2 c_total = 0
-    """
-    if c_total <= 0.0:
-        return 0.0
-    b = c_total + ka2
-    x = (-b + math.sqrt(b * b + 4.0 * ka2 * c_total)) / 2.0
-    return c_total + x
+    """[H+] for total sulfate molarity c_total, ideal activities (back-compat
+    alias for speciation.bisulfate_dilute)."""
+    return bisulfate_dilute(c_total, ka2)
 
 
 def mix_streams(stream1: Stream, stream2: Stream,
-                kinetics: KineticParameters) -> InletState:
-    """Flow-weighted ideal blending of the two feed streams."""
+                kinetics: KineticParameters,
+                T_K: float = 298.15) -> InletState:
+    """Flow-weighted ideal blending of the two feed streams.
+
+    T_K is the (isothermal) reactor temperature: catalyst speciation on the
+    acid route is evaluated at this temperature, so callers should pass the
+    actual reaction temperature (the 298.15 K default reproduces the legacy
+    25 C speciation)."""
     q1, q2 = stream1.Q_m3_s, stream2.Q_m3_s
     q_tot = q1 + q2
     if q_tot <= 0.0:
@@ -143,12 +143,9 @@ def mix_streams(stream1: Stream, stream2: Stream,
                 "catalyst='H2SO4' but a feed stream declares NaOH; "
                 "acid/base cross-feeds (mutual neutralization) are not modelled.")
         if kinetics.h_plus_model == "equilibrium":
-            c_h = bisulfate_equilibrium(c_h2so4, kinetics.ka2)
-            if c_h2so4 > 0.0:
-                notes.append(
-                    f"[H+] from HSO4- equilibrium (Ka2 = {kinetics.ka2:.3g} M): "
-                    f"{c_h:.4f} M = {c_h / c_h2so4:.3f} protons per H2SO4"
-                )
+            c_h, spec_notes = h_plus_concentration(c_h2so4, conc["H2O"],
+                                                   T_K, kinetics)
+            notes.extend(spec_notes)
         elif kinetics.h_plus_model == "stoichiometric":
             c_h = kinetics.n_eff_protons * c_h2so4
             notes.append(

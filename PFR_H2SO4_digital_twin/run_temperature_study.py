@@ -77,6 +77,8 @@ CONFIG = {
     # ---- catalyst speciation (H2SO4 route only) -------------------------------------
     "h_plus_model": "equilibrium",  # "equilibrium" (HSO4- Ka2) | "stoichiometric"
     "n_eff_protons": 1.0,           # protons per H2SO4 (stoichiometric model only)
+    "ka2_model": "tdep",            # "tdep" (Ka2(T), Clarke-Glew) | "constant" (25 C)
+    "activity_model": "dilute",     # "dilute" (gamma=1) | "pitzer" (PRS, molar acid)
 
     # ---- reverse reactions / chemical equilibrium (H2SO4 route only) -----------------
     "equilibrium": {
@@ -112,24 +114,30 @@ class SweepOutcome:
 
 
 def simulate_sweep(cfg: Dict) -> SweepOutcome:
-    """Run the configured temperature sweep. Writes nothing."""
+    """Run the configured temperature sweep. Writes nothing.
+
+    The inlet is re-mixed at every sweep temperature: the composition is
+    T-independent, but the catalytic [H+] is not (bisulfate Ka2 falls
+    steeply with temperature, and the Pitzer activity model is also
+    T-dependent), so speciation must follow the sweep."""
     kinetics = build_kinetics(cfg)
     model = KineticModel(kinetics)
     geometry = ReactorGeometry(**cfg["reactor"])
     settings = SolverSettings()
-    inlet = build_inlet(cfg, kinetics)
 
     T_C = np.linspace(cfg["T_min_C"], cfg["T_max_C"], cfg["n_points"])
     X, Y_egma, Y_eg = (np.empty_like(T_C) for _ in range(3))
-    last = None
+    inlet = last = None
     for i, t_c in enumerate(T_C):
+        inlet = build_inlet(cfg, kinetics, t_c + 273.15)
         res = simulate_pfr(inlet, geometry, t_c + 273.15, model, settings)
         X[i] = res.conversion[-1]
         Y_egma[i] = res.yield_of("EGMA")[-1]
         Y_eg[i] = res.yield_of("EG")[-1]
         last = res
 
-    overlay = [simulate_pfr(inlet, geometry, t_c + 273.15, model, settings)
+    overlay = [simulate_pfr(build_inlet(cfg, kinetics, t_c + 273.15),
+                            geometry, t_c + 273.15, model, settings)
                for t_c in cfg["profile_temps_C"]]
 
     i_max = int(np.argmax(Y_egma))

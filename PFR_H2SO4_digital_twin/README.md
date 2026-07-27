@@ -42,9 +42,14 @@ esterification reverse — the same H⁺ catalyzes both directions):
   irreversible pseudo-first-order model (exactly linear, closed-form
   solution), which remains the solver-verification reference.
 - **[H⁺] constant along x** — the catalyst is not consumed. It is computed
-  from the mixed [H₂SO₄] either via the HSO₄⁻/SO₄²⁻ equilibrium
-  (Ka₂ = 1.02 × 10⁻² M, default) or a stoichiometric factor. AcOH
-  (pKa 4.76) adds negligible H⁺ against the strong-acid background.
+  from the mixed [H₂SO₄] via the HSO₄⁻/SO₄²⁻ equilibrium (or a stoichiometric
+  factor). AcOH (pKa 4.76) adds negligible H⁺ against the strong-acid
+  background. **The speciation is temperature-dependent and, optionally,
+  non-ideal:** Ka₂ collapses ~100× from 25 → 150 °C (`ka2_model: "tdep"`,
+  Clarke–Glew / Hovey–Hepler), and at molar acid a Pitzer activity model
+  (`activity_model: "pitzer"`) captures the non-ideality the dilute formula
+  misses. See the [top-level README §3.4](../README.md#34-catalyst-speciation)
+  and [`pfr_twin/speciation.py`](pfr_twin/speciation.py).
 
 ### Route 2 — NaOH (`catalyst: "NaOH"`), saponification
 
@@ -184,7 +189,8 @@ cross-scenario comparison figures, each with its paired CSV.
 ```
 pfr_twin/
 ├── parameters.py    all constants & dataclasses (single source of truth)
-├── mixer.py         ideal micromixer + H⁺ speciation → inlet state
+├── mixer.py         ideal micromixer → inlet state (speciation at reactor T)
+├── speciation.py    Ka₂(T) Clarke–Glew + Pitzer activity model for H₂SO₄
 ├── kinetics.py      Arrhenius/van 't Hoff constants and reversible net-rate laws
 ├── reactor.py       1D PFR integration + result object (incl. equilibrium metrics)
 ├── analytical.py    closed-form irreversible-limit solution + coupled-equilibrium solver
@@ -207,4 +213,8 @@ batch_temperature_study.py   many T sweeps      (BASE + VARY + MODE)
 5. Reversible hydrolysis/esterification with concentration-based equilibrium
    constants (ideal-solution activities; activity-coefficient corrections
    lumped into K_ref, dH — recalibrate against lab data).
-6. Ka₂ of H₂SO₄ taken at 25 °C (weak T-dependence vs Arrhenius terms).
+6. Bisulfate Ka₂ is temperature-dependent by default (`ka2_model: "tdep"`);
+   activity coefficients are optional (`activity_model: "pitzer"` for molar
+   acid). The rate law consumes the resulting `[H⁺]` concentration —
+   Hammett-acidity corrections to the rate law in very concentrated acid are
+   not modelled.

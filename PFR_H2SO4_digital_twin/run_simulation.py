@@ -78,6 +78,11 @@ CONFIG = {
     # ---- catalyst speciation (H2SO4 route only) -----------------------------------
     "h_plus_model": "equilibrium",  # "equilibrium" (HSO4- Ka2) | "stoichiometric"
     "n_eff_protons": 1.0,           # protons per H2SO4 (stoichiometric model only)
+    "ka2_model": "tdep",            # "tdep" (Ka2(T), Clarke-Glew; Hovey-Hepler
+                                    # thermochemistry) | "constant" (legacy 25 C)
+    "activity_model": "dilute",     # "dilute" (gamma=1) | "pitzer" (PRS activity
+                                    # model + co-fitted K2(T); use for molar acid
+                                    # concentrations - strongly non-ideal)
 
     # ---- reverse reactions / chemical equilibrium (H2SO4 route only) ---------------
     # Hydrolysis-direction Keq (dimensionless, concentration basis) at 25 C and
@@ -124,18 +129,21 @@ def build_kinetics(cfg: Dict) -> KineticParameters:
         eq1=EquilibriumStep(K_ref=eqcfg["K1_ref"], dH_J=eqcfg["dH1_kJ"] * 1e3),
         eq2=EquilibriumStep(K_ref=eqcfg["K2_ref"], dH_J=eqcfg["dH2_kJ"] * 1e3),
         h_plus_model=cfg["h_plus_model"],
-        n_eff_protons=cfg["n_eff_protons"])
+        n_eff_protons=cfg["n_eff_protons"],
+        ka2_model=cfg.get("ka2_model", "tdep"),
+        activity_model=cfg.get("activity_model", "dilute"))
 
 
-def build_inlet(cfg: Dict, kinetics: KineticParameters):
-    """Mixed inlet state at x = 0 from the two configured feed streams."""
+def build_inlet(cfg: Dict, kinetics: KineticParameters, T_K: float):
+    """Mixed inlet state at x = 0 from the two configured feed streams,
+    with catalyst speciation evaluated at the reactor temperature T_K."""
     catalyst = cfg["catalyst"]
     s1, s2 = cfg["stream1"], cfg["stream2"]
     stream1 = Stream("aqueous EGDA", s1["Q_mL_min"], {"EGDA": s1["C_EGDA_M"]},
                      density_g_L=s1["density_g_L"])
     stream2 = Stream(f"aqueous {catalyst}", s2["Q_mL_min"],
                      {catalyst: s2["C_cat_M"]}, density_g_L=s2["density_g_L"])
-    return mix_streams(stream1, stream2, kinetics)
+    return mix_streams(stream1, stream2, kinetics, T_K=T_K)
 
 
 def simulate_case(cfg: Dict) -> CaseOutcome:
@@ -146,7 +154,7 @@ def simulate_case(cfg: Dict) -> CaseOutcome:
     kinetics = build_kinetics(cfg)
     model = KineticModel(kinetics)
     geometry = ReactorGeometry(**cfg["reactor"])
-    inlet = build_inlet(cfg, kinetics)
+    inlet = build_inlet(cfg, kinetics, T_K)
     result = simulate_pfr(inlet, geometry, T_K, model, SolverSettings())
 
     # ---- verification 1: independent reference solution ---------------------

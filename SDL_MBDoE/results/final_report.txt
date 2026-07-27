@@ -14,97 +14,97 @@ Hidden truth (revealed post-campaign for benchmarking only):
 Strategy A: outlet + fixed design
   experiments run      : 8 (32 concentration observations)
   stopping             : budget exhausted
-  mean |rel err|       : 16.84 %
-  max 95% rel CI       : 259.58 %
-  log det F            : 17.51
+  mean |rel err|       : 17.06 %
+  max 95% rel CI       : 268.14 %
+  log det F            : 17.46
   estimates (95% CI) vs truth:
-    k1_ref  :    0.003345  [  0.003235,   0.003459]   true      0.0033
-    Ea1_J   :       59.69  [     57.13,      62.25]   true        58.5
-    k2_ref  :   0.0008092  [ 0.0007343,  0.0008917]   true     0.00085
-    Ea2_J   :       55.15  [     45.39,       64.9]   true          52
-    K1_ref  :      0.4473  [    0.2113,     0.9468]   true         0.8
-    K2_ref  :     0.06875  [   0.01912,     0.2472]   true        0.12
+    k1_ref  :    0.003343  [  0.003235,   0.003456]   true      0.0033
+    Ea1_J   :       59.65  [     57.11,      62.19]   true        58.5
+    k2_ref  :   0.0008087  [ 0.0007328,  0.0008924]   true     0.00085
+    Ea2_J   :       55.22  [     45.34,      65.11]   true          52
+    K1_ref  :      0.4483  [    0.2109,     0.9528]   true         0.8
+    K2_ref  :     0.06714  [   0.01824,     0.2472]   true        0.12
   parameter correlation matrix (ln k1, Ea1, ln k2, Ea2, ln K1, ln K2):
-     1.000   0.588  -0.063  -0.081  -0.588   0.033
-     0.588   1.000  -0.062  -0.076  -0.544   0.014
-    -0.063  -0.062   1.000  -0.671   0.071   0.356
-    -0.081  -0.076  -0.671   1.000   0.061  -0.900
-    -0.588  -0.544   0.071   0.061   1.000  -0.012
-     0.033   0.014   0.356  -0.900  -0.012   1.000
-  FIM eigenvalues (ascending): 3.980e-02, 5.739e-01, 9.921e+00, 1.267e+01, 2.206e+03, 6.354e+03
+     1.000   0.578  -0.059  -0.079  -0.585   0.030
+     0.578   1.000  -0.059  -0.073  -0.544   0.011
+    -0.059  -0.059   1.000  -0.674   0.068   0.360
+    -0.079  -0.073  -0.674   1.000   0.059  -0.901
+    -0.585  -0.544   0.068   0.059   1.000  -0.009
+     0.030   0.011   0.360  -0.901  -0.009   1.000
+  FIM eigenvalues (ascending): 3.876e-02, 5.835e-01, 9.814e+00, 1.234e+01, 2.182e+03, 6.391e+03
   experiments chosen: T=40.0C Q=10.0mL/min cat=1.00M; T=55.0C Q=10.0mL/min cat=1.00M; T=70.0C Q=10.0mL/min cat=1.00M; T=85.0C Q=10.0mL/min cat=1.00M; T=45.0C Q=10.0mL/min cat=1.00M; T=60.0C Q=10.0mL/min cat=1.00M; T=75.0C Q=10.0mL/min cat=1.00M; T=90.0C Q=10.0mL/min cat=1.00M
 
 --------------------------------------------------------------------------
 Strategy B: spatial + fixed design
   experiments run      : 8 (256 concentration observations)
   stopping             : budget exhausted
-  mean |rel err|       : 5.86 %
-  max 95% rel CI       : 81.45 %
-  log det F            : 27.56
+  mean |rel err|       : 5.89 %
+  max 95% rel CI       : 84.83 %
+  log det F            : 27.44
   estimates (95% CI) vs truth:
-    k1_ref  :    0.003307  [  0.003276,   0.003338]   true      0.0033
-    Ea1_J   :       58.38  [     57.77,      58.99]   true        58.5
-    k2_ref  :   0.0008725  [ 0.0008311,   0.000916]   true     0.00085
-    Ea2_J   :       51.74  [     49.18,      54.29]   true          52
-    K1_ref  :      0.7271  [    0.4221,      1.253]   true         0.8
-    K2_ref  :     0.09304  [   0.05128,     0.1688]   true        0.12
+    k1_ref  :    0.003307  [  0.003275,   0.003338]   true      0.0033
+    Ea1_J   :       58.37  [     57.76,      58.99]   true        58.5
+    k2_ref  :   0.0008729  [ 0.0008309,   0.000917]   true     0.00085
+    Ea2_J   :       51.73  [     49.15,      54.31]   true          52
+    K1_ref  :      0.7315  [    0.4211,      1.271]   true         0.8
+    K2_ref  :      0.0922  [   0.04988,     0.1704]   true        0.12
   parameter correlation matrix (ln k1, Ea1, ln k2, Ea2, ln K1, ln K2):
-     1.000  -0.146  -0.024  -0.018  -0.333  -0.008
-    -0.146   1.000  -0.013  -0.045  -0.390  -0.022
-    -0.024  -0.013   1.000  -0.790   0.032   0.092
-    -0.018  -0.045  -0.790   1.000   0.039  -0.592
-    -0.333  -0.390   0.032   0.039   1.000   0.035
-    -0.008  -0.022   0.092  -0.592   0.035   1.000
-  FIM eigenvalues (ascending): 5.779e-01, 8.129e+00, 1.709e+01, 1.931e+01, 1.109e+04, 5.432e+04
+     1.000  -0.154  -0.023  -0.018  -0.330  -0.009
+    -0.154   1.000  -0.012  -0.044  -0.391  -0.023
+    -0.023  -0.012   1.000  -0.791   0.031   0.093
+    -0.018  -0.044  -0.791   1.000   0.038  -0.593
+    -0.330  -0.391   0.031   0.038   1.000   0.036
+    -0.009  -0.023   0.093  -0.593   0.036   1.000
+  FIM eigenvalues (ascending): 5.638e-01, 8.035e+00, 1.616e+01, 1.898e+01, 1.092e+04, 5.445e+04
   experiments chosen: T=40.0C Q=10.0mL/min cat=1.00M; T=55.0C Q=10.0mL/min cat=1.00M; T=70.0C Q=10.0mL/min cat=1.00M; T=85.0C Q=10.0mL/min cat=1.00M; T=45.0C Q=10.0mL/min cat=1.00M; T=60.0C Q=10.0mL/min cat=1.00M; T=75.0C Q=10.0mL/min cat=1.00M; T=90.0C Q=10.0mL/min cat=1.00M
 
 --------------------------------------------------------------------------
 Strategy C: outlet + MBDoE
   experiments run      : 8 (32 concentration observations)
   stopping             : budget exhausted
-  mean |rel err|       : 30.82 %
-  max 95% rel CI       : 2447.42 %
-  log det F            : 20.38
+  mean |rel err|       : 33.70 %
+  max 95% rel CI       : 3549.43 %
+  log det F            : 20.09
   estimates (95% CI) vs truth:
-    k1_ref  :    0.003291  [  0.003201,   0.003384]   true      0.0033
-    Ea1_J   :       58.01  [     56.88,      59.14]   true        58.5
-    k2_ref  :   0.0008314  [ 0.0007845,  0.0008811]   true     0.00085
-    Ea2_J   :       51.95  [     49.42,      54.48]   true          52
-    K1_ref  :       2.186  [   0.08581,      55.68]   true         0.8
-    K2_ref  :        0.13  [    0.1021,     0.1654]   true        0.12
+    k1_ref  :    0.003279  [  0.003176,   0.003385]   true      0.0033
+    Ea1_J   :       57.68  [     56.48,      58.88]   true        58.5
+    k2_ref  :   0.0008504  [ 0.0007983,  0.0009059]   true     0.00085
+    Ea2_J   :       51.94  [     49.22,      54.66]   true          52
+    K1_ref  :       2.362  [   0.06472,      86.19]   true         0.8
+    K2_ref  :      0.1143  [   0.09333,     0.1399]   true        0.12
   parameter correlation matrix (ln k1, Ea1, ln k2, Ea2, ln K1, ln K2):
-     1.000  -0.142  -0.133  -0.007  -0.428   0.015
-    -0.142   1.000  -0.007  -0.084  -0.097   0.014
-    -0.133  -0.007   1.000  -0.629   0.140  -0.192
-    -0.007  -0.084  -0.629   1.000   0.037  -0.190
-    -0.428  -0.097   0.140   0.037   1.000  -0.022
-     0.015   0.014  -0.192  -0.190  -0.022   1.000
-  FIM eigenvalues (ascending): 3.651e-01, 6.000e-01, 3.061e+00, 6.818e+01, 2.384e+03, 6.498e+03
-  experiments chosen: T=40.0C Q=10.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=10.0mL/min cat=0.30M; T=70.0C Q=4.0mL/min cat=1.00M; T=50.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=0.30M; T=90.0C Q=20.0mL/min cat=0.30M; T=50.0C Q=4.0mL/min cat=1.00M
+     1.000  -0.303  -0.136   0.013  -0.455   0.017
+    -0.303   1.000   0.019  -0.083  -0.046   0.011
+    -0.136   0.019   1.000  -0.660   0.134  -0.212
+     0.013  -0.083  -0.660   1.000   0.023  -0.210
+    -0.455  -0.046   0.134   0.023   1.000  -0.022
+     0.017   0.011  -0.212  -0.210  -0.022   1.000
+  FIM eigenvalues (ascending): 2.966e-01, 5.195e-01, 2.697e+00, 9.694e+01, 2.327e+03, 5.665e+03
+  experiments chosen: T=40.0C Q=10.0mL/min cat=1.00M; T=80.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=10.0mL/min cat=0.30M; T=60.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=0.30M; T=50.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=20.0mL/min cat=0.30M
 
 --------------------------------------------------------------------------
 Strategy D: spatial + MBDoE
   experiments run      : 8 (256 concentration observations)
   stopping             : budget exhausted
-  mean |rel err|       : 7.96 %
-  max 95% rel CI       : 77.72 %
-  log det F            : 32.50
+  mean |rel err|       : 3.23 %
+  max 95% rel CI       : 56.51 %
+  log det F            : 33.05
   estimates (95% CI) vs truth:
-    k1_ref  :     0.00327  [  0.003233,   0.003308]   true      0.0033
-    Ea1_J   :       58.59  [     58.06,      59.12]   true        58.5
-    k2_ref  :    0.000857  [ 0.0008307,  0.0008842]   true     0.00085
-    Ea2_J   :       51.43  [      50.2,      52.67]   true          52
-    K1_ref  :       1.072  [    0.6031,      1.905]   true         0.8
-    K2_ref  :       0.133  [    0.1199,     0.1475]   true        0.12
+    k1_ref  :    0.003287  [  0.003251,   0.003324]   true      0.0033
+    Ea1_J   :       58.32  [     57.77,      58.87]   true        58.5
+    k2_ref  :   0.0008288  [  0.000806,  0.0008523]   true     0.00085
+    Ea2_J   :       53.03  [     51.88,      54.18]   true          52
+    K1_ref  :      0.8332  [    0.5324,      1.304]   true         0.8
+    K2_ref  :      0.1321  [    0.1187,     0.1471]   true        0.12
   parameter correlation matrix (ln k1, Ea1, ln k2, Ea2, ln K1, ln K2):
-     1.000  -0.227  -0.086   0.002  -0.360   0.027
-    -0.227   1.000  -0.007  -0.086  -0.247   0.031
-    -0.086  -0.007   1.000  -0.832   0.085  -0.114
-     0.002  -0.086  -0.832   1.000   0.043  -0.227
-    -0.360  -0.247   0.085   0.043   1.000  -0.051
-     0.027   0.031  -0.114  -0.227  -0.051   1.000
-  FIM eigenvalues (ascending): 2.526e+00, 1.007e+01, 1.708e+01, 3.750e+02, 1.980e+04, 4.036e+04
-  experiments chosen: T=40.0C Q=10.0mL/min cat=1.00M; T=90.0C Q=10.0mL/min cat=1.00M; T=80.0C Q=4.0mL/min cat=1.00M; T=60.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=1.00M; T=50.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=20.0mL/min cat=1.00M
+     1.000  -0.163  -0.103  -0.001  -0.396   0.029
+    -0.163   1.000  -0.019  -0.097  -0.272   0.035
+    -0.103  -0.019   1.000  -0.798   0.108  -0.091
+    -0.001  -0.097  -0.798   1.000   0.042  -0.254
+    -0.396  -0.272   0.108   0.042   1.000  -0.051
+     0.029   0.035  -0.091  -0.254  -0.051   1.000
+  FIM eigenvalues (ascending): 2.911e+00, 1.159e+01, 2.293e+01, 3.553e+02, 1.952e+04, 4.190e+04
+  experiments chosen: T=40.0C Q=10.0mL/min cat=1.00M; T=70.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=0.30M; T=50.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=0.30M; T=60.0C Q=4.0mL/min cat=1.00M
 
 --------------------------------------------------------------------------
 Virtual lab usage: 32 experiments run, truth revealed 1 time(s), all after the campaigns ended.

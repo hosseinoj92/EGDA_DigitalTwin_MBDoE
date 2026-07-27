@@ -45,6 +45,13 @@ from .parameters import (
     SolverSettings,
 )
 from .mixer import Stream, InletState, mix_streams
+from .speciation import (
+    ka2_clarke_glew,
+    ka2_prs,
+    bisulfate_dilute,
+    bisulfate_pitzer,
+    h_plus_concentration,
+)
 from .kinetics import KineticModel
 from .reactor import PFRResult, simulate_pfr
 from .analytical import analytical_profiles, equilibrium_state, reaction_quotients
