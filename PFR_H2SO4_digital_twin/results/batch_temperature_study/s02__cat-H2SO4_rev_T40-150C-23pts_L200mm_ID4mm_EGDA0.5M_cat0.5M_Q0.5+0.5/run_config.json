@@ -1,0 +1,48 @@
+{
+  "config": {
+    "catalyst": "H2SO4",
+    "T_min_C": 40.0,
+    "T_max_C": 150.0,
+    "n_points": 23,
+    "profile_temps_C": [
+      40.0,
+      70.0,
+      100.0,
+      130.0,
+      150.0
+    ],
+    "stream1": {
+      "Q_mL_min": 0.5,
+      "C_EGDA_M": 0.5,
+      "density_g_L": 1005.0
+    },
+    "stream2": {
+      "Q_mL_min": 0.5,
+      "C_cat_M": 0.5,
+      "density_g_L": 1060.0
+    },
+    "reactor": {
+      "length_m": 0.2,
+      "diameter_m": 0.004
+    },
+    "h_plus_model": "equilibrium",
+    "n_eff_protons": 1.0,
+    "equilibrium": {
+      "reversible": true,
+      "K1_ref": 0.5,
+      "dH1_kJ": 5.0,
+      "K2_ref": 0.125,
+      "dH2_kJ": 5.0
+    },
+    "outdir": "results"
+  },
+  "summary": {
+    "X_at_T_min": 0.02521191258620259,
+    "X_at_T_max": 0.9965609645204526,
+    "Y_EGMA_max": 0.4846320651259175,
+    "T_at_Y_EGMA_max_C": 110.0,
+    "interior_optimum": true,
+    "tau_s": 150.79644737231007,
+    "X_eq_at_T_max": 0.9996072425067845
+  }
+}

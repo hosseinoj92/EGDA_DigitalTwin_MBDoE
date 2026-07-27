@@ -1,0 +1,56 @@
+====================================================================
+EGDA PFR digital twin - base case (H2SO4, reversible hydrolysis/esterification)
+====================================================================
+
+Feed streams (before micromixer):
+  Stream 1:  0.50 mL/min, [EGDA]  = 0.500 M
+  Stream 2:  0.50 mL/min, [H2SO4] = 1.500 M
+
+Mixed inlet (x = 0):
+  [EGDA] = 0.2500 M
+  [EGMA] = 0.0000 M
+  [EG] = 0.0000 M
+  [AcOH] = 0.0000 M
+  [H2O] = 51.2021 M
+  [H2SO4] total = 0.7500 M
+  [H+] catalytic = 0.7599 M
+  [H+] from HSO4- equilibrium (Ka2 = 0.0102 M): 0.7599 M = 1.013 protons per H2SO4
+
+Flow / plug-flow diagnostics:
+  Reactor volume              :     0.8 mL (L = 60 mm, ID = 4.0 mm)
+  Mixture density (est.)      :   992.8 g/L
+  Water viscosity at T        :  0.2111 mPa s
+  Reynolds number             :    25.0 (laminar)
+  Radial diffusion time R^2/D :     4e+03 s   vs   tau = 45.2 s
+  ADVISORY: laminar flow with t_rad >> tau -> radially segregated streamlines; the real reactor will deviate from ideal plug flow. Narrow-bore tubing, coiled/static-mixer inserts, or higher flow rates would tighten the residence-time distribution.
+
+Reactor solution:
+  Catalyst system             : H2SO4 (specific acid catalysis: [H+] constant)
+  Temperature                 :  130.00 C (403.15 K)
+  Superficial velocity u      :   1.326 mm/s
+  Residence time tau          :    45.2 s (0.75 min)
+  kappa1 = k1[H+]          : 5.6855e-02 1/s
+  kappa2 = k2[H+]          : 3.1307e-02 1/s
+  K1(T) hydrolysis Keq        : 0.8455 (-)
+  K2(T) hydrolysis Keq        : 0.2114 (-)
+  
+  Outlet composition (mol/L):
+    EGDA  in   0.2500  ->  out   0.0240
+    EGMA  in   0.0000  ->  out   0.0999
+    EG    in   0.0000  ->  out   0.1261
+    AcOH  in   0.0000  ->  out   0.3521
+    H2O   in  51.2021  ->  out  50.8499
+  
+  EGDA conversion X           :  90.40 %
+  EGMA yield  Y_EGMA          :  39.96 %
+  EG   yield  Y_EG            :  50.44 %
+  EGMA selectivity  Y/X       :  44.20 %
+  Approach to equilibrium     : Q1/K1 =  0.034, Q2/K2 =  0.041   (1.000 = equilibrated)
+  Equilibrium limit (t->inf)  : X_eq =  99.95 %, Y_EGMA_eq =   4.36 %, Y_EG_eq =  95.59 %
+  Water depletion             :  0.688 %  (water is an explicit reactant in the reversible rate law)
+
+Verification:
+  Integrator vs closed form (irreversible limit): max rel. error = 1.77e-10  [PASS]
+  Invariant conservation (backbone/acetate/water): max drift = 1.71e-13 rel.  [PASS]
+  Thermodynamic consistency: |net rates| at coupled equilibrium = 8.04e-17 rel. to inlet rate  [PASS]
+  Outlet approach to equilibrium: Q1/K1 = 0.0341, Q2/K2 = 0.0414

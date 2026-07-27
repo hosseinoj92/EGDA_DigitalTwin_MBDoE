@@ -1,0 +1,110 @@
+==========================================================================
+Virtual self-driving laboratory - final campaign report
+==========================================================================
+
+Hidden truth (revealed post-campaign for benchmarking only):
+  k1_ref   = 0.0033 L/(mol s)
+  Ea1_J    = 58.5 kJ/mol
+  k2_ref   = 0.00085 L/(mol s)
+  Ea2_J    = 52 kJ/mol
+  K1_ref   = 0.8 -
+  K2_ref   = 0.12 -
+
+--------------------------------------------------------------------------
+Strategy A: outlet + fixed design
+  experiments run      : 8 (32 concentration observations)
+  stopping             : budget exhausted
+  mean |rel err|       : 16.84 %
+  max 95% rel CI       : 259.58 %
+  log det F            : 17.51
+  estimates (95% CI) vs truth:
+    k1_ref  :    0.003345  [  0.003235,   0.003459]   true      0.0033
+    Ea1_J   :       59.69  [     57.13,      62.25]   true        58.5
+    k2_ref  :   0.0008092  [ 0.0007343,  0.0008917]   true     0.00085
+    Ea2_J   :       55.15  [     45.39,       64.9]   true          52
+    K1_ref  :      0.4473  [    0.2113,     0.9468]   true         0.8
+    K2_ref  :     0.06875  [   0.01912,     0.2472]   true        0.12
+  parameter correlation matrix (ln k1, Ea1, ln k2, Ea2, ln K1, ln K2):
+     1.000   0.588  -0.063  -0.081  -0.588   0.033
+     0.588   1.000  -0.062  -0.076  -0.544   0.014
+    -0.063  -0.062   1.000  -0.671   0.071   0.356
+    -0.081  -0.076  -0.671   1.000   0.061  -0.900
+    -0.588  -0.544   0.071   0.061   1.000  -0.012
+     0.033   0.014   0.356  -0.900  -0.012   1.000
+  FIM eigenvalues (ascending): 3.980e-02, 5.739e-01, 9.921e+00, 1.267e+01, 2.206e+03, 6.354e+03
+  experiments chosen: T=40.0C Q=10.0mL/min cat=1.00M; T=55.0C Q=10.0mL/min cat=1.00M; T=70.0C Q=10.0mL/min cat=1.00M; T=85.0C Q=10.0mL/min cat=1.00M; T=45.0C Q=10.0mL/min cat=1.00M; T=60.0C Q=10.0mL/min cat=1.00M; T=75.0C Q=10.0mL/min cat=1.00M; T=90.0C Q=10.0mL/min cat=1.00M
+
+--------------------------------------------------------------------------
+Strategy B: spatial + fixed design
+  experiments run      : 8 (256 concentration observations)
+  stopping             : budget exhausted
+  mean |rel err|       : 5.86 %
+  max 95% rel CI       : 81.45 %
+  log det F            : 27.56
+  estimates (95% CI) vs truth:
+    k1_ref  :    0.003307  [  0.003276,   0.003338]   true      0.0033
+    Ea1_J   :       58.38  [     57.77,      58.99]   true        58.5
+    k2_ref  :   0.0008725  [ 0.0008311,   0.000916]   true     0.00085
+    Ea2_J   :       51.74  [     49.18,      54.29]   true          52
+    K1_ref  :      0.7271  [    0.4221,      1.253]   true         0.8
+    K2_ref  :     0.09304  [   0.05128,     0.1688]   true        0.12
+  parameter correlation matrix (ln k1, Ea1, ln k2, Ea2, ln K1, ln K2):
+     1.000  -0.146  -0.024  -0.018  -0.333  -0.008
+    -0.146   1.000  -0.013  -0.045  -0.390  -0.022
+    -0.024  -0.013   1.000  -0.790   0.032   0.092
+    -0.018  -0.045  -0.790   1.000   0.039  -0.592
+    -0.333  -0.390   0.032   0.039   1.000   0.035
+    -0.008  -0.022   0.092  -0.592   0.035   1.000
+  FIM eigenvalues (ascending): 5.779e-01, 8.129e+00, 1.709e+01, 1.931e+01, 1.109e+04, 5.432e+04
+  experiments chosen: T=40.0C Q=10.0mL/min cat=1.00M; T=55.0C Q=10.0mL/min cat=1.00M; T=70.0C Q=10.0mL/min cat=1.00M; T=85.0C Q=10.0mL/min cat=1.00M; T=45.0C Q=10.0mL/min cat=1.00M; T=60.0C Q=10.0mL/min cat=1.00M; T=75.0C Q=10.0mL/min cat=1.00M; T=90.0C Q=10.0mL/min cat=1.00M
+
+--------------------------------------------------------------------------
+Strategy C: outlet + MBDoE
+  experiments run      : 8 (32 concentration observations)
+  stopping             : budget exhausted
+  mean |rel err|       : 30.82 %
+  max 95% rel CI       : 2447.42 %
+  log det F            : 20.38
+  estimates (95% CI) vs truth:
+    k1_ref  :    0.003291  [  0.003201,   0.003384]   true      0.0033
+    Ea1_J   :       58.01  [     56.88,      59.14]   true        58.5
+    k2_ref  :   0.0008314  [ 0.0007845,  0.0008811]   true     0.00085
+    Ea2_J   :       51.95  [     49.42,      54.48]   true          52
+    K1_ref  :       2.186  [   0.08581,      55.68]   true         0.8
+    K2_ref  :        0.13  [    0.1021,     0.1654]   true        0.12
+  parameter correlation matrix (ln k1, Ea1, ln k2, Ea2, ln K1, ln K2):
+     1.000  -0.142  -0.133  -0.007  -0.428   0.015
+    -0.142   1.000  -0.007  -0.084  -0.097   0.014
+    -0.133  -0.007   1.000  -0.629   0.140  -0.192
+    -0.007  -0.084  -0.629   1.000   0.037  -0.190
+    -0.428  -0.097   0.140   0.037   1.000  -0.022
+     0.015   0.014  -0.192  -0.190  -0.022   1.000
+  FIM eigenvalues (ascending): 3.651e-01, 6.000e-01, 3.061e+00, 6.818e+01, 2.384e+03, 6.498e+03
+  experiments chosen: T=40.0C Q=10.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=10.0mL/min cat=0.30M; T=70.0C Q=4.0mL/min cat=1.00M; T=50.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=0.30M; T=90.0C Q=20.0mL/min cat=0.30M; T=50.0C Q=4.0mL/min cat=1.00M
+
+--------------------------------------------------------------------------
+Strategy D: spatial + MBDoE
+  experiments run      : 8 (256 concentration observations)
+  stopping             : budget exhausted
+  mean |rel err|       : 7.96 %
+  max 95% rel CI       : 77.72 %
+  log det F            : 32.50
+  estimates (95% CI) vs truth:
+    k1_ref  :     0.00327  [  0.003233,   0.003308]   true      0.0033
+    Ea1_J   :       58.59  [     58.06,      59.12]   true        58.5
+    k2_ref  :    0.000857  [ 0.0008307,  0.0008842]   true     0.00085
+    Ea2_J   :       51.43  [      50.2,      52.67]   true          52
+    K1_ref  :       1.072  [    0.6031,      1.905]   true         0.8
+    K2_ref  :       0.133  [    0.1199,     0.1475]   true        0.12
+  parameter correlation matrix (ln k1, Ea1, ln k2, Ea2, ln K1, ln K2):
+     1.000  -0.227  -0.086   0.002  -0.360   0.027
+    -0.227   1.000  -0.007  -0.086  -0.247   0.031
+    -0.086  -0.007   1.000  -0.832   0.085  -0.114
+     0.002  -0.086  -0.832   1.000   0.043  -0.227
+    -0.360  -0.247   0.085   0.043   1.000  -0.051
+     0.027   0.031  -0.114  -0.227  -0.051   1.000
+  FIM eigenvalues (ascending): 2.526e+00, 1.007e+01, 1.708e+01, 3.750e+02, 1.980e+04, 4.036e+04
+  experiments chosen: T=40.0C Q=10.0mL/min cat=1.00M; T=90.0C Q=10.0mL/min cat=1.00M; T=80.0C Q=4.0mL/min cat=1.00M; T=60.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=1.00M; T=50.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=20.0mL/min cat=1.00M
+
+--------------------------------------------------------------------------
+Virtual lab usage: 32 experiments run, truth revealed 1 time(s), all after the campaigns ended.

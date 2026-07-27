@@ -1,0 +1,50 @@
+{
+  "config": {
+    "catalyst": "H2SO4",
+    "temp_C": 70.0,
+    "stream1": {
+      "Q_mL_min": 0.5,
+      "C_EGDA_M": 0.5,
+      "density_g_L": 1005.0
+    },
+    "stream2": {
+      "Q_mL_min": 0.5,
+      "C_cat_M": 1.5,
+      "density_g_L": 1060.0
+    },
+    "reactor": {
+      "length_m": 0.2,
+      "diameter_m": 0.004
+    },
+    "h_plus_model": "equilibrium",
+    "n_eff_protons": 1.0,
+    "equilibrium": {
+      "reversible": true,
+      "K1_ref": 0.5,
+      "dH1_kJ": 5.0,
+      "K2_ref": 0.125,
+      "dH2_kJ": 5.0
+    },
+    "outdir": "results"
+  },
+  "metrics": {
+    "T_C": 70.0,
+    "tau_s": 150.79644737231007,
+    "X_EGDA": 0.36207248899098965,
+    "Y_EGMA": 0.3218450678333126,
+    "Y_EG": 0.04022742115767748,
+    "S_EGMA": 0.8888967751463765,
+    "kappa1_1_s": 0.00322688397210422,
+    "kappa2_1_s": 0.0016008375829036244,
+    "C_EGDA_out_M": 0.1594818777522526,
+    "C_EGMA_out_M": 0.08046126695832816,
+    "C_EG_out_M": 0.01005685528941937,
+    "C_AcOH_out_M": 0.10057497753716683,
+    "verification_error": 2.1929152937971708e-11,
+    "invariant_drift": 1.4210854715202004e-13,
+    "K1": 0.6513912349142572,
+    "K2": 0.1628478087285643,
+    "X_eq": 0.9991840284237088,
+    "Y_EGMA_eq": 0.0554984892382514
+  }
+}

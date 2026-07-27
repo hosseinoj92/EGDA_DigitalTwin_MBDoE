@@ -1,0 +1,46 @@
+{
+  "BASE": {
+    "catalyst": "H2SO4",
+    "temp_C": 100.0,
+    "stream1": {
+      "Q_mL_min": 0.5,
+      "C_EGDA_M": 0.5,
+      "density_g_L": 1005.0
+    },
+    "stream2": {
+      "Q_mL_min": 0.5,
+      "C_cat_M": 1.0,
+      "density_g_L": 1060.0
+    },
+    "reactor": {
+      "length_m": 0.2,
+      "diameter_m": 0.004
+    },
+    "h_plus_model": "equilibrium",
+    "n_eff_protons": 1.0,
+    "equilibrium": {
+      "reversible": true,
+      "K1_ref": 0.5,
+      "dH1_kJ": 5.0,
+      "K2_ref": 0.125,
+      "dH2_kJ": 5.0
+    },
+    "outdir": "results"
+  },
+  "VARY": {
+    "temp_C": [
+      70.0,
+      100.0,
+      130.0
+    ],
+    "reactor.length_m": [
+      0.06,
+      0.2
+    ],
+    "stream2.C_cat_M": [
+      0.5,
+      1.5
+    ]
+  },
+  "MODE": "grid"
+}

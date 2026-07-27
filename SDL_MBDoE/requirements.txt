@@ -1,0 +1,4 @@
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.7
+# Layer 1 (../PFR_H2SO4_digital_twin) must be present; it is imported in place.
