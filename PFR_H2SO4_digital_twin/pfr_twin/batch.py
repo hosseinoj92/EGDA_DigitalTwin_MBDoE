@@ -79,12 +79,41 @@ def set_path(cfg: Dict, path: str, value: Any) -> None:
 
 
 def expand(base: Dict, vary: Dict[str, Sequence[Any]],
-           mode: str = "grid") -> List[Scenario]:
-    """Expand a base config and per-parameter value lists into scenarios."""
+           mode: str = "grid",
+           link: Dict[str, str] = None) -> List[Scenario]:
+    """Expand a base config and per-parameter value lists into scenarios.
+
+    link : {follower_path: driver_path} pairs that move TOGETHER.  A follower
+        never grids independently; it is set equal to its driver in every
+        scenario.  This collapses two redundant knobs into one axis - e.g.
+        link={"stream2.Q_mL_min": "stream1.Q_mL_min"} keeps the two feed
+        flows equal, so a flow sweep is one axis instead of a cross-product.
+        Put the swept list in the DRIVER; a list on the follower is promoted
+        to the driver if the driver has none.
+    """
     if mode not in ("grid", "zip"):
         raise ValueError(f"Unknown batch mode '{mode}'; use 'grid' or 'zip'.")
+
+    link = {f: d for f, d in (link or {}).items() if f != d}
+    vary = dict(vary)
+    for follower, driver in link.items():
+        if follower in vary and driver not in vary:   # promote a misplaced list
+            vary[driver] = vary.pop(follower)
+        else:
+            vary.pop(follower, None)                   # never grid a follower
+    for follower, driver in link.items():              # fail fast on typos
+        get_path(base, driver)
+        get_path(base, follower)
+
+    def _mirror(scenarios: List[Scenario]) -> List[Scenario]:
+        for sc in scenarios:
+            for follower, driver in link.items():
+                set_path(sc.config, follower, get_path(sc.config, driver))
+        return scenarios
+
     if not vary:
-        return [Scenario(index=0, config=copy.deepcopy(base), overrides={})]
+        return _mirror([Scenario(index=0, config=copy.deepcopy(base),
+                                 overrides={})])
 
     paths = list(vary)
     for path in paths:                      # fail fast on typos
@@ -112,7 +141,7 @@ def expand(base: Dict, vary: Dict[str, Sequence[Any]],
             set_path(cfg, path, value)
             overrides[path] = value
         scenarios.append(Scenario(index=i, config=cfg, overrides=overrides))
-    return scenarios
+    return _mirror(scenarios)
 
 
 def index_rows(scenarios: Sequence[Scenario],

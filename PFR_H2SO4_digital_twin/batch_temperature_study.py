@@ -15,7 +15,7 @@ Note that the sweep axis itself (T_min_C / T_max_C / n_points) is part of the
 config, so sweep WINDOWS can also be varied - useful when comparing the two
 catalyst routes, whose useful temperature ranges differ by ~50 C.
 
-Outputs (under `results/<batch_name>/`):
+Outputs (directly under OUTDIR):
 
     <tagged folder>/            one per scenario, identical content to a single
                                 run_temperature_study.py run (both figures,
@@ -79,20 +79,27 @@ VARY: Dict[str, List] = {
 }
 
 MODE = "grid"          # "grid" = full factorial | "zip" = paired lists
-BATCH_NAME = "batch_temperature_study"
-OUTDIR = "results"
+# LINK_FLOWS = True keeps the two feed flows EQUAL (Q1 = Q2), so they form ONE
+# axis instead of a cross-product: put the flow sweep in `stream1.Q_mL_min`
+# and stream 2 follows it (any `stream2.Q_mL_min` list is ignored).
+LINK_FLOWS = True
+# Full output path for this batch. Scenarios land DIRECTLY here. A relative
+# path resolves next to this script; give an absolute path to save anywhere,
+# e.g. r"D:\Simulations\egda_runs\my_study".
+OUTDIR = "results/batch_temperature_study"
 # ============================================================================
 
 
 def run_batch(base: Dict, vary: Dict[str, List], *, mode: str = "grid",
-              batch_name: str = "batch_temperature_study",
-              outdir: str = "results", anchor: str = __file__) -> List:
+              link_flows: bool = False, outdir: str = "results",
+              anchor: str = __file__) -> List:
     """Sweep every scenario, write per-scenario folders and the summary."""
-    scenarios = expand(base, vary, mode=mode)
-    root = make_run_dir(resolve_root(outdir, anchor), batch_name)
+    link = {"stream2.Q_mL_min": "stream1.Q_mL_min"} if link_flows else None
+    scenarios = expand(base, vary, mode=mode, link=link)
+    root = resolve_root(outdir, anchor)
 
-    print(f"Batch '{batch_name}': {len(scenarios)} temperature sweeps "
-          f"({mode} over {', '.join(vary) or 'nothing'})")
+    print(f"Batch of {len(scenarios)} temperature sweeps -> {root}\n"
+          f"  ({mode} over {', '.join(vary) or 'nothing'})")
     print("-" * 78)
 
     outcomes, run_dirs, t0 = [], [], time.time()
@@ -151,7 +158,7 @@ def _write_summary(scenarios, outcomes, run_dirs, summary_dir: str,
 
 
 def main() -> None:
-    run_batch(BASE, VARY, mode=MODE, batch_name=BATCH_NAME, outdir=OUTDIR,
+    run_batch(BASE, VARY, mode=MODE, link_flows=LINK_FLOWS, outdir=OUTDIR,
               anchor=__file__)
 
 

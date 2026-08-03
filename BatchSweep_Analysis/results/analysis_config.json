@@ -1,0 +1,46 @@
+{
+  "allow_pressurized_operation": false,
+  "analysis_version": "1.0.0",
+  "diffusivity_m2_s": 1e-09,
+  "excluded_scenarios": 0,
+  "invariant_drift_limit": 1e-06,
+  "loaded_scenarios": 3000,
+  "output_root": "C:\\Users\\vt4ho\\Simulations\\kinetics_sim\\EDGA\\Homogenous\\BatchSweep_Analysis\\results",
+  "pareto_objectives": {
+    "maximize": [
+      "Y_EGMA",
+      "S_EGMA",
+      "STY_EGMA_mol_Lreactor_h"
+    ],
+    "minimize": [
+      "temp_C",
+      "C_catalyst_feed_M",
+      "tau_s",
+      "Y_EG"
+    ]
+  },
+  "peak_relative_threshold": 0.95,
+  "pressure_threshold_C": 100.0,
+  "random_seed": 1729,
+  "regimes": {
+    "acid_equilibrium_fraction": 0.9,
+    "low_conversion_max": 0.1,
+    "naoh_exhausted_fraction": 0.01,
+    "selective_min_selectivity": 0.7,
+    "selective_min_yield": 0.2
+  },
+  "robust_window": {
+    "max_Y_EG": 0.4,
+    "max_temp_C": 100.0,
+    "min_S_EGMA": 0.5,
+    "min_X_EGDA": 0.5,
+    "min_Y_EGMA": 0.25,
+    "min_feasible_neighbor_fraction": 0.5,
+    "near_optimal_fraction": 0.95,
+    "require_physical_validity": false
+  },
+  "source_results_are_read_only": true,
+  "source_root": "C:\\Users\\vt4ho\\Simulations\\kinetics_sim\\EDGA\\Homogenous_RESULTS\\BatchSweep",
+  "top_conditions_per_study": 10,
+  "verification_error_limit": 1e-06
+}

@@ -1,0 +1,5 @@
+catalyst,geometry,pfr_advisory,scenario_count
+H2SO4,A,radially_segregated,1000
+H2SO4,B,radially_segregated,500
+NaOH,A,radially_segregated,1000
+NaOH,B,radially_segregated,500
