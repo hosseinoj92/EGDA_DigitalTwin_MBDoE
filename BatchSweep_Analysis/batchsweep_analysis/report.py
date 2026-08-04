@@ -111,15 +111,25 @@ def build_report(
     pareto_counts = Counter((row["catalyst"], row["geometry"]) for row in pareto)
     robust_counts = Counter((row["catalyst"], row["geometry"]) for row in robust)
     for catalyst, geometry in sorted({(row["catalyst"], row["geometry"]) for row in rows}):
+        study_pareto = [row for row in pareto if row["catalyst"] == catalyst and row["geometry"] == geometry]
+        epsilon = max((float(row.get("pareto_epsilon_normalized", 0.0)) for row in study_pareto), default=0.0)
+        pareto_label = "exact Pareto scenarios" if epsilon == 0.0 else f"epsilon-Pareto candidates (normalized epsilon={epsilon:.4g})"
         first = next((row for row in top if row["catalyst"] == catalyst and row["geometry"] == geometry and int(row["rank"]) == 1), None)
         description = ""
         if first:
             pressure_note = " This point requires pressurization under the configured temperature screen." if bool(first["requires_pressurization"]) else ""
             description = f" The highest transparent screening score has T={_fmt(first['temp_C'])} °C, total flow={_fmt(first['Q_total_mL_min'])} mL/min, feed EGDA={_fmt(first['C_EGDA_feed_M'])} M, catalyst={_fmt(first['C_catalyst_feed_M'])} M, Y_EGMA={_fmt(first['Y_EGMA'])}, and STY={_fmt(first['STY_EGMA_mol_Lreactor_h'])} mol L-reactor⁻¹ h⁻¹.{pressure_note}"
-        lines.append(f"- **{catalyst}, geometry {geometry}:** {pareto_counts[(catalyst, geometry)]} exact Pareto scenarios and {robust_counts[(catalyst, geometry)]} threshold/neighbor-robust scenarios.{description}")
+        lines.append(f"- **{catalyst}, geometry {geometry}:** {pareto_counts[(catalyst, geometry)]} {pareto_label} and {robust_counts[(catalyst, geometry)]} threshold/neighbor-robust scenarios.{description}")
+    used_epsilon_pareto = any(float(row.get("pareto_epsilon_normalized", 0.0)) > 0.0 for row in pareto)
+    pareto_explanation = (
+        "Studies above the configured exact-size limit use normalized epsilon-grid dominance to prevent the seven-objective comparison from becoming quadratic. The actual epsilon and method are recorded in `pareto_front.csv`; these rows are screening candidates, not a claim of exact nondominance. Numba enables the compiled exact path; changing either Pareto size limit trades runtime for exactness when that accelerator is unavailable."
+        if used_epsilon_pareto
+        else
+        "All studies were below the configured exact-size limit, so `pareto_front.csv` contains exact nondominated scenarios."
+    )
     lines.extend([
         "",
-        "The top-condition score is explicitly a screening preference, not a fitted optimum. The exact Pareto table is the appropriate output when objective weights are not agreed; because seven objectives are used, a large nondominated set is expected and should be narrowed only after priorities are chosen. Robust-window membership depends on the thresholds recorded in `analysis_config.json`.",
+        f"The top-condition score is explicitly a screening preference, not a fitted optimum. {pareto_explanation} Because seven objectives are used, a large candidate set is expected and should be narrowed only after priorities are chosen. Robust-window membership depends on the thresholds recorded in `analysis_config.json`.",
         "",
         "## Geometry-collapse assessment",
         "",

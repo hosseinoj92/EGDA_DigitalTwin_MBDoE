@@ -101,7 +101,7 @@ def create_figures(
                        s=22, alpha=0.7, c=COLORS[catalyst], marker=MARKERS[geometry], label=f"{catalyst} / {geometry}")
     ax.set_xlabel("EGMA yield")
     ax.set_ylabel("EGMA STY [mol L-reactor⁻¹ h⁻¹]")
-    ax.set_title("Exact multi-objective Pareto scenarios")
+    ax.set_title("Multi-objective Pareto candidates")
     ax.grid(alpha=0.2)
     ax.legend(fontsize=8)
     _finish(fig, directory, "pareto_yield_vs_sty", pareto)

@@ -69,14 +69,14 @@ BASE.update({
 # Parameters to scan. Keys are DOTTED PATHS into BASE; values are lists.
 # Comment a line out to hold that parameter at its BASE value.
 VARY: Dict[str, List] = {
-    "temp_C":             [25, 40, 60, 80, 100, 120, 140, 160],
-    "reactor.length_m":   [0.20],
-    "stream2.C_cat_M":    [0.1, 0.2, 0.3, 0.4, 0.5],
-    "stream1.C_EGDA_M":       [0.1, 0.2, 0.3, 0.4, 0.5],
-    "catalyst":               ["NaOH"],
-    "reactor.diameter_m":     [0.018],
-    "stream1.Q_mL_min":       [1.0, 2.0, 3.0, 4.0, 5.0],
-    "stream2.Q_mL_min":       [1.0, 2.0, 3.0, 4.0, 5.0],
+    "temp_C":             [25, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160],
+    "reactor.length_m":   [0.06],
+    "stream2.C_cat_M":    [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+    "stream1.C_EGDA_M":       [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+    "catalyst":               ["H2SO4", "NaOH"],
+    "reactor.diameter_m":     [0.004],
+    "stream1.Q_mL_min":       [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 2.0, 3.0, 4.0, 5.0],
+    "stream2.Q_mL_min":       [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 2.0, 3.0, 4.0, 5.0],
     "equilibrium.reversible": [True],
 }
 
@@ -92,10 +92,53 @@ LINK_FLOWS = True
 # Full output path for this batch. Scenarios land DIRECTLY here. A relative
 # path resolves next to this script; give an absolute path to save anywhere,
 # e.g. r"D:\Simulations\egda_runs\my_study".
-OUTDIR = r"C:\Users\vt4ho\Simulations\kinetics_sim\EDGA\Homogenous_RESULTS\BatchSweep\NaOH\PFR_dimensions"
-QUIET = True                       # True: one progress line per scenario
+OUTDIR = r"D:\Simulations\EGDA_kinetics\Homogenous_Catalysis\BatchSweep_CPR_bigew"
+QUIET = True                       # True: single progress bar (count, %, ETA)
+                                   # False: full per-scenario report log
 SAVE_IMAGES = False                 # False: keep only CSV, JSON, and TXT outputs
 # ============================================================================
+
+
+try:
+    from tqdm import tqdm as _tqdm
+except ImportError:                                # tqdm is optional
+    _tqdm = None
+
+
+def _fmt_secs(s: float) -> str:
+    s = int(round(max(s, 0.0)))
+    if s < 60:
+        return f"{s}s"
+    m, s = divmod(s, 60)
+    if m < 60:
+        return f"{m}m{s:02d}s"
+    h, m = divmod(m, 60)
+    return f"{h}h{m:02d}m"
+
+
+def _progress(items, *, enabled: bool):
+    """Yield items with a tqdm-style progress bar (count, %, elapsed, ETA).
+    Uses tqdm when installed; otherwise a compact dependency-free fallback.
+    When disabled, yields the items unchanged (no bar)."""
+    if not enabled:
+        yield from items
+        return
+    total = len(items)
+    if _tqdm is not None:
+        yield from _tqdm(items, total=total, unit="scn",
+                         dynamic_ncols=True, desc="  simulating")
+        return
+    t0, width = time.time(), 28
+    for i, it in enumerate(items, 1):
+        yield it
+        done = int(width * i / total)
+        bar = "#" * done + "-" * (width - done)
+        elapsed = time.time() - t0
+        eta = elapsed / i * (total - i)
+        print(f"\r  [{bar}] {100 * i / total:5.1f}%  {i}/{total}  "
+              f"elapsed {_fmt_secs(elapsed)}  ETA {_fmt_secs(eta)}   ",
+              end="", flush=True)
+    print()
 
 
 def run_batch(base: Dict, vary: Dict[str, List], *, mode: str = "grid",
@@ -112,7 +155,7 @@ def run_batch(base: Dict, vary: Dict[str, List], *, mode: str = "grid",
     print("-" * 74)
 
     outcomes, run_dirs, t0 = [], [], time.time()
-    for sc in scenarios:
+    for sc in _progress(scenarios, enabled=quiet):
         outcome = simulate_case(sc.config)
         run_dir = make_run_dir(root, run_tag(sc.config, prefix=f"s{sc.index:02d}"))
         if save_images:
@@ -122,11 +165,11 @@ def run_batch(base: Dict, vary: Dict[str, List], *, mode: str = "grid",
             _remove_png_files(run_dir)
         outcomes.append(outcome)
         run_dirs.append(run_dir)
-        m = outcome.metrics
-        print(f"  [{sc.index + 1:>3}/{len(scenarios)}] {sc.label():<46s} "
-              f"X={m['X_EGDA']:6.2%}  Y_EGMA={m['Y_EGMA']:6.2%}  "
-              f"Y_EG={m['Y_EG']:6.2%}  tau={m['tau_s']:8.1f}s")
-        if not quiet:
+        if not quiet:                              # verbose: full per-scenario log
+            m = outcome.metrics
+            print(f"  [{sc.index + 1:>3}/{len(scenarios)}] {sc.label():<46s} "
+                  f"X={m['X_EGDA']:6.2%}  Y_EGMA={m['Y_EGMA']:6.2%}  "
+                  f"Y_EG={m['Y_EG']:6.2%}  tau={m['tau_s']:8.1f}s")
             print(outcome.report)
 
     summary_dir = make_run_dir(root, "_batch_summary")

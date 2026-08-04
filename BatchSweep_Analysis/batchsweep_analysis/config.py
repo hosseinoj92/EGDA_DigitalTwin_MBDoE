@@ -14,6 +14,14 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "verification_error_limit": 1.0e-6,
     "invariant_drift_limit": 1.0e-6,
     "peak_relative_threshold": 0.95,
+    # Scalability controls. Small studies retain cell/scenario-level detail;
+    # larger studies automatically keep compact statistical summaries.
+    "anova_interaction_detail_row_limit": 100_000,
+    "local_elasticity_detail_row_limit": 200_000,
+    "pareto_exact_scenario_limit": 50_000,
+    "pareto_python_exact_scenario_limit": 10_000,
+    "pareto_epsilon": 0.02,
+    "pareto_max_unique_bins": 5_000,
     "pareto_objectives": {
         "maximize": ["Y_EGMA", "S_EGMA", "STY_EGMA_mol_Lreactor_h"],
         "minimize": ["temp_C", "C_catalyst_feed_M", "tau_s", "Y_EG"],
@@ -58,4 +66,3 @@ def load_config(path: Path | None) -> dict[str, Any]:
     if not isinstance(supplied, dict):
         raise ValueError("Analysis configuration must be a JSON object.")
     return _merge(DEFAULT_CONFIG, supplied)
-

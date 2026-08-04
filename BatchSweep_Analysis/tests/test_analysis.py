@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import copy
 import itertools
 import json
 import math
@@ -16,7 +17,13 @@ if str(PACKAGE_ROOT) not in sys.path:
 from batchsweep_analysis.config import DEFAULT_CONFIG
 from batchsweep_analysis.io import discover, write_csv
 from batchsweep_analysis.physics import axial_peak, enrich
-from batchsweep_analysis.statistics import functional_anova, geometry_collapse, pareto_front
+from batchsweep_analysis.statistics import (
+    functional_anova,
+    geometry_collapse,
+    local_elasticities,
+    pareto_front,
+    surrogate_validation,
+)
 
 
 PROFILE_FIELDS = [
@@ -79,6 +86,23 @@ class AnalysisTests(unittest.TestCase):
             self.assertEqual(len(excluded), 1)
             self.assertEqual(len(duplicates), 2)
 
+    def test_discovery_can_stream_and_release_profiles(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write_scenario(root / "one")
+            streamed: list[tuple[str, int]] = []
+            rows, profiles, excluded, _ = discover(
+                root,
+                on_scenario=lambda row, profile: streamed.append(
+                    (row["scenario_id"], len(profile))
+                ),
+                retain_profiles=False,
+            )
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(profiles, {})
+            self.assertEqual(streamed, [(rows[0]["scenario_id"], 3)])
+            self.assertEqual(excluded, [])
+
     def test_geometry_and_flow_formulas(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -120,6 +144,59 @@ class AnalysisTests(unittest.TestCase):
         total = main[0]["total_variance"]
         self.assertAlmostEqual(sum(components.values()), total, places=11)
 
+    def test_large_anova_and_elasticity_outputs_are_compact(self) -> None:
+        rows = []
+        for index, (t, c, e, q) in enumerate(itertools.product((1.0, 2.0, 3.0), repeat=4)):
+            y = 3.0 * t + 2.0 * c + t * c + 0.5 * e - q
+            rows.append({
+                "scenario_id": f"s{index}",
+                "catalyst": "route", "geometry": "A", "temp_C": t,
+                "temperature_K": t + 273.15,
+                "C_catalyst_feed_M": c, "C_EGDA_feed_M": e,
+                "Q_total_mL_min": q, "Y_EGMA": y,
+            })
+        main, interactions = functional_anova(
+            rows, ["Y_EGMA"], detail_cell_limit=1
+        )
+        self.assertTrue(main)
+        self.assertTrue(interactions)
+        self.assertTrue(all(
+            row["detail_mode"] == "component_summary_large_grid"
+            for row in interactions
+        ))
+        self.assertTrue(all(abs(float(row["reconstruction_residual"])) < 1e-10 for row in main))
+
+        elasticities = local_elasticities(
+            rows, ["Y_EGMA"], detail_row_limit=1
+        )
+        self.assertEqual(len(elasticities), 4)
+        self.assertTrue(all(
+            row["detail_mode"] == "distribution_summary_large_grid"
+            for row in elasticities
+        ))
+
+    def test_multioutput_surrogate_validation(self) -> None:
+        rows = []
+        for t, c, e, q in itertools.product((1.0, 2.0, 3.0), repeat=4):
+            rows.append({
+                "catalyst": "route", "geometry": "A", "temp_C": t,
+                "C_catalyst_feed_M": c, "C_EGDA_feed_M": e,
+                "Q_total_mL_min": q,
+                "one": t + 2.0 * c - e + q,
+                "two": 2.0 * t - c + 0.5 * e - q,
+            })
+        validation = surrogate_validation(rows, ["one", "two"])
+        self.assertEqual(len(validation), 24)
+        separate = surrogate_validation(rows, ["one"]) + surrogate_validation(rows, ["two"])
+        keyed = {
+            (row["response"], row["held_out_factor"], row["held_out_level"]): row
+            for row in separate
+        }
+        for row in validation:
+            reference = keyed[(row["response"], row["held_out_factor"], row["held_out_level"])]
+            for metric in ("RMSE", "MAE", "R2", "max_absolute_error"):
+                self.assertAlmostEqual(float(row[metric]), float(reference[metric]), places=12)
+
     def test_exact_pareto_dominance(self) -> None:
         base = {"catalyst": "route", "geometry": "A", "S_EGMA": 0.8, "temp_C": 50.0, "C_catalyst_feed_M": 0.2, "tau_s": 10.0, "Y_EG": 0.1,
                 "C_EGDA_feed_M": 0.2, "Q_total_mL_min": 2.0}
@@ -130,6 +207,28 @@ class AnalysisTests(unittest.TestCase):
         config = {"pareto_objectives": {"maximize": ["Y_EGMA", "S_EGMA", "STY_EGMA_mol_Lreactor_h"], "minimize": ["temp_C", "C_catalyst_feed_M", "tau_s", "Y_EG"]}}
         front = pareto_front(rows, config)
         self.assertEqual([row["scenario_id"] for row in front], ["best"])
+        self.assertEqual(front[0]["pareto_method"], "exact_incremental_dominance")
+
+    def test_large_pareto_uses_auditable_epsilon_method(self) -> None:
+        base = {"catalyst": "route", "geometry": "A", "S_EGMA": 0.8, "temp_C": 50.0, "C_catalyst_feed_M": 0.2, "tau_s": 10.0, "Y_EG": 0.1,
+                "C_EGDA_feed_M": 0.2, "Q_total_mL_min": 2.0}
+        rows = [
+            {**base, "scenario_id": "best", "Y_EGMA": 0.9, "STY_EGMA_mol_Lreactor_h": 3.0},
+            {**base, "scenario_id": "middle", "Y_EGMA": 0.5, "STY_EGMA_mol_Lreactor_h": 2.0},
+            {**base, "scenario_id": "low", "Y_EGMA": 0.1, "STY_EGMA_mol_Lreactor_h": 1.0},
+        ]
+        config = copy.deepcopy(DEFAULT_CONFIG)
+        config["pareto_exact_scenario_limit"] = 1
+        config["pareto_epsilon"] = 0.1
+        config["pareto_max_unique_bins"] = 100
+        front = pareto_front(rows, config)
+        self.assertIn("best", {row["scenario_id"] for row in front})
+        self.assertTrue(all(
+            row["pareto_method"] == "epsilon_grid_dominance_large_study"
+            and float(row["pareto_epsilon_normalized"]) > 0.0
+            and row["is_pareto_optimal"] == ""
+            for row in front
+        ))
 
     def test_geometry_collapse_pair(self) -> None:
         common = {"catalyst": "route", "temp_C": 25.0, "C_catalyst_feed_M": 0.1, "C_EGDA_feed_M": 0.2, "tau_s": 10.0, "X_EGDA": 0.4, "Y_EGMA": 0.3, "S_EGMA": 0.75}
@@ -154,4 +253,3 @@ class AnalysisTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

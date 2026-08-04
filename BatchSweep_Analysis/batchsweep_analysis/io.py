@@ -5,7 +5,9 @@ import hashlib
 import json
 import math
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
+
+from .progress import progress
 
 
 PROFILE_REQUIRED = {
@@ -92,12 +94,39 @@ def configuration_key(row: dict[str, Any]) -> tuple[Any, ...]:
     return tuple(row.get(name) for name in names)
 
 
-def discover(root: Path) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, float]]], list[dict[str, Any]], list[dict[str, Any]]]:
+def discover(
+    root: Path,
+    *,
+    show_progress: bool = False,
+    on_scenario: Callable[[dict[str, Any], list[dict[str, float]]], None] | None = None,
+    retain_profiles: bool = True,
+) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, float]]], list[dict[str, Any]], list[dict[str, Any]]]:
     rows: list[dict[str, Any]] = []
     profiles: dict[str, list[dict[str, float]]] = {}
     excluded: list[dict[str, Any]] = []
     seen_dirs: set[Path] = set()
-    for run_path in sorted(root.rglob("run_config.json")):
+    discovery_iterator = root.rglob("run_config.json")
+    if show_progress:
+        discovery_iterator = progress(
+            discovery_iterator,
+            desc="Discovering scenario files",
+            unit="file",
+            position=1,
+            leave=False,
+        )
+    run_paths = sorted(discovery_iterator)
+    iterator = (
+        progress(
+            run_paths,
+            desc="Loading configurations and profiles",
+            unit="scenario",
+            position=1,
+            leave=False,
+        )
+        if show_progress
+        else run_paths
+    )
+    for run_path in iterator:
         seen_dirs.add(run_path.parent.resolve())
         try:
             with run_path.open("r", encoding="utf-8") as handle:
@@ -109,8 +138,11 @@ def discover(root: Path) -> tuple[list[dict[str, Any]], dict[str, list[dict[str,
             if not profile_path.is_file():
                 raise FileNotFoundError("profiles.csv is missing")
             profile = read_profile(profile_path)
+            if on_scenario is not None:
+                on_scenario(row, profile)
             rows.append(row)
-            profiles[row["scenario_id"]] = profile
+            if retain_profiles:
+                profiles[row["scenario_id"]] = profile
         except Exception as exc:
             excluded.append({
                 "relative_path": run_path.parent.relative_to(root).as_posix(),
@@ -118,7 +150,19 @@ def discover(root: Path) -> tuple[list[dict[str, Any]], dict[str, list[dict[str,
                 "details": str(exc),
             })
 
-    candidate_dirs = {p.parent.resolve() for name in ("profiles.csv", "summary.txt") for p in root.rglob(name)}
+    # A profile is the strongest indication of a scenario directory. Scanning
+    # summary.txt as well would duplicate an expensive full tree walk for large
+    # batches without improving detection of usable simulation results.
+    candidate_iterator = root.rglob("profiles.csv")
+    if show_progress:
+        candidate_iterator = progress(
+            candidate_iterator,
+            desc="Checking for incomplete scenario folders",
+            unit="file",
+            position=1,
+            leave=False,
+        )
+    candidate_dirs = {path.parent.resolve() for path in candidate_iterator}
     for directory in sorted(candidate_dirs - seen_dirs, key=str):
         excluded.append({
             "relative_path": directory.relative_to(root.resolve()).as_posix(),
@@ -144,9 +188,9 @@ def discover(root: Path) -> tuple[list[dict[str, Any]], dict[str, list[dict[str,
 
 
 def write_csv(path: Path, rows: Iterable[dict[str, Any]], fieldnames: list[str] | None = None) -> None:
-    materialized = list(rows)
     path.parent.mkdir(parents=True, exist_ok=True)
     if fieldnames is None:
+        materialized = list(rows)
         fieldnames = []
         observed: set[str] = set()
         for row in materialized:
@@ -154,10 +198,15 @@ def write_csv(path: Path, rows: Iterable[dict[str, Any]], fieldnames: list[str] 
                 if key not in observed:
                     observed.add(key)
                     fieldnames.append(key)
+        row_iterator: Iterable[dict[str, Any]] = materialized
+    else:
+        # With an explicit schema, write generators incrementally instead of
+        # copying/materializing a potentially very large result table.
+        row_iterator = rows
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore", lineterminator="\n")
         writer.writeheader()
-        for row in materialized:
+        for row in row_iterator:
             writer.writerow({key: _csv_value(row.get(key, "")) for key in fieldnames})
 
 

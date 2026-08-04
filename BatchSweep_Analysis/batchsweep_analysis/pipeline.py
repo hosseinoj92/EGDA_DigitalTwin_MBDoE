@@ -9,6 +9,7 @@ from typing import Any
 from .io import discover, write_csv, write_json
 from .physics import assign_regime, enrich
 from .plots import create_figures
+from .progress import progress
 from .report import build_report
 from .statistics import (
     FACTORS,
@@ -88,7 +89,13 @@ def _invalid_records(rows: list[dict[str, Any]], excluded: list[dict[str, Any]])
     return output
 
 
-def run_analysis(source_root: Path, output_root: Path, config: dict[str, Any]) -> dict[str, Any]:
+def run_analysis(
+    source_root: Path,
+    output_root: Path,
+    config: dict[str, Any],
+    *,
+    show_progress: bool = True,
+) -> dict[str, Any]:
     source_root = source_root.resolve()
     output_root = output_root.resolve()
     if not source_root.is_dir():
@@ -101,23 +108,80 @@ def run_analysis(source_root: Path, output_root: Path, config: dict[str, Any]) -
         raise ValueError("Analysis output must not be placed inside the source results tree.")
     output_root.mkdir(parents=True, exist_ok=True)
 
-    raw_rows, profiles, excluded, duplicates = discover(source_root)
-    if not raw_rows:
-        raise RuntimeError("No valid scenarios were discovered.")
-    rows = [enrich(row, profiles[row["scenario_id"]], config) for row in raw_rows]
-    rows.sort(key=lambda row: (row["catalyst"], row["geometry"], row["temp_C"], row["C_catalyst_feed_M"], row["C_EGDA_feed_M"], row["Q_total_mL_min"], row["scenario_id"]))
+    overall = progress(
+        total=12,
+        desc="Overall analysis",
+        unit="phase",
+        position=0,
+        disable=not show_progress,
+    )
 
+    overall.set_description("Overall: loading and deriving metrics")
+    rows: list[dict[str, Any]] = []
+
+    def process_scenario(
+        raw_row: dict[str, Any],
+        profile: list[dict[str, float]],
+    ) -> None:
+        # Enrich immediately and let the profile fall out of scope. Retaining
+        # all profiles for a 42k sweep would require millions of dictionaries
+        # and several GB of memory.
+        rows.append(enrich(raw_row, profile, config))
+
+    raw_rows, profiles, excluded, duplicates = discover(
+        source_root,
+        show_progress=show_progress,
+        on_scenario=process_scenario,
+        retain_profiles=False,
+    )
+    if not raw_rows:
+        overall.close()
+        raise RuntimeError("No valid scenarios were discovered.")
+    del profiles
+    rows.sort(key=lambda row: (row["catalyst"], row["geometry"], row["temp_C"], row["C_catalyst_feed_M"], row["C_EGDA_feed_M"], row["Q_total_mL_min"], row["scenario_id"]))
+    # Loading and physical derivation are two of the twelve reported phases.
+    overall.update(2)
+
+    raw_fields = list(raw_rows[0].keys())
+    for raw_row in raw_rows[1:]:
+        raw_fields.extend(key for key in raw_row if key not in raw_fields)
+    del raw_rows
+
+    overall.set_description("Overall: checking coverage")
     coverage = _coverage(rows, excluded, duplicates)
-    main_effects, interaction_effects = functional_anova(rows)
-    elasticities = local_elasticities(rows)
-    surrogate = surrogate_validation(rows)
+    overall.update(1)
+
+    overall.set_description("Overall: functional ANOVA")
+    main_effects, interaction_effects = functional_anova(
+        rows,
+        show_progress=show_progress,
+        detail_cell_limit=int(config["anova_interaction_detail_row_limit"]),
+    )
+    overall.update(1)
+
+    overall.set_description("Overall: local elasticities")
+    elasticities = local_elasticities(
+        rows,
+        show_progress=show_progress,
+        detail_row_limit=int(config["local_elasticity_detail_row_limit"]),
+    )
+    overall.update(1)
+
+    overall.set_description("Overall: surrogate validation")
+    surrogate = surrogate_validation(rows, show_progress=show_progress)
+    overall.update(1)
+
+    overall.set_description("Overall: regimes and decisions")
     assignments = [assign_regime(row, config) for row in rows]
     regimes = regime_summary(assignments)
     collapse = geometry_collapse(rows)
-    pareto = pareto_front(rows, config)
+    pareto = pareto_front(rows, config, show_progress=show_progress)
     top = top_conditions(rows, int(config["top_conditions_per_study"]))
     robust = robust_windows(rows, config)
     invalid = _invalid_records(rows, excluded)
+    overall.update(1)
+
+    overall.set_description("Overall: preparing output tables")
     peaks = [
         {key: row[key] for key in [
             "scenario_id", "catalyst", "geometry", "temp_C", "C_EGDA_feed_M",
@@ -132,13 +196,20 @@ def run_analysis(source_root: Path, output_root: Path, config: dict[str, Any]) -
         for row in rows
     ]
 
-    raw_fields = list(raw_rows[0].keys())
-    for row in raw_rows[1:]:
-        raw_fields.extend(key for key in row if key not in raw_fields)
     derived_exclude = set(raw_fields) - {"scenario_id", "catalyst", "geometry", "relative_path"}
-    derived_rows = [{key: value for key, value in row.items() if key not in derived_exclude} for row in rows]
-    write_csv(output_root / "consolidated_scenarios.csv", raw_rows, raw_fields)
-    write_csv(output_root / "derived_metrics.csv", derived_rows)
+    derived_fields = [key for key in rows[0] if key not in derived_exclude]
+    overall.update(1)
+
+    overall.set_description("Overall: writing CSV files")
+    write_csv(output_root / "consolidated_scenarios.csv", rows, raw_fields)
+    write_csv(
+        output_root / "derived_metrics.csv",
+        (
+            {key: row.get(key, "") for key in derived_fields}
+            for row in rows
+        ),
+        derived_fields,
+    )
     write_csv(output_root / "excluded_or_invalid_scenarios.csv", invalid, ["scenario_id", "relative_path", "catalyst", "geometry", "status", "reason", "details", "retained_in_analysis"])
     write_csv(output_root / "data_coverage.csv", coverage)
     write_csv(output_root / "duplicate_configs.csv", duplicates, ["duplicate_group", "scenario_id", "relative_path", "group_size"])
@@ -153,7 +224,9 @@ def run_analysis(source_root: Path, output_root: Path, config: dict[str, Any]) -
     write_csv(output_root / "pareto_front.csv", pareto)
     write_csv(output_root / "top_conditions.csv", top)
     write_csv(output_root / "robust_operating_windows.csv", robust)
+    overall.update(1)
 
+    overall.set_description("Overall: writing configuration")
     runtime_config = dict(config)
     runtime_config.update({
         "source_root": str(source_root),
@@ -163,7 +236,13 @@ def run_analysis(source_root: Path, output_root: Path, config: dict[str, Any]) -
         "source_results_are_read_only": True,
     })
     write_json(output_root / "analysis_config.json", runtime_config)
+    overall.update(1)
+
+    overall.set_description("Overall: generating figures")
     figures = create_figures(rows, coverage, main_effects, pareto, peaks, regimes, output_root / "figures")
+    overall.update(1)
+
+    overall.set_description("Overall: report and manifest")
     build_report(
         output_root / "analysis_report.md", source_root, rows, excluded, duplicates,
         coverage, main_effects, surrogate, regimes, pareto, robust, collapse, top, figures,
@@ -174,9 +253,22 @@ def run_analysis(source_root: Path, output_root: Path, config: dict[str, Any]) -
         "duplicate_configuration_records": len(duplicates),
         "physical_valid_scenarios": sum(bool(row["physical_valid"]) for row in rows),
         "pareto_scenarios": len(pareto),
+        "pareto_methods": sorted({row["pareto_method"] for row in pareto}),
+        "pareto_epsilon_by_study": {
+            f"{catalyst}/{geometry}": max(
+                float(row["pareto_epsilon_normalized"])
+                for row in pareto
+                if row["catalyst"] == catalyst and row["geometry"] == geometry
+            )
+            for catalyst, geometry in sorted({
+                (row["catalyst"], row["geometry"]) for row in pareto
+            })
+        },
         "robust_window_scenarios": len(robust),
         "figures": figures,
     }
     write_json(output_root / "analysis_manifest.json", manifest)
+    overall.update(1)
+    overall.set_description("Overall: complete")
+    overall.close()
     return manifest
-

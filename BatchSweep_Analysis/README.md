@@ -45,11 +45,11 @@ flowchart LR
 
 | File or module | Responsibility |
 |---|---|
-| `analyze_batch_results.py` | Command-line entry point. It accepts the source result root, output directory, and optional analysis configuration. |
+| `analyze_batch_results.py` | Entry point. Absolute IDE paths are configured at the top of the file; optional command-line arguments can override them. The source root is searched recursively and the output path is created separately. |
 | `batchsweep_analysis/config.py` | Default thresholds, Pareto objectives, numerical tolerances, and robust-window definitions. |
 | `batchsweep_analysis/io.py` | Recursively discovers scenarios, validates JSON/profile schemas, creates stable scenario IDs, detects duplicates, and writes deterministic CSV/JSON files. |
 | `batchsweep_analysis/physics.py` | Calculates geometry, mixed-inlet, kinetic, Damköhler, throughput, stoichiometric, equilibrium, transport-validity, and axial-peak metrics. |
-| `batchsweep_analysis/statistics.py` | Performs exact functional ANOVA, local finite differences, response-surface validation, Pareto dominance, robust-window testing, and geometry matching. |
+| `batchsweep_analysis/statistics.py` | Performs vectorized exact functional ANOVA, local finite differences, multi-output response-surface validation, size-aware Pareto dominance, robust-window testing, and geometry matching. |
 | `batchsweep_analysis/plots.py` | Generates the analysis figures and a same-named CSV containing the data plotted in each figure. |
 | `batchsweep_analysis/report.py` | Converts the calculated results into the narrative `analysis_report.md`. |
 | `batchsweep_analysis/pipeline.py` | Orchestrates loading, calculation, statistics, CSV writing, plotting, and reporting. |
@@ -93,13 +93,56 @@ For H₂SO₄, the rate-driving concentration is the modeled inlet proton concen
 
 ## 4. Running the analysis
 
+### Running directly from an IDE
+
+At the top of `analyze_batch_results.py`, edit the clearly marked configuration block if the locations change:
+
+```python
+SOURCE_RESULTS_ROOT = Path(
+    r"D:\Simulations\EGDA_kinetics\Homogenous_Catalysis\BatchSweep_CPR_big_data"
+)
+
+ANALYSIS_OUTPUT_ROOT = Path(
+    r"D:\Simulations\EGDA_kinetics\Homogenous_Catalysis\BatchSweep_CPR_big_Analysis"
+)
+
+SHOW_PROGRESS = True
+```
+
+`SOURCE_RESULTS_ROOT` is the common parent folder below which all route, geometry, and scenario subfolders exist. The loader searches every level below it for `run_config.json`. `ANALYSIS_OUTPUT_ROOT` is the separate destination for the generated tables, report, and figures.
+
+With these paths configured, run `analyze_batch_results.py` normally from the IDE. No console input or command-line arguments are required. The equivalent PowerShell command is:
+
+```powershell
+& 'C:\Users\vt4ho\AppData\Local\Programs\Python\Python312\python.exe' `
+  .\BatchSweep_Analysis\analyze_batch_results.py
+```
+
+While it runs, the IDE console displays a `tqdm` overall progress bar with the current analysis phase and estimated remaining time. Loading and physical-metric calculation also have scenario-level bars, for example `1450/3000 scenarios`. If `tqdm` is unavailable in another Python environment, a built-in text progress indicator is used automatically.
+
+The output folder is created automatically if it does not exist. The script deliberately refuses to place its output inside the source-results tree.
+
+### Large-sweep behavior
+
+The analysis automatically changes only the **storage/detail strategy**, not the underlying saved simulations, when a sweep is large:
+
+- Each profile is enriched as soon as it is read and then released. The code never retains all axial-profile dictionaries in memory.
+- Functional ANOVA uses dense NumPy marginal arrays rather than repeatedly scanning the full scenario list. Main effects remain level-resolved and exact. When the projected interaction table exceeds `anova_interaction_detail_row_limit`, `interaction_effects.csv` stores one exact variance-component summary per interaction instead of every interaction cell.
+- When the projected per-scenario elasticity table exceeds `local_elasticity_detail_row_limit`, `local_elasticities.csv` stores counts, means, medians, and 5th/95th percentiles for each study/factor/response instead of hundreds of thousands of Python records.
+- All four surrogate responses are fitted together for each held-level fold, avoiding four duplicate least-squares decompositions.
+- Pareto dominance is exact up to `pareto_exact_scenario_limit`. Studies above `pareto_python_exact_scenario_limit` use an optional Numba-compiled exact skyline scan when Numba is installed. Above the exact limit—or without Numba when a study exceeds the safe Python limit—normalized epsilon-grid dominance is used with `pareto_epsilon`; if necessary, epsilon is increased until at most `pareto_max_unique_bins` remain. `pareto_front.csv` records `pareto_method`, the actual normalized epsilon, bin counts, and study size, so any fallback remains explicit and auditable.
+
+The supplied thresholds are intended to keep a 42,000-scenario analysis within ordinary workstation memory. They can be changed in `analysis_config.json`; increasing detail or the exact-Pareto limit trades substantially more time and memory for finer output.
+
+### Command-line use
+
 From the repository root in PowerShell:
 
 ```powershell
 & 'C:\Users\vt4ho\AppData\Local\Programs\Python\Python312\python.exe' `
   .\BatchSweep_Analysis\analyze_batch_results.py `
-  --root 'C:\Users\vt4ho\Simulations\kinetics_sim\EDGA\Homogenous_RESULTS\BatchSweep' `
-  --out '.\BatchSweep_Analysis\results' `
+  --root 'D:\Simulations\EGDA_kinetics\Homogenous_Catalysis\BatchSweep_CPR_big_data' `
+  --out 'D:\Simulations\EGDA_kinetics\Homogenous_Catalysis\BatchSweep_CPR_big_Analysis' `
   --config '.\BatchSweep_Analysis\analysis_config.json'
 ```
 
@@ -327,13 +370,15 @@ There are 1,000 matched pairs but zero exact $\mathrm{Da}_1$ matches. The median
 
 ![Nearest-Damkohler geometry matching](docs/images/geometry_collapse_metrics.png)
 
-### 5.14 `pareto_front.csv` — exact nondominated trade-offs
+### 5.14 `pareto_front.csv` — exact or size-aware nondominated trade-offs
 
 A scenario is retained if no other scenario in the same route/geometry study is at least as good in every objective and strictly better in at least one. The configured objectives are:
 
 **Maximize:** EGMA yield, EGMA selectivity, and EGMA STY.
 
 **Minimize:** temperature, catalyst/base feed concentration, residence time, and EG yield.
+
+For the 3,000-scenario reference analysis documented below, every study is below `pareto_exact_scenario_limit`, so the reported fronts are exact. The 42,000-scenario run is also exact because its two 21,000-case studies use the compiled skyline path. A study beyond the configured limits—or above the safe Python limit when Numba is unavailable—automatically uses the normalized epsilon-grid method described under **Large-sweep behavior**. In that case `is_pareto_optimal` is deliberately left blank, `is_epsilon_pareto_candidate` is true, and the method/epsilon columns state the approximation used.
 
 The resulting front contains 997 H₂SO₄/A, 483 H₂SO₄/B, 431 NaOH/A, and 73 NaOH/B scenarios. The acid fronts are very large because seven competing objectives make domination difficult: a low-temperature/low-acid point can remain nondominated even if its yield is small. The Pareto table should therefore be filtered after engineering priorities—such as a minimum yield or maximum temperature—are agreed.
 

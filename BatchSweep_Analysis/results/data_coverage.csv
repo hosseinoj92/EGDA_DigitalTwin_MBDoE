@@ -1,6 +1,0 @@
-record_type,loaded_scenarios,excluded_scenarios,duplicate_records,all_flows_linked_equal,temperature_levels,EGDA_feed_levels,catalyst_feed_levels,total_flow_levels,expected_factorial_cells,missing_factorial_cells,catalyst,geometry
-overall,3000,0,0,True,,,,,,,,
-study,1000,,0,True,"[25.0, 40.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0]","[0.1, 0.2, 0.3, 0.4, 0.5]","[0.1, 0.2, 0.3, 0.4, 0.5]","[2.0, 4.0, 6.0, 8.0, 10.0]",1000,0,H2SO4,A
-study,500,,0,True,"[25.0, 40.0, 60.0, 80.0]","[0.1, 0.2, 0.3, 0.4, 0.5]","[0.1, 0.2, 0.3, 0.4, 0.5]","[2.0, 4.0, 6.0, 8.0, 10.0]",500,0,H2SO4,B
-study,1000,,0,True,"[25.0, 40.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0]","[0.1, 0.2, 0.3, 0.4, 0.5]","[0.1, 0.2, 0.3, 0.4, 0.5]","[2.0, 4.0, 6.0, 8.0, 10.0]",1000,0,NaOH,A
-study,500,,0,True,"[25.0, 40.0, 60.0, 80.0]","[0.1, 0.2, 0.3, 0.4, 0.5]","[0.1, 0.2, 0.3, 0.4, 0.5]","[2.0, 4.0, 6.0, 8.0, 10.0]",500,0,NaOH,B

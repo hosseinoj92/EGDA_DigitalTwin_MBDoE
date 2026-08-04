@@ -1,7 +1,9 @@
 {
   "allow_pressurized_operation": false,
+  "anova_interaction_detail_row_limit": 100000,
   "diffusivity_m2_s": 1e-09,
   "invariant_drift_limit": 1e-06,
+  "local_elasticity_detail_row_limit": 200000,
   "pareto_objectives": {
     "maximize": [
       "Y_EGMA",
@@ -16,6 +18,10 @@
     ]
   },
   "peak_relative_threshold": 0.95,
+  "pareto_epsilon": 0.02,
+  "pareto_exact_scenario_limit": 50000,
+  "pareto_python_exact_scenario_limit": 10000,
+  "pareto_max_unique_bins": 5000,
   "pressure_threshold_C": 100.0,
   "random_seed": 1729,
   "regimes": {
@@ -38,4 +44,3 @@
   "top_conditions_per_study": 10,
   "verification_error_limit": 1e-06
 }
-
