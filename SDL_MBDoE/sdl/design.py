@@ -22,6 +22,10 @@ from scipy.optimize import minimize
 from .inference import InferenceModel
 from .layer1_bridge import OperatingConditions
 
+#: eigenvalue floor for the design criteria - keeps them finite and rankable
+#: while the accumulated FIM is still rank deficient
+_EIG_FLOOR = 1e-12
+
 
 def build_candidates(cfg: Dict) -> List[OperatingConditions]:
     """Full-factorial candidate grid over the feasible design space."""
@@ -37,14 +41,29 @@ def build_candidates(cfg: Dict) -> List[OperatingConditions]:
     return cands
 
 
-def build_fixed_design(cfg: Dict) -> List[OperatingConditions]:
-    """Conventional campaign: temperature ladder at nominal flow/catalyst."""
+def build_fixed_design(cfg: Dict,
+                       budget: Optional[int] = None) -> List[OperatingConditions]:
+    """Conventional campaign: temperature ladder at nominal flow/catalyst.
+
+    `budget` SUBSAMPLES the declared ladder evenly instead of truncating it.
+    The campaign loop walks this list in order, so a 25-rung 40-160 C ladder
+    consumed by a 10-experiment budget used to run only the coldest ten rungs
+    (40-85 C) - a region where almost nothing converts and the FIM is rank
+    deficient by construction.  That handicapped the conventional baseline and
+    confounded "adaptive vs fixed" with "sees the whole box vs one cold edge".
+    Spreading the same ten experiments over the same declared ladder drops the
+    FIM condition number by ~6 orders of magnitude at zero extra cost."""
+    ladder = [float(t) for t in cfg["fixed_design_T_C"]]
+    if budget is not None and 0 < budget < len(ladder):
+        idx = np.unique(np.linspace(0, len(ladder) - 1, budget).round()
+                        .astype(int))
+        ladder = [ladder[i] for i in idx]
     q = float(cfg["nominal_Q_total_mL_min"])
     return [OperatingConditions(
-        T_C=float(t), Q1_mL_min=q / 2.0, Q2_mL_min=q / 2.0,
+        T_C=t, Q1_mL_min=q / 2.0, Q2_mL_min=q / 2.0,
         C_EGDA_M=float(cfg["C_EGDA_M"]),
         C_cat_M=float(cfg["nominal_C_cat_M"]))
-        for t in cfg["fixed_design_T_C"]]
+        for t in ladder]
 
 
 @dataclass
@@ -152,12 +171,19 @@ class MBDoESelector:
         return tuple(out)
 
     def _score(self, F: np.ndarray) -> float:
+        """Design score with FLOORED eigenvalues.
+
+        `slogdet` returns -inf for any singular F, so while the accumulated
+        information is still rank deficient - i.e. exactly the early rounds
+        when the choice matters most - every candidate scored -inf and the
+        selection loop below could not rank them at all.  It then kept its
+        first arbitrary pick and the campaign locked onto one corner.
+        Flooring the eigenvalues keeps the criterion finite and strictly
+        increasing in information, so the greedy step still prefers the
+        candidate that best fills the weakest direction."""
+        w = np.maximum(np.linalg.eigvalsh(F), _EIG_FLOOR)
         if self.criterion == "D":
-            sign, logdet = np.linalg.slogdet(F)
-            return logdet if sign > 0 else -np.inf
+            return float(np.sum(np.log(w)))
         if self.criterion == "A":
-            try:
-                return -float(np.trace(np.linalg.inv(F)))
-            except np.linalg.LinAlgError:
-                return -np.inf
+            return -float(np.sum(1.0 / w))
         raise ValueError(f"Unknown design criterion '{self.criterion}'.")

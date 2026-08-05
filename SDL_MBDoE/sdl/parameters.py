@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Dict, Tuple
+from typing import Dict, Sequence, Tuple
 
 import numpy as np
 
@@ -64,11 +64,38 @@ class ParameterSpace:
     ln_k_halfwidth: float = math.log(30.0)       # bounds: guess x/30 .. x*30
     ln_K_halfwidth: float = math.log(10.0)       # Keq is better known a priori
     ea_bounds_J: Tuple[float, float] = (20_000.0, 120_000.0)
+    # Parameters HELD FIXED at a known value and excluded from theta (natural
+    # units).  Structurally unidentifiable parameters belong here: estimating
+    # them costs a flat FIM direction, an optimizer that walks to its box
+    # bound, and a meaningless confidence interval.  Same treatment the
+    # van 't Hoff slopes already get in layer1_bridge.
+    fixed: Dict[str, float] = field(default_factory=dict)
 
     # ---- structure ----------------------------------------------------------
     @property
     def n_params(self) -> int:
         return len(self.param_keys)
+
+    @property
+    def fixed_keys(self) -> Tuple[str, ...]:
+        return tuple(self.fixed)
+
+    def holding_fixed(self, keys: Sequence[str]) -> "ParameterSpace":
+        """Copy of this space with `keys` moved out of theta and pinned at
+        their initial-guess values."""
+        drop = set(keys)
+        unknown = drop - set(self.param_keys)
+        if unknown:
+            raise ValueError(f"Not estimated parameters: {sorted(unknown)}.")
+        kept = tuple(k for k in self.param_keys if k not in drop)
+        if not kept:
+            raise ValueError("Cannot fix every parameter - theta would be empty.")
+        return ParameterSpace(
+            t_ref_K=self.t_ref_K, initial_guess=dict(self.initial_guess),
+            param_keys=kept, ln_k_halfwidth=self.ln_k_halfwidth,
+            ln_K_halfwidth=self.ln_K_halfwidth, ea_bounds_J=self.ea_bounds_J,
+            fixed={**self.fixed,
+                   **{k: self.initial_guess[k] for k in keys}})
 
     def is_log(self, q: int) -> bool:
         return self.param_keys[q] in LOG_KEYS
@@ -89,8 +116,12 @@ class ParameterSpace:
                          for k in self.param_keys])
 
     def to_natural(self, vec: np.ndarray) -> Dict[str, float]:
-        return {k: (math.exp(vec[q]) if k in LOG_KEYS else vec[q] * 1e3)
-                for q, k in enumerate(self.param_keys)}
+        """Estimated components merged with the held-fixed ones, so the
+        forward model always receives a complete parameter set."""
+        nat = dict(self.fixed)
+        nat.update({k: (math.exp(vec[q]) if k in LOG_KEYS else vec[q] * 1e3)
+                    for q, k in enumerate(self.param_keys)})
+        return nat
 
     # ---- bounds --------------------------------------------------------------
     def bounds(self) -> Tuple[np.ndarray, np.ndarray]:
@@ -104,6 +135,20 @@ class ParameterSpace:
             else:
                 lo[q], hi[q] = self.ea_bounds_J[0] / 1e3, self.ea_bounds_J[1] / 1e3
         return lo, hi
+
+    def active_bounds(self, vec: np.ndarray,
+                      rtol: float = 1e-6) -> Tuple[str, ...]:
+        """Keys whose estimate is resting on its box constraint.
+
+        A bounded least-squares solution that stops on a bound is not an
+        estimate - it is the constraint.  The FIM-based covariance below is an
+        UNCONSTRAINED local approximation and knows nothing about an active
+        constraint, so every interval reported for such a component is
+        meaningless.  Callers must surface these instead of printing a CI."""
+        lo, hi = self.bounds()
+        span = np.maximum(hi - lo, 1e-30)
+        on = (vec <= lo + rtol * span) | (vec >= hi - rtol * span)
+        return tuple(self.param_keys[q] for q in range(self.n_params) if on[q])
 
     # ---- uncertainty interpretation -----------------------------------------
     def rel_ci_percent(self, vec: np.ndarray, sigma: np.ndarray) -> np.ndarray:

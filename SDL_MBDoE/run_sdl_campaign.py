@@ -24,6 +24,7 @@ from sdl import (
     VirtualLaboratory, InferenceModel, MBDoESelector,
     build_candidates, build_fixed_design, literature_guess,
     param_keys_for, run_strategy, STRATEGY_DEFS,
+    reference_design, screen,
 )
 from sdl.campaign import STRATEGY_NAMES
 from sdl import reporting
@@ -137,6 +138,18 @@ CONFIG = {
             "nominal_C_cat_M": 1.0,
         },
     },
+    # ---- identifiability screen ---------------------------------------------
+    # Before spending an experiment, build the FIM at the initial guess over
+    # the corners+centre of the admissible box (an upper bound on what any
+    # campaign inside those bounds could learn) and hold fixed any parameter
+    # whose best achievable 95% CI still exceeds the threshold below.
+    # On the acid route this removes K1_ref: with water at ~55 M, step 1 runs
+    # effectively to completion and K1 leaves almost no signature, so
+    # estimating it only buys a flat FIM direction and a parameter parked on
+    # its box bound.  Set False to reproduce the old (unscreened) behaviour.
+    "identifiability_screen": True,
+    "identifiability_max_rel_ci_pct": 200.0,
+
     "mbdoe_criterion": "D",         # "D" | "A"
     # False: choose the best point on the grid above.
     # True : screen the grid, then continuously refine the best point inside
@@ -191,7 +204,9 @@ def main() -> None:
         theta_true["K2_ref"] = tcfg["K2_ref"]
 
     candidates = build_candidates(dcfg)
-    fixed_design = build_fixed_design(dcfg)
+    # subsample (not truncate) the declared ladder to the budget, so the
+    # conventional baseline spans the same box the autonomous strategies see
+    fixed_design = build_fixed_design(dcfg, budget=cfg["budget"])
     guess = literature_guess(t_ref_K, catalyst)
     pkeys = param_keys_for(catalyst)
 
@@ -213,6 +228,28 @@ def main() -> None:
     print(f"  initial guess (literature): {guess_txt}")
     print("=" * 74)
 
+    # ---- identifiability screen (before any experiment is spent) ------------
+    base_space = ParameterSpace(t_ref_K=t_ref_K, initial_guess=dict(guess),
+                                param_keys=pkeys)
+    screen_lines = None
+    if cfg.get("identifiability_screen", True):
+        # screen with the most informative observation mode in play, so the
+        # verdict is "can this platform identify it at all", and every
+        # strategy keeps the SAME theta (the comparison stays like-for-like)
+        z_screen = (ports if any(STRATEGY_DEFS[k][0] for k in cfg["strategies"])
+                    else np.array([L]))
+        t_screen = time.time()
+        sr = screen(base_space, bridge, NoiseModel(**mcfg["noise_assumed"]),
+                    list(candidates) + reference_design(dcfg), z_screen,
+                    species, budget=cfg["budget"],
+                    max_rel_ci_pct=cfg["identifiability_max_rel_ci_pct"])
+        screen_lines = sr.summary_lines(cfg["identifiability_max_rel_ci_pct"])
+        base_space = sr.space
+        print("\n".join(screen_lines))
+        print(f"  ({time.time() - t_screen:.1f} s)")
+        print("=" * 74)
+    pkeys = base_space.param_keys
+
     results, labs = {}, {}
     t0 = time.time()
     for idx, key in enumerate(cfg["strategies"]):
@@ -224,7 +261,7 @@ def main() -> None:
             transfer_time_s=mcfg["transfer_time_s"],
             calibration_gain=mcfg["calibration_gain"])
         space = ParameterSpace(t_ref_K=t_ref_K, initial_guess=dict(guess),
-                               param_keys=pkeys)
+                               param_keys=pkeys, fixed=dict(base_space.fixed))
         inference = InferenceModel(space, bridge,
                                    NoiseModel(**mcfg["noise_assumed"]))
         selector = MBDoESelector(
@@ -248,8 +285,9 @@ def main() -> None:
         Q2_mL_min=vcfg["Q_total_mL_min"] / 2.0,
         C_EGDA_M=vcfg.get("C_EGDA_M", dcfg["C_EGDA_M"]),
         C_cat_M=vcfg["C_cat_M"])
-    best_key = min(results, key=lambda k: reporting.mean_rel_error_pct(
-        results[k].history[-1].theta_nat, truth))
+    # rank on the geometric-mean error over identifiable, unpinned components
+    best_key = min(results,
+                   key=lambda k: reporting.campaign_score_pct(results[k], truth))
 
     reporting.plot_error_convergence(
         results, truth, os.path.join(outdir, "convergence_error.png"))
@@ -265,7 +303,8 @@ def main() -> None:
     lab_stats = {"experiments": sum(l.n_experiments_run for l in labs.values()),
                  "reveals": sum(l.n_truth_reveals for l in labs.values())}
     text = reporting.write_final_report(
-        results, truth, lab_stats, os.path.join(outdir, "final_report.txt"))
+        results, truth, lab_stats, os.path.join(outdir, "final_report.txt"),
+        screen_lines=screen_lines)
     print("\n" + text)
     print(f"Outputs written to: {outdir}")
 

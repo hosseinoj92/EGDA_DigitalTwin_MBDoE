@@ -286,6 +286,26 @@ Every strategy starts with the first fixed-design condition, uses the same initi
 
 ---
 
+## Identifiability screen (before any experiment is spent)
+
+[`sdl/identifiability.py`](sdl/identifiability.py) asks the question the FIM was always able to answer but the loop never asked: **which parameters can this platform identify anywhere in this design box?**
+
+A structurally undetermined parameter left inside θ does real damage. It contributes a flat direction, so F is rank deficient and `logdet F` collapses to −∞, which makes the D-criterion useless as a design score. The bounded least-squares fit then walks it to a box bound and parks it there, so the reported "estimate" is the constraint rather than the data. And it goes on to dominate any error metric averaged over θ.
+
+The screen builds a **reference campaign**: at the initial guess it scores every candidate in the design grid, then greedily assembles the D-optimal `budget`-experiment design from them. That is the best campaign this platform could run inside these bounds, so a parameter still undetermined under it is undetermined under every strategy being compared — hold it fixed, and repeat, since removing one flat direction can rescue another that was merely aliased with it.
+
+A *fixed* reference design (box corners, a temperature ladder) is not a valid substitute. It is only one design, and a poor one: screening on box corners wrongly condemns `k2_ref`, which the D-optimal design pins to roughly 4 %.
+
+The screen runs once and costs a single sensitivity pass over the candidate grid (~20 s for the default 2 817 candidates). Its verdict is printed and written into `final_report.txt`. On the default acid configuration all six parameters survive, with `K1_ref` the marginal one at ~82 % best achievable CI — consistent with it being the parameter every strategy then struggles with.
+
+### Constraint activity is reported, never hidden
+
+`ParameterSpace.active_bounds` flags any component resting on its box constraint after each fit, and the report surfaces it. This matters because the FIM covariance is an **unconstrained** local approximation: it knows nothing about an active constraint, so every interval quoted next to a pinned component is void. Such components are printed as `AT BOUND - no valid CI`, drawn as an `×` in `final_estimates.png`, excluded from the ranking score, and force `max_rel_ci_pct` to infinity so early stopping cannot trigger while one is pinned.
+
+Note that the box itself is anchored to the literature guess (`guess ×/÷ 30` for rate constants, `×/÷ 10` for equilibrium constants). A parameter with a nearly flat likelihood direction will drift to whichever wall it happens to face; the honest reading is "undetermined", not "estimated at the bound".
+
+---
+
 ## The self-driving loop
 
 For each strategy, [`run_strategy`](sdl/campaign.py) performs the following sequence.
@@ -296,6 +316,8 @@ The first condition is common to every strategy. In later rounds:
 
 - a fixed strategy takes the next condition from `fixed_design_T_C`, or
 - an MBDoE strategy evaluates the feasible candidate grid and selects its best-scoring condition.
+
+`build_fixed_design` **subsamples** `fixed_design_T_C` evenly to the experiment budget rather than truncating it. This matters: the loop walks the list in order, so a 25-rung 40–160 °C ladder consumed by a 10-experiment budget would otherwise run only the coldest ten rungs (40–85 °C), a region where little converts and the FIM is rank deficient by construction. That handicaps the conventional baseline and confounds “adaptive versus fixed” with “sees the whole box versus one cold edge”. Spreading the same ten experiments over the same declared ladder lowers the FIM condition number by roughly six orders of magnitude at no extra cost.
 
 ### 2. Run the virtual experiment
 
@@ -436,7 +458,11 @@ $$
 V_\theta\approx F^{-1}.
 $$
 
-If the FIM is numerically rank deficient, the code uses a pseudoinverse for diagnostics and flags the result as not well posed. In that case, `logdet_F` is reported as negative infinity and `d_criterion` as infinity.
+If the FIM is numerically rank deficient the result is flagged as not well posed, `logdet_F` is reported as negative infinity, and `d_criterion` as infinity.
+
+The inverse itself is taken by **flooring the eigenvalues** of F ([`covariance_from_fim`](sdl/inference.py)), not with `numpy.linalg.pinv`. A pseudoinverse assigns *zero* variance to the null space — that is, infinite confidence in exactly the directions the data never constrained, which is the opposite of the truth. Flooring inverts those directions to a very large variance instead, which is the honest answer and is what makes the identifiability screen work at all.
+
+The same flooring is applied to the **design criteria** in [`sdl/design.py`](sdl/design.py). `slogdet` returns −∞ for any singular F, so while the accumulated information was still rank deficient — precisely the early rounds where the choice matters most — every candidate scored −∞ and the selection loop could not rank them at all; it kept its first arbitrary pick. With floored eigenvalues the D- and A-criteria stay finite and strictly increasing in information, so the greedy step still prefers the candidate that best fills the weakest direction.
 
 ### Reported uncertainty measures
 
@@ -568,6 +594,8 @@ All normal user settings are collected in `CONFIG` at the top of [`run_sdl_campa
 | `strategies` | `A, B, C, D` | strategies to run |
 | `target_rel_ci_pct` | `None` | optional early-stop threshold for the worst 95% relative CI |
 | `catalyst` | `H2SO4` | selects reversible acid hydrolysis or irreversible NaOH saponification |
+| `identifiability_screen` | `True` | hold structurally undetermined parameters fixed before the campaign starts (see below) |
+| `identifiability_max_rel_ci_pct` | `200.0` | drop a parameter when even the best affordable design leaves its 95% CI above this |
 | `mbdoe_criterion` | `D` | D- or A-optimal candidate score |
 | `continuous_design` | `False` | if true, refine the best coarse MBDoE candidate continuously inside configured bounds |
 | `continuous_maxiter` | `30` | maximum Powell iterations for each continuous refinement |
@@ -648,9 +676,10 @@ The default run writes six artifacts to [`results/`](results/). The four include
 | Parameter estimates | `k1_ref`, `Ea1_kJ`, `k2_ref`, `Ea2_kJ`, and acid `K1_ref`, `K2_ref` | current natural-scale best fit |
 | Standard errors | `sigma_*` | local 1σ uncertainty in estimator coordinates; log scale for k/K and kJ mol⁻¹ for Ea |
 | Information | `logdet_F`, `d_criterion`, `max_rel_ci_pct` | cumulative local identifiability measures |
-| Synthetic benchmark | `mean_rel_err_pct` | mean absolute relative error against hidden truth |
+| Constraint activity | `active_bounds` | `|`-separated parameters resting on a box bound in that round |
+| Synthetic benchmark | `mean_rel_err_pct`, `log_mean_rel_err_pct` | arithmetic and geometric mean error against hidden truth |
 
-`mean_rel_err_pct` is useful only because this is a virtual experiment. It cannot be computed for unknown kinetics in a real campaign.
+Both benchmark columns are useful only because this is a virtual experiment. Neither can be computed for unknown kinetics in a real campaign. `active_bounds`, by contrast, needs no truth and **is** available in a real campaign — it is the column to watch.
 
 The CSV supports additional analysis such as plotting one parameter over rounds, comparing selected conditions, checking when the FIM becomes well posed, or running repeated campaigns over many seeds.
 
@@ -658,15 +687,18 @@ The CSV supports additional analysis such as plotting one parameter over rounds,
 
 ![Mean parameter error versus experiment number](results/convergence_error.png)
 
-This plot shows the mean absolute relative error across the fitted natural parameters:
+This plot shows the **geometric mean** multiplicative error over the parameters actually being estimated — those still in θ after the identifiability screen and not resting on a box bound in that round:
 
 $$
-\mathrm{MARE}=\frac{100}{p}\sum_{q=1}^{p}
-\left|\frac{\hat\theta_q-\theta_{q,\mathrm{true}}}
-{\theta_{q,\mathrm{true}}}\right|.
+\mathrm{GME}=100\left[\exp\!\left(\frac{1}{|S|}\sum_{q\in S}
+\left|\ln\frac{\hat\theta_q}{\theta_{q,\mathrm{true}}}\right|\right)-1\right],
+\qquad
+S=\{q:\theta_q\ \text{estimated and not at a bound}\}.
 $$
 
-Smaller is better, but the curve need not decrease monotonically. A new noisy experiment can move a nonlinear fit away from the exact truth even while improving its expected precision. In the included run, D falls rapidly to a few percent, B ends near 6%, A near 17%, and C near 34%. Those numbers describe this seed and hidden truth—not guaranteed long-run averages.
+This replaced the arithmetic mean relative error, which is still written to `campaign_history.csv` but is **no longer used to rank strategies**. The arithmetic mean is unbounded above and bounded by 100 % below, so a single badly determined parameter swamps several well determined ones and can invert the ranking outright: in the original seed-7 acid run, strategy D beat C on four of five identifiable parameters and had strictly more information (`logdet F` 27.2 versus 19.5, every FIM eigenvalue larger), yet scored 100.6 % against C’s 8.8 % purely because its `K1_ref` sat on a box bound 6.9× above truth. The geometric mean is symmetric under $\hat\theta/\theta \leftrightarrow \theta/\hat\theta$ — the natural choice for parameters estimated in log space — and no single component can dominate it.
+
+Smaller is better, but the curve need not decrease monotonically. A new noisy experiment can move a nonlinear fit away from the exact truth even while improving its expected precision.
 
 This is a post-campaign diagnostic. A real self-driving laboratory cannot use it to choose the next condition because the true parameters are unknown.
 

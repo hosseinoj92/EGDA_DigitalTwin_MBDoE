@@ -29,6 +29,23 @@ from .observation import Measurement, NoiseModel
 from .parameters import ParameterSpace
 
 
+#: eigenvalues of F below this fraction of the largest carry no information
+EIG_FLOOR_REL = 1e-14
+
+
+def covariance_from_fim(F: np.ndarray,
+                        eig_floor_rel: float = EIG_FLOOR_REL) -> np.ndarray:
+    """V ~ F^-1, with uninformative directions given HUGE variance.
+
+    np.linalg.pinv is wrong here: it assigns ZERO variance to the null space,
+    i.e. infinite confidence in exactly the directions the data never
+    constrained.  Flooring the eigenvalues instead inverts to a large variance,
+    which is the honest answer."""
+    w, V = np.linalg.eigh(F)
+    floor = max(float(w[-1]), 1e-300) * eig_floor_rel
+    return V @ np.diag(1.0 / np.maximum(w, floor)) @ V.T
+
+
 @dataclass
 class UncertaintyReport:
     sigma: np.ndarray             # 1-sigma, scaled space [ln k, kJ]
@@ -39,6 +56,8 @@ class UncertaintyReport:
     d_criterion: float            # (det V)^(1/2p) - geometric-mean sigma
     max_rel_ci_pct: float         # worst 95% relative CI half-width, %
     well_posed: bool
+    active_bounds: tuple = ()     # keys resting on a box constraint
+    rel_ci_pct: np.ndarray = None  # per-parameter 95% rel CI, inf where pinned
 
 
 class InferenceModel:
@@ -50,6 +69,7 @@ class InferenceModel:
         self.theta = space.to_vector(space.initial_guess)   # current estimate
         self.measurements: List[Measurement] = []
         self._chols: List[np.ndarray] = []                  # assumed cov factors
+        self.active_bounds: tuple = ()      # set by fit(); see ParameterSpace
 
     # ------------------------------------------------------------------ #
     @property
@@ -80,8 +100,10 @@ class InferenceModel:
         sol = least_squares(self._whitened_residuals, x0=x0, bounds=(lo, hi),
                             x_scale=np.array(self.space.x_scale), method="trf")
         self.theta = sol.x
+        self.active_bounds = self.space.active_bounds(self.theta)
         return {"cost": float(sol.cost), "nfev": int(sol.nfev),
-                "success": bool(sol.success)}
+                "success": bool(sol.success),
+                "active_bounds": self.active_bounds}
 
     # ------------------------------------------------------------------ #
     def sensitivity(self, m: Measurement,
@@ -113,12 +135,11 @@ class InferenceModel:
         eig = np.linalg.eigvalsh(F)
         sign, logdet = np.linalg.slogdet(F)
         well_posed = bool(sign > 0 and eig[0] > 1e-10 * max(eig[-1], 1.0))
-        if well_posed:
-            V = np.linalg.inv(F)
-            logdet_F = float(logdet)
-        else:                       # rank-deficient: pseudo-inverse, flag it
-            V = np.linalg.pinv(F, hermitian=True)
-            logdet_F = float("-inf")
+        # Eigenvalue-floored inverse in BOTH branches: a rank-deficient F must
+        # report huge variance along its null space, never the zero variance
+        # np.linalg.pinv would hand back (see covariance_from_fim).
+        V = np.linalg.inv(F) if well_posed else covariance_from_fim(F)
+        logdet_F = float(logdet) if well_posed else float("-inf")
         sig = np.sqrt(np.maximum(np.diag(V), 0.0))
         denom = np.outer(sig, sig)
         with np.errstate(divide="ignore", invalid="ignore"):
@@ -126,10 +147,17 @@ class InferenceModel:
         d_crit = (float(np.exp(-logdet_F / (2 * self.space.n_params)))
                   if np.isfinite(logdet_F) else float("inf"))
         rel_ci = self.space.rel_ci_percent(self.theta, sig)
+        # A component sitting on its box bound has no valid local interval;
+        # report it as unbounded rather than quoting the curvature at a wall.
+        for q, k in enumerate(self.space.param_keys):
+            if k in self.active_bounds:
+                rel_ci[q] = float("inf")
         return UncertaintyReport(sigma=sig, cov=V, corr=corr, eigvals=eig,
                                  logdet_F=logdet_F, d_criterion=d_crit,
                                  max_rel_ci_pct=float(np.max(rel_ci)),
-                                 well_posed=well_posed)
+                                 well_posed=well_posed,
+                                 active_bounds=tuple(self.active_bounds),
+                                 rel_ci_pct=rel_ci)
 
     # ------------------------------------------------------------------ #
     def candidate_information(self, u: OperatingConditions, z_m: np.ndarray,

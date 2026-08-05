@@ -155,14 +155,14 @@
     "semantic_hash": "76b4236e2c4de888d1a0526371877372"
   },
   "SDL_MBDoE/run_sdl_campaign.py": {
-    "mtime": 1785964302.1034558,
-    "ast_hash": "4ff791c1508369a329387b6dd0968d92",
-    "semantic_hash": ""
+    "mtime": 1785960354.2641883,
+    "ast_hash": "edf240d2cf66d63f6d327ceec3bdac18",
+    "semantic_hash": "edf240d2cf66d63f6d327ceec3bdac18"
   },
   "SDL_MBDoE/sdl/__init__.py": {
-    "mtime": 1785963963.0156603,
-    "ast_hash": "d7adb00e7fd883d35952c1f4b14e0f03",
-    "semantic_hash": ""
+    "mtime": 1785914658.0406704,
+    "ast_hash": "af23e3e75a3fedfa7dddc1c152e5d85e",
+    "semantic_hash": "af23e3e75a3fedfa7dddc1c152e5d85e"
   },
   "SDL_MBDoE/sdl/campaign.py": {
     "mtime": 1785960034.2065878,
@@ -170,14 +170,14 @@
     "semantic_hash": "0e2ba7723620f4b5a5049c7541e47f91"
   },
   "SDL_MBDoE/sdl/design.py": {
-    "mtime": 1785964563.1857586,
-    "ast_hash": "71318ee33a3ac60f6345874866235dfd",
-    "semantic_hash": ""
+    "mtime": 1785960034.2073488,
+    "ast_hash": "3b42a83e9311fc8f1791d1f6f8d776ac",
+    "semantic_hash": "3b42a83e9311fc8f1791d1f6f8d776ac"
   },
   "SDL_MBDoE/sdl/inference.py": {
-    "mtime": 1785963840.2258234,
-    "ast_hash": "cb9b1752bfb90e5a4a618912cdde8174",
-    "semantic_hash": ""
+    "mtime": 1785960034.2078152,
+    "ast_hash": "c461e5d1ae11a5a567564b13c62e0e5a",
+    "semantic_hash": "c461e5d1ae11a5a567564b13c62e0e5a"
   },
   "SDL_MBDoE/sdl/layer1_bridge.py": {
     "mtime": 1785933493.1002216,
@@ -190,14 +190,14 @@
     "semantic_hash": "bc9db35e1bf7eb36f97cb831a1e9f0b0"
   },
   "SDL_MBDoE/sdl/parameters.py": {
-    "mtime": 1785963801.3010526,
-    "ast_hash": "5acbc8b2ce10f4e49b9ebb7436449704",
-    "semantic_hash": ""
+    "mtime": 1785914658.0426493,
+    "ast_hash": "f9302e03bfd29325ac46d55b4d7bbe6d",
+    "semantic_hash": "f9302e03bfd29325ac46d55b4d7bbe6d"
   },
   "SDL_MBDoE/sdl/reporting.py": {
-    "mtime": 1785965509.6198828,
-    "ast_hash": "9ebc44711dcbc8489475891535636958",
-    "semantic_hash": ""
+    "mtime": 1785960034.208712,
+    "ast_hash": "f85a47efd5b7a71a6928dafce8dd30b7",
+    "semantic_hash": "f85a47efd5b7a71a6928dafce8dd30b7"
   },
   "SDL_MBDoE/sdl/truth.py": {
     "mtime": 1785914658.0428607,
@@ -205,9 +205,9 @@
     "semantic_hash": "e5484dab63d64bc11e5cb239403d25a7"
   },
   "SDL_MBDoE/tests/self_test.py": {
-    "mtime": 1785965926.1006784,
-    "ast_hash": "8d6fb643d70f7989bd523312084dddb5",
-    "semantic_hash": ""
+    "mtime": 1785960034.2094233,
+    "ast_hash": "10c80d0af20b0dad197a072db2aebe6b",
+    "semantic_hash": "10c80d0af20b0dad197a072db2aebe6b"
   },
   ".claude/CLAUDE.md": {
     "mtime": 1785960509.716081,
@@ -335,9 +335,9 @@
     "semantic_hash": "256a50b7ca1a8b8e31d9a5782a9cd5ff"
   },
   "SDL_MBDoE/README.md": {
-    "mtime": 1785965880.1697986,
-    "ast_hash": "31403889c4c790ddb0e1207a16a6d5cd",
-    "semantic_hash": ""
+    "mtime": 1785960034.1985357,
+    "ast_hash": "eab8675e536d0aa12ec9d07c84c8bd89",
+    "semantic_hash": "eab8675e536d0aa12ec9d07c84c8bd89"
   },
   "SDL_MBDoE/requirements.txt": {
     "mtime": 1785914658.038087,
@@ -423,35 +423,5 @@
     "mtime": 1785914658.0318944,
     "ast_hash": "5451e36ee63ec85456899517c26ac4b9",
     "semantic_hash": "5451e36ee63ec85456899517c26ac4b9"
-  },
-  "SDL_MBDoE/sdl/identifiability.py": {
-    "mtime": 1785964295.7730594,
-    "ast_hash": "e77623f3ceed97467b09d0e6358d81b3",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results/final_report.txt": {
-    "mtime": 1785965747.2261546,
-    "ast_hash": "3cb964122efad01fc63e74ad22e1eb47",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results/convergence_error.png": {
-    "mtime": 1785965746.6191049,
-    "ast_hash": "59399c5133cf288ac318e13d63d55c92",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results/convergence_uncertainty.png": {
-    "mtime": 1785965746.7717032,
-    "ast_hash": "c72d17394220d67753e3473c081f96bd",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results/final_estimates.png": {
-    "mtime": 1785965747.0911217,
-    "ast_hash": "0a4563f37f9a41d433605bf578324ad7",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results/validation_profiles.png": {
-    "mtime": 1785965747.2243285,
-    "ast_hash": "6979b768af5f3cd83b2c45b4f3a5a144",
-    "semantic_hash": ""
   }
 }

@@ -27,6 +27,7 @@ from .layer1_bridge import Layer1Bridge, OperatingConditions, literature_guess
 from .parameters import ParameterSpace, PARAM_KEYS, param_keys_for
 from .observation import NoiseModel, Measurement
 from .truth import VirtualLaboratory
-from .inference import InferenceModel
+from .inference import InferenceModel, covariance_from_fim
 from .design import build_candidates, build_fixed_design, MBDoESelector
 from .campaign import run_strategy, STRATEGY_DEFS
+from .identifiability import reference_design, screen, ScreenResult

@@ -348,6 +348,130 @@ def test_continuous_design_refines_inside_bounds():
         raise AssertionError("Out-of-bounds coarse candidate was accepted.")
 
 
+def test_fixed_design_spans_declared_ladder():
+    """A budget smaller than the declared ladder must SUBSAMPLE it, not take
+    the first N rungs - otherwise the conventional baseline only ever sees the
+    cold end of its own temperature range."""
+    ladder = list(range(40, 165, 5))                 # 25 rungs, 40..160 C
+    cfg = dict(DESIGN, fixed_design_T_C=ladder)
+    full = build_fixed_design(cfg)
+    assert [u.T_C for u in full] == [float(t) for t in ladder]
+
+    ten = build_fixed_design(cfg, budget=10)
+    temps = [u.T_C for u in ten]
+    assert len(temps) == 10
+    assert temps[0] == float(ladder[0]) and temps[-1] == float(ladder[-1])
+    assert temps == sorted(temps)
+    # the old truncating behaviour stopped at 85 C; spanning is the point
+    assert temps[-1] > 85.0
+    # a budget at or above the ladder length leaves it untouched
+    assert len(build_fixed_design(cfg, budget=99)) == len(ladder)
+
+
+def test_active_bounds_are_detected_and_void_the_interval():
+    space = ParameterSpace(t_ref_K=T_REF_K,
+                           initial_guess=literature_guess(T_REF_K))
+    lo, hi = space.bounds()
+    assert space.active_bounds(space.to_vector(space.initial_guess)) == ()
+
+    pinned = space.to_vector(space.initial_guess)
+    pinned[0] = lo[0]                                 # ln k1 on its lower wall
+    pinned[4] = hi[4]                                 # ln K1 on its upper wall
+    flagged = space.active_bounds(pinned)
+    assert set(flagged) == {"k1_ref", "K1_ref"}
+
+    # and the inference report must void their CIs rather than quote curvature
+    bridge, ports, lab, inference, _ = _make_loop(
+        {"sigma_abs_M": 1e-3, "sigma_rel": 5e-3}, seed=5)
+    inference.add_measurement(lab.run_experiment(U0, spatial=True))
+    inference.fit()
+    inference.active_bounds = ("k1_ref",)
+    rep = inference.uncertainty()
+    q = list(space.param_keys).index("k1_ref")
+    assert rep.active_bounds == ("k1_ref",)
+    assert not np.isfinite(rep.rel_ci_pct[q])
+    assert not np.isfinite(rep.max_rel_ci_pct)
+
+
+def test_covariance_inflates_unconstrained_directions():
+    """A rank-deficient FIM must yield HUGE variance along its null space.
+    np.linalg.pinv yields zero there - infinite confidence in exactly the
+    directions the data never constrained."""
+    from sdl.inference import covariance_from_fim
+    F = np.diag([1.0e3, 1.0e2, 0.0])                  # third direction unseen
+    V = covariance_from_fim(F)
+    assert np.isclose(V[0, 0], 1e-3) and np.isclose(V[1, 1], 1e-2)
+    assert V[2, 2] > 1e9
+    assert np.linalg.pinv(F, hermitian=True)[2, 2] == 0.0   # the wrong answer
+
+
+def test_design_criterion_ranks_while_rank_deficient():
+    """With a singular accumulated FIM, slogdet gives -inf for every candidate
+    and the selector cannot rank them.  The floored criterion must still
+    prefer the candidate that adds more information."""
+    _, _, _, inference, selector = _make_loop(
+        {"sigma_abs_M": 1e-3, "sigma_rel": 5e-3}, seed=3)
+    p = inference.space.n_params
+    F_singular = np.zeros((p, p))
+    weak = np.diag([1.0] + [0.0] * (p - 1))
+    strong = np.diag([10.0] + [0.0] * (p - 1))
+    s_weak = selector._score(F_singular + weak)
+    s_strong = selector._score(F_singular + strong)
+    assert np.isfinite(s_weak) and np.isfinite(s_strong)
+    assert s_strong > s_weak
+    assert np.linalg.slogdet(F_singular + strong)[1] == -np.inf   # old score
+
+
+def test_identifiability_screen_keeps_identifiable_parameters():
+    """The screen must judge against the best AFFORDABLE design, not an
+    arbitrary fixed one.  k2_ref is recoverable to a few percent under a
+    D-optimal design and must survive; anything it drops must really be flat."""
+    from sdl import screen
+    bridge = Layer1Bridge(GEOM, T_REF_K, engine="ode")
+    ports = _ports(bridge)
+    space = ParameterSpace(t_ref_K=T_REF_K,
+                           initial_guess=literature_guess(T_REF_K))
+    res = screen(space, bridge, NoiseModel(sigma_abs_M=4e-3, sigma_rel=0.02),
+                 build_candidates(DESIGN), ports, SPECIES, budget=6,
+                 max_rel_ci_pct=200.0)
+    assert "k1_ref" in res.space.param_keys
+    assert "k2_ref" in res.space.param_keys, (
+        f"screen wrongly dropped an identifiable parameter: {res.dropped}")
+    assert set(res.dropped) == set(space.param_keys) - set(res.space.param_keys)
+    for key in res.dropped:
+        assert res.rel_ci_pct[key] > 200.0
+        assert key in res.space.fixed
+    # to_natural must still hand the forward model a COMPLETE parameter set
+    nat = res.space.to_natural(res.space.to_vector(res.space.initial_guess))
+    assert set(nat) == set(space.param_keys)
+
+
+def test_score_metric_is_not_dominated_by_one_parameter():
+    """The ranking metric must not let a single wild component invert the
+    ordering, and must be symmetric in over/under-estimation."""
+    from sdl.reporting import log_mean_rel_error_pct, mean_rel_error_pct
+    keys = tuple(TRUTH)
+    good = {k: v * 1.02 for k, v in TRUTH.items()}          # all within 2 %
+    one_wild = dict(good, K1_ref=TRUTH["K1_ref"] * 7.0)     # one 7x outlier
+
+    # arithmetic mean: the outlier alone drags the average past 100 %
+    assert mean_rel_error_pct(one_wild, TRUTH, keys) > 100.0
+    # geometric mean: penalised, but the five good components still count
+    assert log_mean_rel_error_pct(one_wild, TRUTH, keys) < 50.0
+    assert (log_mean_rel_error_pct(one_wild, TRUTH, keys)
+            > log_mean_rel_error_pct(good, TRUTH, keys))
+    # excluding the pinned component recovers the honest score
+    assert np.isclose(log_mean_rel_error_pct(one_wild, TRUTH, keys,
+                                             exclude=("K1_ref",)),
+                      log_mean_rel_error_pct(good, TRUTH, keys,
+                                             exclude=("K1_ref",)))
+    # symmetry: 2x over and 2x under score identically
+    hi = dict(TRUTH, k1_ref=TRUTH["k1_ref"] * 2.0)
+    lo = dict(TRUTH, k1_ref=TRUTH["k1_ref"] / 2.0)
+    assert np.isclose(log_mean_rel_error_pct(hi, TRUTH, keys),
+                      log_mean_rel_error_pct(lo, TRUTH, keys))
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:
