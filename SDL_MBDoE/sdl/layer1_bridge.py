@@ -77,7 +77,7 @@ class OperatingConditions:
 
     def label(self) -> str:
         return (f"T={self.T_C:.1f}C Q={self.Q1_mL_min + self.Q2_mL_min:.1f}mL/min "
-                f"cat={self.C_cat_M:.2f}M")
+                f"EGDA={self.C_EGDA_M:.3f}M cat={self.C_cat_M:.3f}M")
 
 
 def literature_guess(t_ref_K: float, catalyst: str = "H2SO4") -> Dict[str, float]:

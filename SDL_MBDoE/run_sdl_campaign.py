@@ -33,7 +33,7 @@ from sdl import reporting
 # ============================================================================
 CONFIG = {
     "seed": 7,                      # master RNG seed (per-strategy offsets added)
-    "budget": 8,                    # experiments allowed per strategy
+    "budget": 25,                    # experiments allowed per strategy
     "strategies": ["A", "B", "C", "D"],
     "target_rel_ci_pct": None,      # e.g. 5.0 -> stop early when every 95% CI
                                     # is tighter than 5 %; None = use full budget
@@ -47,12 +47,12 @@ CONFIG = {
     # ---- hidden truth (used ONLY inside the virtual laboratory) --------------
     "truth": {
         "H2SO4": {
-            "k1_ref": 3.30e-3,      # L/(mol s) at T_ref     (literature: 2.37e-3)
-            "Ea1_kJ": 58.5,         # kJ/mol                 (literature: 55.0)
-            "k2_ref": 8.50e-4,      # L/(mol s) at T_ref     (literature: 1.15e-3)
-            "Ea2_kJ": 52.0,         # kJ/mol                 (literature: 57.0)
-            "K1_ref": 0.80,         # hydrolysis Keq step 1 at T_ref (lit.: 0.62)
-            "K2_ref": 0.12,         # hydrolysis Keq step 2 at T_ref (lit.: 0.15)
+            "k1_ref": 1.00e-3,      # L/(mol s) at T_ref     (literature: 2.37e-3)
+            "Ea1_kJ": 40,         # kJ/mol                 (literature: 55.0)
+            "k2_ref": 6.50e-4,      # L/(mol s) at T_ref     (literature: 1.15e-3)
+            "Ea2_kJ": 48.0,         # kJ/mol                 (literature: 57.0)
+            "K1_ref": 0.90,         # hydrolysis Keq step 1 at T_ref (lit.: 0.62)
+            "K2_ref": 0.07,         # hydrolysis Keq step 2 at T_ref (lit.: 0.15)
         },
         "NaOH": {
             "k1_ref": 2.20,         # L/(mol s) at T_ref     (literature: 1.58)
@@ -65,7 +65,7 @@ CONFIG = {
     # ---- synthetic CPR-NMR observation model -----------------------------------
     "measurement": {
         "species": ["EGDA", "EGMA", "EG", "AcOH"],   # quantified by NMR
-        "n_ports": 8,               # equally spaced sampling ports (incl. outlet)
+        "n_ports": 10,               # equally spaced sampling ports (incl. outlet)
         "noise_true": {             # noise the virtual instrument actually adds
             "sigma_abs_M": 0.004,   # absolute floor, mol/L
             "sigma_rel": 0.02,      # relative peak-integration error
@@ -83,12 +83,12 @@ CONFIG = {
 
     # ---- reactor (Layer 1) -------------------------------------------------------
     "reactor": {
-        "length_m": 0.500,          # matches the current Layer 1 base case
-        "diameter_m": 0.018,
+        "length_m": 0.06,          # matches the current Layer 1 base case
+        "diameter_m": 0.004,
     },
     "h_plus_model": "equilibrium",
     "ka2_model": "tdep",            # bisulfate Ka2(T): "tdep" | "constant" (25 C)
-    "activity_model": "dilute",     # "dilute" | "pitzer" (concentrated acid)
+    "activity_model": "pitzer",     # "dilute" | "pitzer" (concentrated acid)
     "reversible": True,             # H2SO4 route only (NaOH is always irreversible)
     "forward_engine": "ode",        # "ode" | "analytical" (acid irreversible only)
 
@@ -101,31 +101,55 @@ CONFIG = {
     # flowing, and includes the NaOH/acetate stoichiometric ratio as an axis.
     "design_space": {
         "H2SO4": {
-            "T_C_levels": [30, 40, 50, 60, 70, 80, 90],
-            "Q_total_mL_min_levels": [4.0, 10.0, 20.0],
-            "C_cat_M_levels": [0.3, 1.0],
-            "C_EGDA_M": 1.0,        # stream 1 molarity, fixed
+            "T_C_levels": [40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160],  # MBDoE stream-1 levels
+            "Q_total_mL_min_levels": [0.2, 0.4, 0.8, 1.0, 2.0, 4.0, 8.0],
+            "C_cat_M_levels": [0.1, 0.5, 0.75, 1.0],   # MBDoE stream-2 levels
+            "C_EGDA_M_levels": [0.1, 0.5, 0.75, 1.0],  # MBDoE stream-1 levels
+            "C_EGDA_M": 1.0,        # fixed-design stream-1 molarity
+            # User-validated admissible region for continuous refinement.
+            # These limits constrain the optimizer; they are not a safety
+            # certification by the software.
+            "continuous_bounds": {
+                "T_C": [30.0, 160.0],
+                "Q_total_mL_min": [0.2, 8.0],
+                "C_cat_M": [0.1, 1.0],
+                "C_EGDA_M": [0.1, 1.0],
+            },
             # conventional (fixed) campaign: temperature ladder at nominal settings
-            "fixed_design_T_C": [40, 55, 70, 85, 45, 60, 75, 90],
-            "nominal_Q_total_mL_min": 10.0,
-            "nominal_C_cat_M": 1.0,
+            "fixed_design_T_C": [40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160],
+            "nominal_Q_total_mL_min": 1.0,
+            "nominal_C_cat_M": 0.5,
         },
         "NaOH": {
             "T_C_levels": [10, 20, 30, 40, 50],
             "Q_total_mL_min_levels": [10.0, 20.0, 40.0],
             "C_cat_M_levels": [0.5, 1.0],   # mixed OH-/acetate ratio 0.5 / 1.0
-            "C_EGDA_M": 0.5,
-            "fixed_design_T_C": [10, 25, 40, 50, 15, 30, 45, 20],
+            "C_EGDA_M_levels": [0.25, 0.50, 0.75],
+            "C_EGDA_M": 0.5,        # fixed-design stream-1 molarity
+            "continuous_bounds": {
+                "T_C": [10.0, 50.0],
+                "Q_total_mL_min": [10.0, 40.0],
+                "C_cat_M": [0.5, 1.0],
+                "C_EGDA_M": [0.25, 0.75],
+            },
+            "fixed_design_T_C": [40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160],
             "nominal_Q_total_mL_min": 20.0,
             "nominal_C_cat_M": 1.0,
         },
     },
     "mbdoe_criterion": "D",         # "D" | "A"
+    # False: choose the best point on the grid above.
+    # True : screen the grid, then continuously refine the best point inside
+    #        continuous_bounds.  Applies only to autonomous strategies C/D.
+    "continuous_design": True,
+    "continuous_maxiter": 30,
 
     # ---- validation figure (per catalyst) ---------------------------------------------------
     "validation_condition": {
-        "H2SO4": {"T_C": 65.0, "Q_total_mL_min": 10.0, "C_cat_M": 1.0},
-        "NaOH": {"T_C": 30.0, "Q_total_mL_min": 20.0, "C_cat_M": 1.0},
+        "H2SO4": {"T_C": 65.0, "Q_total_mL_min": 10.0,
+                   "C_EGDA_M": 1.0, "C_cat_M": 1.0},
+        "NaOH": {"T_C": 30.0, "Q_total_mL_min": 20.0,
+                  "C_EGDA_M": 0.5, "C_cat_M": 1.0},
     },
 
     # ---- output ------------------------------------------------------------------------------
@@ -178,6 +202,9 @@ def main() -> None:
           f"{len(candidates)} MBDoE candidates | "
           f"{mcfg['n_ports']} ports x {len(species)} species | "
           f"{len(pkeys)} parameters")
+    print("  autonomous design: "
+          + ("coarse grid + bounded continuous refinement"
+             if cfg["continuous_design"] else "coarse candidate grid"))
     guess_txt = (f"k1_ref={guess['k1_ref']:.3e}, Ea1={guess['Ea1_J'] / 1e3:.1f} kJ, "
                  f"k2_ref={guess['k2_ref']:.3e}, Ea2={guess['Ea2_J'] / 1e3:.1f} kJ")
     if catalyst == "H2SO4":
@@ -203,7 +230,10 @@ def main() -> None:
         selector = MBDoESelector(
             inference=inference, candidates=candidates, spatial=spatial,
             ports_z_m=ports, outlet_z_m=np.array([L]), species=species,
-            criterion=cfg["mbdoe_criterion"]) if autonomous else None
+            criterion=cfg["mbdoe_criterion"],
+            continuous=cfg["continuous_design"],
+            continuous_bounds=dcfg.get("continuous_bounds"),
+            continuous_maxiter=cfg["continuous_maxiter"]) if autonomous else None
         results[key] = run_strategy(
             key, lab, inference, fixed_design, selector,
             budget=cfg["budget"], target_rel_ci_pct=cfg["target_rel_ci_pct"])
@@ -216,7 +246,8 @@ def main() -> None:
     u_val = OperatingConditions(
         T_C=vcfg["T_C"], Q1_mL_min=vcfg["Q_total_mL_min"] / 2.0,
         Q2_mL_min=vcfg["Q_total_mL_min"] / 2.0,
-        C_EGDA_M=dcfg["C_EGDA_M"], C_cat_M=vcfg["C_cat_M"])
+        C_EGDA_M=vcfg.get("C_EGDA_M", dcfg["C_EGDA_M"]),
+        C_cat_M=vcfg["C_cat_M"])
     best_key = min(results, key=lambda k: reporting.mean_rel_error_pct(
         results[k].history[-1].theta_nat, truth))
 

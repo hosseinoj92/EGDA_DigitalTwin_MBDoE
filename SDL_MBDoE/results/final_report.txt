@@ -3,108 +3,108 @@ Virtual self-driving laboratory - final campaign report
 ==========================================================================
 
 Hidden truth (revealed post-campaign for benchmarking only):
-  k1_ref   = 0.0033 L/(mol s)
-  Ea1_J    = 58.5 kJ/mol
-  k2_ref   = 0.00085 L/(mol s)
-  Ea2_J    = 52 kJ/mol
-  K1_ref   = 0.8 -
-  K2_ref   = 0.12 -
+  k1_ref   = 0.001 L/(mol s)
+  Ea1_J    = 40 kJ/mol
+  k2_ref   = 0.00065 L/(mol s)
+  Ea2_J    = 48 kJ/mol
+  K1_ref   = 0.9 -
+  K2_ref   = 0.07 -
 
 --------------------------------------------------------------------------
 Strategy A: outlet + fixed design
-  experiments run      : 8 (32 concentration observations)
+  experiments run      : 25 (100 concentration observations)
   stopping             : budget exhausted
-  mean |rel err|       : 17.06 %
-  max 95% rel CI       : 268.14 %
-  log det F            : 17.46
+  mean |rel err|       : 101.31 %
+  max 95% rel CI       : 168733560630799318273393619454288223003334303951936846290931689169612916159633647659738864006725632.00 %
+  log det F            : -8.08
   estimates (95% CI) vs truth:
-    k1_ref  :    0.003343  [  0.003235,   0.003456]   true      0.0033
-    Ea1_J   :       59.65  [     57.11,      62.19]   true        58.5
-    k2_ref  :   0.0008087  [ 0.0007328,  0.0008924]   true     0.00085
-    Ea2_J   :       55.22  [     45.34,      65.11]   true          52
-    K1_ref  :      0.4483  [    0.2109,     0.9528]   true         0.8
-    K2_ref  :     0.06714  [   0.01824,     0.2472]   true        0.12
+    k1_ref  :   0.0009581  [ 0.0007805,   0.001176]   true       0.001
+    Ea1_J   :        40.6  [     36.65,      44.56]   true          40
+    k2_ref  :    0.003159  [ 6.189e-05,     0.1612]   true     0.00065
+    Ea2_J   :       26.35  [    -44.95,      97.64]   true          48
+    K1_ref  :      0.0618  [ 6.314e-26,  6.049e+22]   true         0.9
+    K2_ref  :     0.01545  [ 9.157e-99,  2.607e+94]   true        0.07
   parameter correlation matrix (ln k1, Ea1, ln k2, Ea2, ln K1, ln K2):
-     1.000   0.578  -0.059  -0.079  -0.585   0.030
-     0.578   1.000  -0.059  -0.073  -0.544   0.011
-    -0.059  -0.059   1.000  -0.674   0.068   0.360
-    -0.079  -0.073  -0.674   1.000   0.059  -0.901
-    -0.585  -0.544   0.068   0.059   1.000  -0.009
-     0.030   0.011   0.360  -0.901  -0.009   1.000
-  FIM eigenvalues (ascending): 3.876e-02, 5.835e-01, 9.814e+00, 1.234e+01, 2.182e+03, 6.391e+03
-  experiments chosen: T=40.0C Q=10.0mL/min cat=1.00M; T=55.0C Q=10.0mL/min cat=1.00M; T=70.0C Q=10.0mL/min cat=1.00M; T=85.0C Q=10.0mL/min cat=1.00M; T=45.0C Q=10.0mL/min cat=1.00M; T=60.0C Q=10.0mL/min cat=1.00M; T=75.0C Q=10.0mL/min cat=1.00M; T=90.0C Q=10.0mL/min cat=1.00M
+     1.000  -0.968   0.016  -0.016   0.734   0.042
+    -0.968   1.000  -0.013   0.014  -0.867  -0.045
+     0.016  -0.013   1.000  -0.989   0.006   0.887
+    -0.016   0.014  -0.989   1.000  -0.007  -0.943
+     0.734  -0.867   0.006  -0.007   1.000   0.042
+     0.042  -0.045   0.887  -0.943   0.042   1.000
+  FIM eigenvalues (ascending): 7.157e-05, 1.254e-03, 7.470e-03, 9.882e-01, 9.567e+01, 4.881e+03
+  experiments chosen: T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=45.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=50.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=55.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=65.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=70.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=75.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=85.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=90.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=95.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=100.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=105.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=110.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=115.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=125.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=130.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=135.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=145.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=150.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=155.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M
 
 --------------------------------------------------------------------------
 Strategy B: spatial + fixed design
-  experiments run      : 8 (256 concentration observations)
+  experiments run      : 25 (1000 concentration observations)
   stopping             : budget exhausted
-  mean |rel err|       : 5.89 %
-  max 95% rel CI       : 84.83 %
-  log det F            : 27.44
+  mean |rel err|       : 117.55 %
+  max 95% rel CI       : inf %
+  log det F            : -inf   [RANK-DEFICIENT]
   estimates (95% CI) vs truth:
-    k1_ref  :    0.003307  [  0.003275,   0.003338]   true      0.0033
-    Ea1_J   :       58.37  [     57.76,      58.99]   true        58.5
-    k2_ref  :   0.0008729  [ 0.0008309,   0.000917]   true     0.00085
-    Ea2_J   :       51.73  [     49.15,      54.31]   true          52
-    K1_ref  :      0.7315  [    0.4211,      1.271]   true         0.8
-    K2_ref  :      0.0922  [   0.04988,     0.1704]   true        0.12
+    k1_ref  :   0.0009775  [ 0.0009066,   0.001054]   true       0.001
+    Ea1_J   :       40.08  [     38.87,       41.3]   true          40
+    k2_ref  :   0.0005095  [ 8.409e-05,   0.003087]   true     0.00065
+    Ea2_J   :       50.45  [     25.13,      75.77]   true          48
+    K1_ref  :       1.534  [6.582e-231, 3.576e+230]   true         0.9
+    K2_ref  :       0.494  [         0,        inf]   true        0.07
   parameter correlation matrix (ln k1, Ea1, ln k2, Ea2, ln K1, ln K2):
-     1.000  -0.154  -0.023  -0.018  -0.330  -0.009
-    -0.154   1.000  -0.012  -0.044  -0.391  -0.023
-    -0.023  -0.012   1.000  -0.791   0.031   0.093
-    -0.018  -0.044  -0.791   1.000   0.038  -0.593
-    -0.330  -0.391   0.031   0.038   1.000   0.036
-    -0.009  -0.023   0.093  -0.593   0.036   1.000
-  FIM eigenvalues (ascending): 5.638e-01, 8.035e+00, 1.616e+01, 1.898e+01, 1.092e+04, 5.445e+04
-  experiments chosen: T=40.0C Q=10.0mL/min cat=1.00M; T=55.0C Q=10.0mL/min cat=1.00M; T=70.0C Q=10.0mL/min cat=1.00M; T=85.0C Q=10.0mL/min cat=1.00M; T=45.0C Q=10.0mL/min cat=1.00M; T=60.0C Q=10.0mL/min cat=1.00M; T=75.0C Q=10.0mL/min cat=1.00M; T=90.0C Q=10.0mL/min cat=1.00M
+     1.000  -0.963   0.020  -0.018   0.440   0.030
+    -0.963   1.000  -0.015   0.014  -0.624  -0.036
+     0.020  -0.015   1.000  -0.990   0.001   0.575
+    -0.018   0.014  -0.990   1.000   0.001  -0.672
+     0.440  -0.624   0.001   0.001   1.000   0.038
+     0.030  -0.036   0.575  -0.672   0.038   1.000
+  FIM eigenvalues (ascending): 1.847e-06, 1.368e-05, 1.089e-02, 4.265e+00, 2.905e+02, 2.266e+04
+  experiments chosen: T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=45.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=50.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=55.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=65.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=70.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=75.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=85.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=90.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=95.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=100.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=105.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=110.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=115.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=125.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=130.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=135.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=145.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=150.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=155.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M
 
 --------------------------------------------------------------------------
 Strategy C: outlet + MBDoE
-  experiments run      : 8 (32 concentration observations)
+  experiments run      : 25 (100 concentration observations)
   stopping             : budget exhausted
-  mean |rel err|       : 33.70 %
-  max 95% rel CI       : 3549.43 %
-  log det F            : 20.09
+  mean |rel err|       : 99.13 %
+  max 95% rel CI       : 41212231175.57 %
+  log det F            : 22.57
   estimates (95% CI) vs truth:
-    k1_ref  :    0.003279  [  0.003176,   0.003385]   true      0.0033
-    Ea1_J   :       57.68  [     56.48,      58.88]   true        58.5
-    k2_ref  :   0.0008504  [ 0.0007983,  0.0009059]   true     0.00085
-    Ea2_J   :       51.94  [     49.22,      54.66]   true          52
-    K1_ref  :       2.362  [   0.06472,      86.19]   true         0.8
-    K2_ref  :      0.1143  [   0.09333,     0.1399]   true        0.12
+    k1_ref  :    0.001024  [ 0.0009787,   0.001072]   true       0.001
+    Ea1_J   :       39.67  [     38.96,      40.37]   true          40
+    k2_ref  :   0.0006468  [ 0.0005716,  0.0007318]   true     0.00065
+    Ea2_J   :        48.1  [     46.38,      49.82]   true          48
+    K1_ref  :        6.18  [   1.5e-08,  2.547e+09]   true         0.9
+    K2_ref  :     0.06709  [    0.0602,    0.07478]   true        0.07
   parameter correlation matrix (ln k1, Ea1, ln k2, Ea2, ln K1, ln K2):
-     1.000  -0.303  -0.136   0.013  -0.455   0.017
-    -0.303   1.000   0.019  -0.083  -0.046   0.011
-    -0.136   0.019   1.000  -0.660   0.134  -0.212
-     0.013  -0.083  -0.660   1.000   0.023  -0.210
-    -0.455  -0.046   0.134   0.023   1.000  -0.022
-     0.017   0.011  -0.212  -0.210  -0.022   1.000
-  FIM eigenvalues (ascending): 2.966e-01, 5.195e-01, 2.697e+00, 9.694e+01, 2.327e+03, 5.665e+03
-  experiments chosen: T=40.0C Q=10.0mL/min cat=1.00M; T=80.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=10.0mL/min cat=0.30M; T=60.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=0.30M; T=50.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=20.0mL/min cat=0.30M
+     1.000  -0.943  -0.083   0.087   0.220   0.049
+    -0.943   1.000   0.076  -0.089  -0.424  -0.096
+    -0.083   0.076   1.000  -0.965  -0.012   0.194
+     0.087  -0.089  -0.965   1.000   0.036  -0.322
+     0.220  -0.424  -0.012   0.036   1.000   0.245
+     0.049  -0.096   0.194  -0.322   0.245   1.000
+  FIM eigenvalues (ascending): 9.760e-03, 1.293e+00, 9.422e+00, 3.818e+02, 5.265e+03, 2.662e+04
+  experiments chosen: T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=145.0C Q=0.8mL/min EGDA=1.000M cat=0.500M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=112.7C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.4mL/min EGDA=1.000M cat=0.750M; T=103.2C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.4mL/min EGDA=1.000M cat=0.747M; T=106.4C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.4mL/min EGDA=1.000M cat=0.747M; T=107.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.4mL/min EGDA=1.000M cat=0.747M; T=106.9C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.4mL/min EGDA=1.000M cat=0.747M; T=107.1C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.4mL/min EGDA=1.000M cat=0.747M; T=107.2C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.4mL/min EGDA=1.000M cat=0.747M; T=107.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M
 
 --------------------------------------------------------------------------
 Strategy D: spatial + MBDoE
-  experiments run      : 8 (256 concentration observations)
+  experiments run      : 25 (1000 concentration observations)
   stopping             : budget exhausted
-  mean |rel err|       : 3.23 %
-  max 95% rel CI       : 56.51 %
-  log det F            : 33.05
+  mean |rel err|       : 99.82 %
+  max 95% rel CI       : 366919.77 %
+  log det F            : 33.48
   estimates (95% CI) vs truth:
-    k1_ref  :    0.003287  [  0.003251,   0.003324]   true      0.0033
-    Ea1_J   :       58.32  [     57.77,      58.87]   true        58.5
-    k2_ref  :   0.0008288  [  0.000806,  0.0008523]   true     0.00085
-    Ea2_J   :       53.03  [     51.88,      54.18]   true          52
-    K1_ref  :      0.8332  [    0.5324,      1.304]   true         0.8
-    K2_ref  :      0.1321  [    0.1187,     0.1471]   true        0.12
+    k1_ref  :    0.001015  [ 0.0009948,   0.001035]   true       0.001
+    Ea1_J   :       39.74  [     39.45,      40.02]   true          40
+    k2_ref  :   0.0006215  [ 0.0005836,  0.0006618]   true     0.00065
+    Ea2_J   :       48.58  [     47.76,       49.4]   true          48
+    K1_ref  :        6.18  [  0.001684,  2.268e+04]   true         0.9
+    K2_ref  :     0.07318  [   0.06914,    0.07746]   true        0.07
   parameter correlation matrix (ln k1, Ea1, ln k2, Ea2, ln K1, ln K2):
-     1.000  -0.163  -0.103  -0.001  -0.396   0.029
-    -0.163   1.000  -0.019  -0.097  -0.272   0.035
-    -0.103  -0.019   1.000  -0.798   0.108  -0.091
-    -0.001  -0.097  -0.798   1.000   0.042  -0.254
-    -0.396  -0.272   0.108   0.042   1.000  -0.051
-     0.029   0.035  -0.091  -0.254  -0.051   1.000
-  FIM eigenvalues (ascending): 2.911e+00, 1.159e+01, 2.293e+01, 3.553e+02, 1.952e+04, 4.190e+04
-  experiments chosen: T=40.0C Q=10.0mL/min cat=1.00M; T=70.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=0.30M; T=50.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=1.00M; T=90.0C Q=4.0mL/min cat=0.30M; T=60.0C Q=4.0mL/min cat=1.00M
+     1.000  -0.962  -0.068   0.073   0.260   0.049
+    -0.962   1.000   0.065  -0.076  -0.445  -0.085
+    -0.068   0.065   1.000  -0.982  -0.017   0.194
+     0.073  -0.076  -0.982   1.000   0.039  -0.311
+     0.260  -0.445  -0.017   0.039   1.000   0.207
+     0.049  -0.085   0.194  -0.311   0.207   1.000
+  FIM eigenvalues (ascending): 5.701e-02, 5.685e+00, 5.912e+01, 1.361e+03, 5.265e+04, 2.540e+05
+  experiments chosen: T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=160.0C Q=0.8mL/min EGDA=1.000M cat=1.000M; T=141.1C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=108.2C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=111.3C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=111.6C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=111.6C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=111.9C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=112.2C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=112.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M
 
 --------------------------------------------------------------------------
-Virtual lab usage: 32 experiments run, truth revealed 1 time(s), all after the campaigns ended.
+Virtual lab usage: 100 experiments run, truth revealed 1 time(s), all after the campaigns ended.

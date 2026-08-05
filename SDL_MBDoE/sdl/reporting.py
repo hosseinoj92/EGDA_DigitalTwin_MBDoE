@@ -209,7 +209,7 @@ def write_history_csv(results: Dict[str, StrategyResult],
     sig_cols = ["sigma_" + theta_component_name(pk).replace(" ", "")
                 + ("_kJ" if "Ea" in pk else "") for pk in pkeys]
     cols = (["strategy", "round", "n_experiments", "n_data", "T_C",
-             "Q_total_mL_min", "C_cat_M"] + val_cols + sig_cols
+             "Q_total_mL_min", "C_EGDA_M", "C_cat_M"] + val_cols + sig_cols
             + ["logdet_F", "d_criterion", "max_rel_ci_pct", "mean_rel_err_pct"])
     with open(path, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
@@ -222,7 +222,7 @@ def write_history_csv(results: Dict[str, StrategyResult],
                 w.writerow([
                     key, rec.round, rec.n_experiments, rec.n_data,
                     rec.u.T_C, rec.u.Q1_mL_min + rec.u.Q2_mL_min,
-                    rec.u.C_cat_M] + vals + sigs + [
+                    rec.u.C_EGDA_M, rec.u.C_cat_M] + vals + sigs + [
                     f"{rec.report.logdet_F:.4f}",
                     f"{rec.report.d_criterion:.4e}",
                     f"{rec.report.max_rel_ci_pct:.3f}",

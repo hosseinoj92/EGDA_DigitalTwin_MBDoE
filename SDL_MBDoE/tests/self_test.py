@@ -31,7 +31,8 @@ TRUTH_NAOH = {"k1_ref": 2.20, "Ea1_J": 44_000.0,
 U0 = OperatingConditions(T_C=70.0, Q1_mL_min=5.0, Q2_mL_min=5.0,
                          C_EGDA_M=1.0, C_cat_M=1.0)
 DESIGN = {"T_C_levels": [40, 60, 80, 90], "Q_total_mL_min_levels": [4.0, 10.0],
-          "C_cat_M_levels": [0.3, 1.0], "C_EGDA_M": 1.0,
+          "C_cat_M_levels": [0.3, 1.0],
+          "C_EGDA_M_levels": [0.75, 1.0], "C_EGDA_M": 1.0,
           "fixed_design_T_C": [40, 60, 80, 90],
           "nominal_Q_total_mL_min": 10.0, "nominal_C_cat_M": 1.0}
 
@@ -272,6 +273,79 @@ def test_measurement_shapes_and_noise():
     # spatial outlet block must sit near the outlet-only values (same truth)
     outlet_from_spatial = m_sp.y[len(ports) - 1::len(ports)]
     assert np.max(np.abs(outlet_from_spatial - m_out.y)) < 0.05
+
+
+def test_candidate_grid_varies_egda_concentration():
+    candidates = build_candidates(DESIGN)
+    egda = sorted({u.C_EGDA_M for u in candidates})
+    expected = (len(DESIGN["T_C_levels"])
+                * len(DESIGN["Q_total_mL_min_levels"])
+                * len(DESIGN["C_cat_M_levels"])
+                * len(DESIGN["C_EGDA_M_levels"]))
+    assert len(candidates) == expected
+    assert egda == DESIGN["C_EGDA_M_levels"]
+    # Fixed campaigns retain the explicitly configured nominal EGDA feed.
+    assert all(u.C_EGDA_M == DESIGN["C_EGDA_M"]
+               for u in build_fixed_design(DESIGN))
+    legacy = dict(DESIGN)
+    legacy.pop("C_EGDA_M_levels")
+    assert {u.C_EGDA_M for u in build_candidates(legacy)} == {1.0}
+
+
+def test_continuous_design_refines_inside_bounds():
+    """The hybrid selector must improve on its coarse seed without leaving
+    the user-supplied admissible region."""
+    target = np.array([57.3, 7.4, 0.64, 0.68])
+    scales = np.array([30.0, 6.0, 0.7, 0.5])
+
+    class SmoothInformationSurface:
+        def fisher_information(self):
+            return np.array([[1.0]])
+
+        def candidate_information(self, u, z, species):
+            x = np.array([u.T_C, u.Q1_mL_min + u.Q2_mL_min,
+                          u.C_cat_M, u.C_EGDA_M])
+            value = 100.0 - float(np.sum(((x - target) / scales) ** 2))
+            return np.array([[max(value, 1e-6)]])
+
+    cfg = {
+        "T_C_levels": [40.0, 70.0],
+        "Q_total_mL_min_levels": [4.0, 10.0],
+        "C_cat_M_levels": [0.3, 1.0],
+        "C_EGDA_M_levels": [0.5, 1.0],
+        "C_EGDA_M": 1.0,
+    }
+    bounds = {
+        "T_C": [30.0, 90.0],
+        "Q_total_mL_min": [4.0, 20.0],
+        "C_cat_M": [0.3, 1.0],
+        "C_EGDA_M": [0.5, 1.0],
+    }
+    inference = SmoothInformationSurface()
+    common = dict(
+        inference=inference, candidates=build_candidates(cfg), spatial=False,
+        ports_z_m=np.array([0.5]), outlet_z_m=np.array([0.5]),
+        species=SPECIES)
+    coarse = MBDoESelector(**common).select()
+    refined = MBDoESelector(
+        **common, continuous=True, continuous_bounds=bounds,
+        continuous_maxiter=80).select()
+
+    coarse_x = MBDoESelector._to_vector(coarse)
+    refined_x = MBDoESelector._to_vector(refined)
+    assert np.linalg.norm((refined_x - target) / scales) < np.linalg.norm(
+        (coarse_x - target) / scales)
+    for value, key in zip(refined_x, MBDoESelector._VARIABLES):
+        assert bounds[key][0] <= value <= bounds[key][1]
+
+    bad_bounds = dict(bounds)
+    bad_bounds["T_C"] = [50.0, 90.0]  # excludes the 40 C coarse candidates
+    try:
+        MBDoESelector(**common, continuous_bounds=bad_bounds)
+    except ValueError as exc:
+        assert "continuous_bounds" in str(exc)
+    else:
+        raise AssertionError("Out-of-bounds coarse candidate was accepted.")
 
 
 if __name__ == "__main__":

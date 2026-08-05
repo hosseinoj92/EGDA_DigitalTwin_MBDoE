@@ -4,7 +4,7 @@
 
 > If only a limited number of reactor experiments can be performed, which operating condition should be tested next, and how much kinetic information is gained by measuring a spatial concentration profile instead of only the reactor outlet?
 
-The software answers this question in a controlled virtual study. It creates synthetic CPR-NMR measurements from a hidden set of kinetic parameters, adds realistic measurement noise, repeatedly estimates the kinetics from all data collected so far, calculates parameter uncertainty, and—when Model-Based Design of Experiments (MBDoE) is enabled—selects the next experiment expected to be most informative.
+The software answers this question in a controlled virtual study. It creates synthetic PFR measurements from a hidden set of kinetic parameters, adds realistic measurement noise, repeatedly estimates the kinetics from all data collected so far, calculates parameter uncertainty, and—when Model-Based Design of Experiments (MBDoE) is enabled—selects the next experiment expected to be most informative.
 
 The central comparison is a 2 × 2 study:
 
@@ -220,6 +220,10 @@ An experiment is defined by an `OperatingConditions` record:
 - H2SO4 or NaOH concentration in stream 2 `C_cat_M`.
 
 In the supplied design builders, `Q1 = Q2 = Q_total / 2`.
+
+For autonomous strategies, the coarse candidate grid varies temperature,
+total flow, catalyst/reagent-stream concentration, and EGDA-stream
+concentration. Fixed strategies retain one configured EGDA concentration.
 
 The virtual laboratory simulates the PFR at those conditions and returns concentrations for the configured measured species. With the defaults, the measured species are EGDA, EGMA, EG, and AcOH.
 
@@ -452,7 +456,19 @@ These intervals are **local, asymptotic approximations**, not exact finite-sampl
 
 ## How MBDoE chooses the next experiment
 
-The candidate set is a full factorial grid over temperature, total flow, and H2SO4/NaOH stream concentration. At the current parameter estimate, every candidate produces a predicted observation vector, covariance, and sensitivity matrix. Its expected FIM contribution is added to the information already collected.
+The coarse candidate set is a full factorial grid over temperature, total
+flow, H2SO4/NaOH stream concentration, and EGDA stream concentration. At the
+current parameter estimate, every candidate produces a predicted observation
+vector, covariance, and sensitivity matrix. Its expected FIM contribution is
+added to the information already collected.
+
+When `continuous_design` is `False`, the best grid point is returned. When it
+is `True`, the best grid point initializes a bounded Powell optimization over
+all four operating variables. The continuous result is accepted only if it
+has a finite score and improves on the best grid score; otherwise the selector
+falls back to the grid result. `continuous_bounds` is therefore an enforced
+admissible region, but those numerical limits must be validated by the user
+for chemistry, equipment, analytical sensitivity, and safety.
 
 ### D-optimal design
 
@@ -480,9 +496,14 @@ The selector can obtain different types of information by changing:
 - **Flow/residence time:** moves the observable reaction progress and the EGMA maximum along the reactor.
 - **Acid concentration:** changes the acid-catalyzed rate and speciation environment.
 - **NaOH concentration:** changes both rate and stoichiometric availability because hydroxide is consumed.
+- **EGDA concentration:** changes the substrate loading, reaction-rate scale, and—in the NaOH route—the hydroxide/acetate stoichiometric ratio.
 - **Spatial versus outlet sampling:** preserves or discards the shape of the reaction trajectory.
 
-The algorithm is local: it evaluates candidates using the current estimate and assumed noise model. Early inaccurate estimates can therefore guide the campaign toward a locally attractive region. The method is also restricted to the supplied discrete grid and does not optimize continuous operating conditions.
+The algorithm is local in parameter space: it evaluates designs using the
+current estimate and assumed noise model. Early inaccurate estimates can
+therefore guide the campaign toward a locally attractive region. The optional
+continuous search is also locally initialized from the best coarse candidate;
+it is a fine-refinement step, not a guarantee of the globally optimal design.
 
 Most importantly, the selection target is kinetic information—not maximum conversion, maximum EGMA concentration, or a production objective. A condition with modest product yield can still be extremely valuable if it separates competing parameter effects.
 
@@ -548,6 +569,8 @@ All normal user settings are collected in `CONFIG` at the top of [`run_sdl_campa
 | `target_rel_ci_pct` | `None` | optional early-stop threshold for the worst 95% relative CI |
 | `catalyst` | `H2SO4` | selects reversible acid hydrolysis or irreversible NaOH saponification |
 | `mbdoe_criterion` | `D` | D- or A-optimal candidate score |
+| `continuous_design` | `False` | if true, refine the best coarse MBDoE candidate continuously inside configured bounds |
+| `continuous_maxiter` | `30` | maximum Powell iterations for each continuous refinement |
 | `outdir` | `results` | output directory, relative to the entry script unless absolute |
 
 If H2SO4 and NaOH are run sequentially with the same `outdir`, the standard filenames are overwritten. Use separate paths such as `results_h2so4` and `results_naoh` when both sets must be retained.
@@ -559,9 +582,11 @@ If H2SO4 and NaOH are run sequentially with the same `outdir`, the standard file
 | Temperature | 30, 40, 50, 60, 70, 80, 90 °C |
 | Total flow | 4, 10, 20 mL min⁻¹ |
 | H2SO4 stream concentration | 0.3, 1.0 M |
-| EGDA stream concentration | fixed at 1.0 M |
+| EGDA stream concentration | 0.5, 0.75, 1.0 M |
 
-This creates $7\times3\times2=42$ candidate experiments. The fixed design uses its own eight-temperature sequence at 10 mL min⁻¹ and 1.0 M H2SO4 stream concentration.
+This creates $7\times3\times2\times3=126$ coarse candidate experiments. The
+fixed design uses its own eight-temperature sequence at 10 mL min⁻¹, 1.0 M
+H2SO4 stream concentration, and 1.0 M EGDA stream concentration.
 
 ### Default NaOH candidate space
 
@@ -570,9 +595,18 @@ This creates $7\times3\times2=42$ candidate experiments. The fixed design uses i
 | Temperature | 10, 20, 30, 40, 50 °C |
 | Total flow | 10, 20, 40 mL min⁻¹ |
 | NaOH stream concentration | 0.5, 1.0 M |
-| EGDA stream concentration | fixed at 0.5 M |
+| EGDA stream concentration | 0.25, 0.50, 0.75 M |
 
-This creates $5\times3\times2=30$ candidates. The lower temperatures and higher flows reflect the faster base reaction. The two NaOH concentrations also probe different mixed-feed hydroxide/acetate stoichiometries.
+This creates $5\times3\times2\times3=90$ coarse candidates. The lower
+temperatures and higher flows reflect the faster base reaction. Varying both
+NaOH and EGDA concentrations probes different mixed-feed
+hydroxide/acetate stoichiometries.
+
+Each catalyst design also defines `continuous_bounds` for `T_C`,
+`Q_total_mL_min`, `C_cat_M`, and `C_EGDA_M`. All coarse candidates must lie
+inside these bounds. The defaults match the extrema of the coarse levels so
+continuous refinement interpolates within the same nominal region rather
+than extrapolating beyond it.
 
 ### Forward-model controls
 
@@ -586,7 +620,13 @@ This creates $5\times3\times2=30$ candidates. The lower temperatures and higher 
 
 ### Safe interpretation of configuration changes
 
-Changing the candidate grid changes the question the MBDoE algorithm is allowed to answer. Increasing the grid density may find a better discrete condition but raises runtime approximately in proportion to the number of candidates. Expanding ranges also requires confirming that all conditions remain physically feasible and that the Layer 1 property and activity assumptions are suitable.
+Changing the candidate grid or continuous bounds changes the question the
+MBDoE algorithm is allowed to answer. Increasing grid density raises runtime
+approximately in proportion to the number of candidates. Continuous
+refinement adds repeated FIM evaluations after grid screening. Expanding any
+range requires confirming that all conditions remain physically feasible and
+that the Layer 1 property, activity, phase, and kinetic assumptions remain
+suitable throughout the region.
 
 Changing the hidden truth is appropriate for virtual robustness experiments, but it should not be described as an estimator input. Changing the truth and the literature initial guess together can unintentionally make the identification task easier.
 
@@ -604,7 +644,7 @@ The default run writes six artifacts to [`results/`](results/). The four include
 |---|---|---|
 | Identity | `strategy`, `round` | which campaign and iteration produced the row |
 | Data volume | `n_experiments`, `n_data` | cumulative experiments and scalar concentrations |
-| Selected condition | `T_C`, `Q_total_mL_min`, `C_cat_M` | experiment executed in that round |
+| Selected condition | `T_C`, `Q_total_mL_min`, `C_EGDA_M`, `C_cat_M` | experiment executed in that round |
 | Parameter estimates | `k1_ref`, `Ea1_kJ`, `k2_ref`, `Ea2_kJ`, and acid `K1_ref`, `K2_ref` | current natural-scale best fit |
 | Standard errors | `sigma_*` | local 1σ uncertainty in estimator coordinates; log scale for k/K and kJ mol⁻¹ for Ea |
 | Information | `logdet_F`, `d_criterion`, `max_rel_ci_pct` | cumulative local identifiability measures |
@@ -690,7 +730,12 @@ The final line records virtual-laboratory usage and truth reveals. The included 
 
 ## Worked example: the included H2SO4 campaign
 
-The saved artifacts were generated with seed 7, eight experiments per strategy, reversible acid kinetics, eight ports for spatial strategies, D-optimal MBDoE, and the 42-condition H2SO4 candidate grid.
+The saved artifacts were generated with seed 7, eight experiments per
+strategy, reversible acid kinetics, eight ports for spatial strategies,
+D-optimal MBDoE, and the earlier 42-condition H2SO4 candidate grid in which
+EGDA was fixed at 1.0 M. The current default configuration expands this to a
+126-condition coarse grid by adding three EGDA concentration levels; the
+historical results below have not been retroactively regenerated.
 
 The hidden virtual truth was:
 
@@ -791,9 +836,13 @@ The covariance approximation assumes the model can be linearized near the estima
 
 Small reported uncertainty does not guarantee physical correctness. Unmodeled heat effects, residence-time distribution, mass transfer, side reactions, imperfect mixing, density/property errors, continuing reaction during transfer, calibration bias, or activity-model limitations can create bias not represented by the FIM.
 
-### Candidate quality is constrained by the grid
+### Candidate quality is constrained by the admissible design region
 
-The selector cannot choose a condition that is absent from `design_space`. A coarse grid is transparent and robust but may miss a better interior point. A larger grid increases selection cost, and continuous optimization would require careful handling of feasibility and local optima.
+In grid mode, the selector cannot choose a condition absent from the coarse
+levels. Continuous mode can interpolate inside `continuous_bounds`, but it
+cannot leave them and is not guaranteed to locate a global optimum. Both
+modes depend on the user defining a physically valid, safe, and instrumentally
+useful region.
 
 ### D-optimality is not every scientific goal
 
@@ -824,7 +873,7 @@ Without changing the scientific meaning of the present comparison, useful follow
 4. **Noise misspecification:** vary `noise_true` independently from `noise_assumed`.
 5. **Systematic-bias stress tests:** introduce transfer-time reaction or calibration gains.
 6. **Observation ablation:** remove one species or reduce the number of ports to identify the minimum useful sensor configuration.
-7. **Design-space refinement:** compare the discrete grid with denser or continuous candidate optimization.
+7. **Design-space refinement:** compare coarse-grid selection with bounded continuous refinement and multiple continuous starting points.
 8. **Alternative utilities:** target a specific parameter, a validation prediction, model discrimination, or information per unit cost.
 9. **Nonlinear uncertainty:** compare FIM intervals against bootstrap, profile-likelihood, or posterior intervals.
 10. **Independent validation:** reserve several conditions before campaign execution and do not use them in design selection.
@@ -841,7 +890,7 @@ Without changing the scientific meaning of the present comparison, useful follow
 | [`sdl/observation.py`](sdl/observation.py) | measurement container and heteroscedastic/correlated covariance model |
 | [`sdl/truth.py`](sdl/truth.py) | hidden virtual laboratory, noise generation, optional systematic effects, and controlled truth reveal |
 | [`sdl/inference.py`](sdl/inference.py) | cumulative weighted least squares, sensitivities, FIM, covariance, correlations, and uncertainty reports |
-| [`sdl/design.py`](sdl/design.py) | candidate-grid and fixed-plan creation; D- and A-optimal candidate selection |
+| [`sdl/design.py`](sdl/design.py) | four-axis candidate-grid and fixed-plan creation; D- and A-optimal grid selection with optional bounded continuous refinement |
 | [`sdl/campaign.py`](sdl/campaign.py) | closed-loop execution and per-round records for strategies A–D |
 | [`sdl/reporting.py`](sdl/reporting.py) | figures, history CSV, final text report, and truth-relative benchmark calculations |
 | [`tests/self_test.py`](tests/self_test.py) | dependency-free project self-test suite |
@@ -882,7 +931,13 @@ The standard filenames are reused. Set a different `outdir` for each catalyst or
 
 ### Runtime becomes large
 
-MBDoE evaluates every candidate using several forward simulations per parameter, and each nonlinear refit also calls the PFR repeatedly. Runtime grows with candidate count, parameter count, experiment budget, number of strategies, ports, and solver cost. Start with a smaller candidate grid for debugging, then restore the scientific design for the final study.
+MBDoE evaluates every coarse candidate using several forward simulations per
+parameter, and each nonlinear refit also calls the PFR repeatedly. Continuous
+refinement adds further design evaluations. Runtime grows with candidate
+count, continuous iterations, parameter count, experiment budget, number of
+strategies, ports, and solver cost. Start with a smaller grid and
+`continuous_design: False` for debugging, then restore the scientific design
+for the final study.
 
 ---
 
