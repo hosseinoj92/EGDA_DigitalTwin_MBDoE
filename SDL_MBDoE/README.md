@@ -124,13 +124,13 @@ This explains why a configured NaOH stream concentration of 0.5 M begins near 0.
 
 The model represents two consecutive transformations:
 
-\[
+$$
 \mathrm{EGDA + H_2O \rightleftharpoons EGMA + AcOH}
-\]
+$$
 
-\[
+$$
 \mathrm{EGMA + H_2O \rightleftharpoons EG + AcOH}
-\]
+$$
 
 Here:
 
@@ -170,9 +170,9 @@ Thus, the second dissociation constant of sulfuric acid is temperature-dependent
 
 For NaOH, the bridge forces the reaction model to be irreversible and estimates four parameters:
 
-\[
+$$
 \theta = (k_{1,\mathrm{ref}}, E_{a,1}, k_{2,\mathrm{ref}}, E_{a,2}).
-\]
+$$
 
 No equilibrium constants are estimated because saponification is modeled as irreversible. NaOH is **not merely a catalyst label in this route**: hydroxide is consumed stoichiometrically. Consequently, `C_cat_M` becomes a reagent-concentration design variable, and a low NaOH/acetate ratio can make OH⁻ limiting.
 
@@ -182,28 +182,28 @@ The NaOH design window is colder and faster-flowing than the H2SO4 window becaus
 
 Instead of directly estimating an Arrhenius pre-exponential factor and activation energy, the package estimates a rate constant at a reference temperature inside the design window:
 
-\[
+$$
 k_i(T)=k_{i,\mathrm{ref}}
 \exp\!\left[-\frac{E_{a,i}}{R}
 \left(\frac{1}{T}-\frac{1}{T_{\mathrm{ref}}}\right)\right].
-\]
+$$
 
 The default reference temperature is 60 °C. The bridge converts the fitted reference rate constant to the pre-exponential form required by Layer 1:
 
-\[
+$$
 A_i=k_{i,\mathrm{ref}}\exp\!\left(\frac{E_{a,i}}{R T_{\mathrm{ref}}}\right).
-\]
+$$
 
-This reference-temperature parameterization reduces the severe numerical correlation that commonly occurs when fitting \(A\) and \(E_a\) directly over a moderate temperature interval.
+This reference-temperature parameterization reduces the severe numerical correlation that commonly occurs when fitting $A$ and $E_a$ directly over a moderate temperature interval.
 
 For optimization, positive quantities are represented logarithmically and activation energies are scaled to kJ mol⁻¹:
 
-\[
+$$
 \theta_{\mathrm{H_2SO_4}}=
 [\ln k_{1,\mathrm{ref}}, E_{a,1}/1000,
  \ln k_{2,\mathrm{ref}}, E_{a,2}/1000,
  \ln K_{1,\mathrm{ref}}, \ln K_{2,\mathrm{ref}}].
-\]
+$$
 
 The logarithms enforce positivity, while the scaling keeps the numerical magnitudes of the fitted components more comparable.
 
@@ -227,27 +227,27 @@ The virtual laboratory simulates the PFR at those conditions and returns concent
 
 An outlet experiment measures four values:
 
-\[
+$$
 [C_{\mathrm{EGDA}}(L), C_{\mathrm{EGMA}}(L),
  C_{\mathrm{EG}}(L), C_{\mathrm{AcOH}}(L)].
-\]
+$$
 
 ### Spatial measurement
 
 A spatial experiment samples eight equally spaced axial positions:
 
-\[
+$$
 z=\frac{L}{8},\frac{2L}{8},\ldots,L.
-\]
+$$
 
-The inlet at \(z=0\) is not one of the measurement ports; the outlet at \(z=L\) is. Four species at eight ports produce 32 concentration observations per experiment.
+The inlet at $z=0$ is not one of the measurement ports; the outlet at $z=L$ is. Four species at eight ports produce 32 concentration observations per experiment.
 
 The flattened measurement vector is species-major:
 
-\[
+$$
 \mathbf y = [C_1(z_1),\ldots,C_1(z_{N_z}),
 C_2(z_1),\ldots,C_{N_s}(z_{N_z})].
-\]
+$$
 
 ### An important fairness distinction
 
@@ -346,11 +346,11 @@ In a real laboratory there is no reveal step. The truth-dependent error curve an
 
 ## Measurement and noise model
 
-The synthetic CPR-NMR model combines an absolute concentration floor with a relative integration error. For predicted or clean concentration \(C_j\), the standard deviation is
+The synthetic CPR-NMR model combines an absolute concentration floor with a relative integration error. For predicted or clean concentration $C_j$, the standard deviation is
 
-\[
-\sigma_j=\sigma_{\mathrm{abs}}+sigma_{\mathrm{rel}}\max(C_j,0).
-\]
+$$
+\sigma_j=\sigma_{\mathrm{abs}}+\sigma_{\mathrm{rel}}\max(C_j,0).
+$$
 
 The defaults are:
 
@@ -382,17 +382,17 @@ Because these effects are applied only in the virtual laboratory, they can test 
 
 After every experiment, the code minimizes a weighted least-squares objective over all accumulated measurements:
 
-\[
+$$
 \hat\theta = \arg\min_{\theta}
 \sum_e
 \left(\hat{\mathbf y}_e(\theta)-\mathbf y_e\right)^\mathsf{T}
 \Sigma_e^{-1}
 \left(\hat{\mathbf y}_e(\theta)-\mathbf y_e\right).
-\]
+$$
 
-Here, \(e\) indexes experiments, \(\mathbf y_e\) is the noisy measurement, \(\hat{\mathbf y}_e\) is the Layer 1 prediction, and \(\Sigma_e\) is the assumed observation covariance.
+Here, $e$ indexes experiments, $\mathbf y_e$ is the noisy measurement, $\hat{\mathbf y}_e$ is the Layer 1 prediction, and $\Sigma_e$ is the assumed observation covariance.
 
-Numerically, each residual vector is whitened using a Cholesky factor of \(\Sigma_e\), and SciPy’s bounded trust-region least-squares algorithm (`method="trf"`) solves the problem. The fitted solution from one round initializes the next fit.
+Numerically, each residual vector is whitened using a Cholesky factor of $\Sigma_e$, and SciPy’s bounded trust-region least-squares algorithm (`method="trf"`) solves the problem. The fitted solution from one round initializes the next fit.
 
 The default parameter bounds are deliberately broad but finite:
 
@@ -410,9 +410,9 @@ These bounds prevent nonphysical values and reduce numerical failure, but a resu
 
 For one experiment, the local sensitivity matrix is
 
-\[
+$$
 S_e=\frac{\partial \hat{\mathbf y}_e}{\partial\theta}.
-\]
+$$
 
 Each column asks how the predicted concentration vector changes when one scaled parameter is perturbed. Large, linearly independent columns are desirable. Nearly proportional columns indicate that two parameters affect the data similarly and are difficult to distinguish.
 
@@ -422,15 +422,15 @@ The estimation FIM uses central finite differences. Candidate screening uses for
 
 The cumulative information matrix is
 
-\[
+$$
 F=\sum_e S_e^\mathsf{T}\Sigma_e^{-1}S_e.
-\]
+$$
 
 Under a local linear approximation and a correctly specified Gaussian noise model, the parameter covariance is approximated by
 
-\[
+$$
 V_\theta\approx F^{-1}.
-\]
+$$
 
 If the FIM is numerically rank deficient, the code uses a pseudoinverse for diagnostics and flags the result as not well posed. In that case, `logdet_F` is reported as negative infinity and `d_criterion` as infinity.
 
@@ -458,9 +458,9 @@ The candidate set is a full factorial grid over temperature, total flow, and H2S
 
 The default criterion selects
 
-\[
+$$
 u^*=\arg\max_u \log\det\left(F_{\mathrm{current}}+F_{\mathrm{candidate}}(u)\right).
-\]
+$$
 
 D-optimality seeks to shrink the joint parameter-uncertainty ellipsoid. It balances all estimable parameter directions through the determinant, although it can still leave one scientifically important parameter less precise than desired.
 
@@ -468,9 +468,9 @@ D-optimality seeks to shrink the joint parameter-uncertainty ellipsoid. It balan
 
 With `mbdoe_criterion: "A"`, the score is the negative trace of the inverse FIM. Maximizing it is equivalent to minimizing the sum of local parameter variances in the scaled estimator space:
 
-\[
+$$
 u^*=\arg\min_u \operatorname{tr}\left(F(u)^{-1}\right).
-\]
+$$
 
 ### What the selection physically tends to explore
 
@@ -561,7 +561,7 @@ If H2SO4 and NaOH are run sequentially with the same `outdir`, the standard file
 | H2SO4 stream concentration | 0.3, 1.0 M |
 | EGDA stream concentration | fixed at 1.0 M |
 
-This creates \(7\times3\times2=42\) candidate experiments. The fixed design uses its own eight-temperature sequence at 10 mL min⁻¹ and 1.0 M H2SO4 stream concentration.
+This creates $7\times3\times2=42$ candidate experiments. The fixed design uses its own eight-temperature sequence at 10 mL min⁻¹ and 1.0 M H2SO4 stream concentration.
 
 ### Default NaOH candidate space
 
@@ -572,7 +572,7 @@ This creates \(7\times3\times2=42\) candidate experiments. The fixed design uses
 | NaOH stream concentration | 0.5, 1.0 M |
 | EGDA stream concentration | fixed at 0.5 M |
 
-This creates \(5\times3\times2=30\) candidates. The lower temperatures and higher flows reflect the faster base reaction. The two NaOH concentrations also probe different mixed-feed hydroxide/acetate stoichiometries.
+This creates $5\times3\times2=30$ candidates. The lower temperatures and higher flows reflect the faster base reaction. The two NaOH concentrations also probe different mixed-feed hydroxide/acetate stoichiometries.
 
 ### Forward-model controls
 
@@ -620,11 +620,11 @@ The CSV supports additional analysis such as plotting one parameter over rounds,
 
 This plot shows the mean absolute relative error across the fitted natural parameters:
 
-\[
+$$
 \mathrm{MARE}=\frac{100}{p}\sum_{q=1}^{p}
 \left|\frac{\hat\theta_q-\theta_{q,\mathrm{true}}}
 {\theta_{q,\mathrm{true}}}\right|.
-\]
+$$
 
 Smaller is better, but the curve need not decrease monotonically. A new noisy experiment can move a nonlinear fit away from the exact truth even while improving its expected precision. In the included run, D falls rapidly to a few percent, B ends near 6%, A near 17%, and C near 34%. Those numbers describe this seed and hidden truth—not guaranteed long-run averages.
 
@@ -636,9 +636,9 @@ This is a post-campaign diagnostic. A real self-driving laboratory cannot use it
 
 This figure shows the cumulative D-criterion uncertainty scale
 
-\[
+$$
 d=(\det V_\theta)^{1/(2p)}.
-\]
+$$
 
 Smaller values indicate a smaller local joint uncertainty ellipsoid. Unlike true error, this metric can be estimated during an actual campaign. Only finite, well-defined values are plotted; early rank-deficient rounds can be absent.
 
@@ -874,7 +874,7 @@ Candidates are not removed after selection. The current criterion may prefer rep
 
 ### EGMA has no obvious peak in an outlet plot
 
-EGMA is an intermediate, so its maximum may occur inside the reactor. An outlet-only result shows only its value at \(z=L\). Use a full profile or spatial-port data and verify that the residence-time and kinetic window place the maximum within the reactor.
+EGMA is an intermediate, so its maximum may occur inside the reactor. An outlet-only result shows only its value at $z=L$. Use a full profile or spatial-port data and verify that the residence-time and kinetic window place the maximum within the reactor.
 
 ### Output files disappeared after changing catalysts
 
