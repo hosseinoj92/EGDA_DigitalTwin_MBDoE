@@ -159,8 +159,8 @@ CONFIG = {
 
     # ---- validation figure (per catalyst) ---------------------------------------------------
     "validation_condition": {
-        "H2SO4": {"T_C": 160.0, "Q_total_mL_min": 1.0,
-                   "C_EGDA_M": 0.5, "C_cat_M": 0.5},
+        "H2SO4": {"T_C": 160.0, "Q_total_mL_min": 0.5,
+                   "C_EGDA_M": 1.0, "C_cat_M": 1.0},
         "NaOH": {"T_C": 30.0, "Q_total_mL_min": 20.0,
                   "C_EGDA_M": 0.5, "C_cat_M": 1.0},
     },
