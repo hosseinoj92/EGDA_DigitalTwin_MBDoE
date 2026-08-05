@@ -33,7 +33,7 @@ from sdl import reporting
 # ============================================================================
 CONFIG = {
     "seed": 7,                      # master RNG seed (per-strategy offsets added)
-    "budget": 25,                    # experiments allowed per strategy
+    "budget": 10,                    # experiments allowed per strategy
     "strategies": ["A", "B", "C", "D"],
     "target_rel_ci_pct": None,      # e.g. 5.0 -> stop early when every 95% CI
                                     # is tighter than 5 %; None = use full budget
@@ -146,8 +146,8 @@ CONFIG = {
 
     # ---- validation figure (per catalyst) ---------------------------------------------------
     "validation_condition": {
-        "H2SO4": {"T_C": 65.0, "Q_total_mL_min": 10.0,
-                   "C_EGDA_M": 1.0, "C_cat_M": 1.0},
+        "H2SO4": {"T_C": 160.0, "Q_total_mL_min": 1.0,
+                   "C_EGDA_M": 0.5, "C_cat_M": 0.5},
         "NaOH": {"T_C": 30.0, "Q_total_mL_min": 20.0,
                   "C_EGDA_M": 0.5, "C_cat_M": 1.0},
     },
