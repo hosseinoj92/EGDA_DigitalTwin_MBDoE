@@ -42,11 +42,12 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
-from scipy.linalg import solve_triangular
 
 from .inference import covariance_from_fim
 from .layer1_bridge import Layer1Bridge, OperatingConditions
 from .observation import NoiseModel
+from .parallel import FIMSpec, ParallelConfig
+from .parallel import information_matrices as _sweep
 from .parameters import ParameterSpace
 
 #: design variables of the reference box, in OperatingConditions order
@@ -95,32 +96,22 @@ def information_matrices(space: ParameterSpace, bridge: Layer1Bridge,
                          noise: NoiseModel,
                          conditions: Sequence[OperatingConditions],
                          z_m: np.ndarray, species: Sequence[str],
-                         theta_vec: Optional[np.ndarray] = None
+                         theta_vec: Optional[np.ndarray] = None,
+                         parallel: Optional[ParallelConfig] = None
                          ) -> List[np.ndarray]:
     """Per-condition information M_e = S_e' Sigma_e^-1 S_e at `theta_vec`
     (default: the initial guess).  Central differences, matching
-    InferenceModel.sensitivity."""
+    InferenceModel.sensitivity.
+
+    This is the whole cost of the screen - (2p+1) PFR integrations per
+    candidate - and the conditions are independent, so `parallel` spreads
+    them over the machine without changing the returned list (see
+    sdl/parallel.py)."""
     th = space.to_vector(space.initial_guess) if theta_vec is None else theta_vec
-    p = space.n_params
-    z_m = np.asarray(z_m, dtype=float)
-    species = tuple(species)
-    out = []
-    for u in conditions:
-        y0 = bridge.concentrations_at(space.to_natural(th), u, z_m, species)
-        S = np.empty((len(y0), p))
-        for q in range(p):
-            h = space.fd_steps[q]
-            tp, tm = th.copy(), th.copy()
-            tp[q] += h
-            tm[q] -= h
-            S[:, q] = (bridge.concentrations_at(space.to_natural(tp), u, z_m,
-                                                species)
-                       - bridge.concentrations_at(space.to_natural(tm), u, z_m,
-                                                  species)) / (2.0 * h)
-        chol = np.linalg.cholesky(noise.covariance(y0, species, len(z_m)))
-        Sw = solve_triangular(chol, S, lower=True)
-        out.append(Sw.T @ Sw)
-    return out
+    spec = FIMSpec(bridge=bridge, space=space, noise=noise,
+                   z_m=np.asarray(z_m, dtype=float), species=tuple(species),
+                   difference="central")
+    return _sweep(spec, th, conditions, parallel)
 
 
 def _logdet_floored(F: np.ndarray, floor: float = 1e-12) -> float:
@@ -142,14 +133,15 @@ def greedy_d_optimal(mats: Sequence[np.ndarray], budget: int) -> np.ndarray:
 def screen(space: ParameterSpace, bridge: Layer1Bridge, noise: NoiseModel,
            candidates: Sequence[OperatingConditions], z_m: np.ndarray,
            species: Sequence[str], budget: int,
-           max_rel_ci_pct: float = 200.0) -> ScreenResult:
+           max_rel_ci_pct: float = 200.0,
+           parallel: Optional[ParallelConfig] = None) -> ScreenResult:
     """Iteratively hold fixed every parameter that even the best affordable
     design in this box cannot determine."""
     # Full-parameter information, computed once.  Fixing theta_j deletes its
     # column from S and leaves the others unchanged, so every reduced-space
     # information matrix is a submatrix of these.
     mats_full = information_matrices(space, bridge, noise, candidates, z_m,
-                                     species)
+                                     species, parallel=parallel)
     keys = list(space.param_keys)
     live = list(range(len(keys)))            # indices into `keys` still in theta
     guess_full = space.to_vector(space.initial_guess)

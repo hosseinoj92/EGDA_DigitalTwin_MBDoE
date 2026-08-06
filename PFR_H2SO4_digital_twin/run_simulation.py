@@ -56,23 +56,23 @@ CONFIG = {
 
     # ---- feed stream 1: aqueous EGDA ----------------------------------------
     "stream1": {
-        "Q_mL_min": 0.5,           # pump flow rate, mL/min
-        "C_EGDA_M": 0.01,           # EGDA molarity, mol/L
+        "Q_mL_min": 5,           # pump flow rate, mL/min
+        "C_EGDA_M": 0.1,           # EGDA molarity, mol/L
         "density_g_L": 1005.0,     # solution density (for [H2O] and Re), g/L
     },
 
     # ---- feed stream 2: aqueous catalyst solution -----------------------------
     "stream2": {
-        "Q_mL_min": 0.5,           # pump flow rate, mL/min
-        "C_cat_M": 0.01,            # catalyst molarity (H2SO4 or NaOH), mol/L
+        "Q_mL_min": 5,           # pump flow rate, mL/min
+        "C_cat_M": 0.1,            # catalyst molarity (H2SO4 or NaOH), mol/L
         "density_g_L": 1060.0,     # solution density, g/L
                                    # (2 M H2SO4 ~ 1060; 2 M NaOH ~ 1080)
     },
 
     # ---- reactor geometry ------------------------------------------------------
     "reactor": {
-        "length_m": 0.2,         # tube length, m         (lab PFR: 0.200 / 0.600)
-        "diameter_m": 0.02,       # inner diameter, m      (lab PFR: 0.018 / 0.032)
+        "length_m": 0.6,         # tube length, m         (lab PFR: 0.200 / 0.600)
+        "diameter_m": 0.04,       # inner diameter, m      (lab PFR: 0.018 / 0.032)
     },
 
     # ---- catalyst speciation (H2SO4 route only) -----------------------------------
@@ -80,7 +80,7 @@ CONFIG = {
     "n_eff_protons": 1.0,           # protons per H2SO4 (stoichiometric model only)
     "ka2_model": "tdep",            # "tdep" (Ka2(T), Clarke-Glew; Hovey-Hepler
                                     # thermochemistry) | "constant" (legacy 25 C)
-    "activity_model": "pitzer",     # "dilute" (gamma=1) | "pitzer" (PRS activity
+    "activity_model": "dilute",     # "dilute" (gamma=1) | "pitzer" (PRS activity
                                     # model + co-fitted K2(T); use for molar acid
                                     # concentrations - strongly non-ideal)
 
@@ -98,7 +98,7 @@ CONFIG = {
     },
 
     # ---- output -------------------------------------------------------------------
-    "outdir": "results",            # relative paths resolve next to this script
+    "outdir": "results_test",            # relative paths resolve next to this script
 }
 # ============================================================================
 

@@ -603,6 +603,20 @@ All normal user settings are collected in `CONFIG` at the top of [`run_sdl_campa
 
 If H2SO4 and NaOH are run sequentially with the same `outdir`, the standard filenames are overwritten. Use separate paths such as `results_h2so4` and `results_naoh` when both sets must be retained.
 
+### Parallel execution
+
+| Key | Default | Effect |
+|---|---|---|
+| `parallel.workers` | `"auto"` | worker processes; `"auto"` = every logical core, `1` = serial |
+| `parallel.backend` | `"process"` | `"process"`, `"thread"` (debugging only), or `"serial"` |
+| `parallel.chunks_per_worker` | `4` | how finely the candidate grid is cut across workers |
+
+Almost all the runtime is spent building candidate information matrices — the identifiability screen sweeps the grid once, and every autonomous round sweeps it again. Those sweeps are farmed out across cores, as is the finite-difference fan inside each step of the continuous refinement (Powell itself is sequential and stays so). On a 16-core machine one full `select()` on the default 4375-candidate grid drops from 226 s to 28 s.
+
+**This setting cannot change results.** Each candidate's information matrix is a pure function of the current estimate and the operating condition; sweeps are reassembled in candidate order, and the winner is still the first strict maximum. The selected experiments, the estimates, and every written file are byte-identical at any worker count — `tests/self_test.py` asserts both the matrices and the selected experiment.
+
+`backend: "thread"` will *not* speed the campaign up: the forward model is a Python right-hand side inside `solve_ivp`, so threads stay GIL-bound. There is no GPU backend, and one would not help — a single forward solve is an adaptive integration of a 6-state ODE, a long sequential chain over ~50 numbers. Using a GPU would mean integrating all candidates simultaneously with a fixed-step scheme, i.e. replacing Layer 1's solver and changing the numbers it produces. See the module docstring in [`sdl/parallel.py`](sdl/parallel.py).
+
 ### Default H2SO4 candidate space
 
 | Axis | Levels |
@@ -662,7 +676,25 @@ Changing the hidden truth is appropriate for virtual robustness experiments, but
 
 ## Outputs and how to read them
 
-The default run writes six artifacts to [`results/`](results/). The four included PNG files and two data/report files all come from the same saved H2SO4 run.
+The default run writes to [`results/`](results/): eight figures, a sibling CSV for each of them, and three text/data files.
+
+**Every `.png` has a `.csv` of exactly the data it draws**, with the same basename — the same rule Layer 1 follows, enforced centrally by `reporting._save`, which takes the plotted data as a required argument. Nothing in a figure has to be re-derived by re-running the campaign, and every chart can be redrawn in another tool.
+
+| Artifact | What it answers |
+|---|---|
+| `campaign_history.csv` | round-by-round record of every strategy |
+| `campaign_summary.csv` | one row per strategy: the end-of-campaign digest a table in a paper or proposal quotes |
+| `final_report.txt` | the full human-readable report, opening with the headline comparison |
+| `convergence_error.png` | does the estimate approach the truth, and how fast? |
+| `convergence_uncertainty.png` | does the campaign *know* it is converging (no truth needed)? |
+| `final_estimates.png` | where did each strategy land, with what confidence interval? |
+| `validation_profiles.png` | does the identified model predict an unseen condition? |
+| `prediction_improvement.png` | what did the experiments buy over doing nothing? (see below) |
+| `budget_to_target.png` | how many experiments does each strategy need for a stated accuracy? |
+| `confidence_ellipses.png` | what *shape* is the remaining uncertainty — is k still aliased with Ea? |
+| `information_landscape.png` | why does MBDoE win — where is the information, and where did each strategy look? |
+
+The last four are the comparison figures: they exist to make the case for the method rather than to report one campaign, and each is described in its own section below.
 
 ### `campaign_history.csv`
 
@@ -742,9 +774,56 @@ The near-overlap for EGDA, EGMA, EG, and AcOH indicates strong predictive agreem
 
 The “best” model is selected here by final hidden-truth parameter error, which is legitimate for a synthetic benchmark. A real application must choose validation and model-selection rules that do not depend on unknown truth.
 
+### `prediction_improvement.png`
+
+The validation figure above shows that the identified model tracks the truth. This one shows what that was *worth*, by adding the baseline the campaign started from: the published literature kinetics, which is what an engineer would have predicted with zero experiments.
+
+Three curves per species, at a condition nobody measured:
+
+- **hidden truth** — a wide translucent band, so a good estimate sits *inside* it rather than hiding it;
+- **literature kinetics (0 experiments)** — dotted grey, the do-nothing baseline;
+- **identified by the best strategy** — dashed, on top.
+
+Each panel is titled with the RMS concentration error of both models against the truth, and the figure title carries the pooled figure. The gap between the dotted curve and the band is the error the campaign had to remove; the gap between the dashed curve and the band is what it did not. On the acid route the literature prior is wrong by hundreds of millimolar at 160 °C — it predicts the reaction essentially complete within the first centimetre — while the identified model tracks the truth to a few millimolar.
+
+The paired CSV carries all twelve curves plus `x_m` and `tau_s`.
+
+### `budget_to_target.png`
+
+The convergence curves answer "how good does it get"; this bar chart answers the question that costs money: **how many reactor experiments until every kinetic parameter is known to a stated accuracy.**
+
+A bar counts a round only when
+
+- **no parameter rests on a box bound**, so the score covers all of θ rather than the survivors, and
+- **the FIM is well posed**, so the round has genuinely determined something.
+
+Both conditions matter. The error score deliberately excludes parameters pinned at a bound (a pinned value is the constraint, not an estimate), which means an early round with most of θ pinned is scored on the remainder and can post a very low number. On the acid route the conventional design does exactly this: without the two conditions above it would appear to hit a 5% target in three experiments and then finish the campaign an order of magnitude worse. Hatched bars mark targets never reached within the budget.
+
+### `confidence_ellipses.png`
+
+The joint 95% confidence region for each rate constant's (ln k_ref, Ea) pair, per strategy, with the hidden truth marked.
+
+Size is not the whole story — shape is. When every experiment sits at a similar temperature, the data constrains the *product* of a rate constant and its activation energy rather than the pair, and the confidence region degenerates into a long thin diagonal sliver: the two parameters are aliased, and the model will extrapolate badly in temperature even though each individual error bar looks acceptable. Breaking that correlation is precisely what experiment design is for, so a short, round, small ellipse is the visual signature of a good campaign in a way no single error bar can show.
+
+Axis limits are set from the well-posed strategies. A rank-deficient strategy's ellipse is astronomically large and will run off the panel — which is the honest depiction of "this campaign did not determine these parameters".
+
+### `information_landscape.png`
+
+Why the autonomous strategies win, in one picture.
+
+The background is the information a **single** experiment can supply — the log determinant of its own Fisher matrix — over the declared (T, Q) grid. Each cell is the best value achievable at that temperature and flow over the feed compositions in the design space, so every experiment can legitimately be plotted on it regardless of its own feed: the cell is an upper bound on what that (T, Q) can give. It is evaluated at the initial (literature) estimate, which is exactly what the campaign knows before it starts.
+
+On top, where each strategy actually spent its budget, with marker size growing by round. The fixed designs walk a temperature ladder at one nominal flow because that is what they were told to do, crossing the informative region without stopping in it. The MBDoE strategies concentrate on the bright ridge — hot and slow-flowing, where conversion is far enough advanced for the second step to leave a signature — because they can see this surface at their current estimate and a predefined ladder cannot.
+
+Strategies A and B run the identical fixed design, so their markers coincide; the marker shapes differ so neither hides the other.
+
+### `campaign_summary.csv`
+
+One row per strategy with the end-of-campaign numbers: experiments and observations, the geometric-mean and arithmetic-mean parameter error, worst relative CI, `logdet_F`, D-criterion, whether the FIM is well posed, any parameters at a bound, the experiments needed for each accuracy target, the per-parameter relative error, and the validation-profile RMSE. `campaign_history.csv` is the full round-by-round record; this is the digest to paste into a comparison table.
+
 ### `final_report.txt`
 
-[`final_report.txt`](results/final_report.txt) is the human-readable numerical summary. For each strategy it reports:
+[`final_report.txt`](results/final_report.txt) is the human-readable numerical summary. It opens with a **headline comparison** — the experiments-to-target table, and the predictive accuracy of the literature prior against the best identified model at the validation condition. Then, for each strategy, it reports:
 
 - experiment and observation counts,
 - stopping reason,
@@ -924,7 +1003,8 @@ Without changing the scientific meaning of the present comparison, useful follow
 | [`sdl/inference.py`](sdl/inference.py) | cumulative weighted least squares, sensitivities, FIM, covariance, correlations, and uncertainty reports |
 | [`sdl/design.py`](sdl/design.py) | four-axis candidate-grid and fixed-plan creation; D- and A-optimal grid selection with optional bounded continuous refinement |
 | [`sdl/campaign.py`](sdl/campaign.py) | closed-loop execution and per-round records for strategies A–D |
-| [`sdl/reporting.py`](sdl/reporting.py) | figures, history CSV, final text report, and truth-relative benchmark calculations |
+| [`sdl/parallel.py`](sdl/parallel.py) | worker pool and the single definition of one candidate's sensitivity pass; spreads the screen and MBDoE sweeps over CPU cores in candidate order, so results are independent of the worker count |
+| [`sdl/reporting.py`](sdl/reporting.py) | figures and their paired CSVs, history and summary tables, final text report, and truth-relative benchmark calculations |
 | [`tests/self_test.py`](tests/self_test.py) | dependency-free project self-test suite |
 
 The separation is intentional: inference and design depend on the bridge and measurements, not on hidden truth. This makes the virtual implementation structurally similar to a future hardware-backed loop, where `VirtualLaboratory.run_experiment()` would be replaced by actual experiment execution and data acquisition.

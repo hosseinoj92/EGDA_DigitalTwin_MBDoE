@@ -15,6 +15,10 @@ Architecture (strict truth/inference separation):
                                        D-optimal MBDoE selection.
     campaign.py   Closed loop        - select -> run -> measure -> estimate
                                        -> repeat, for strategies A/B/C/D.
+    parallel.py   Worker pool        - spreads the candidate sweeps of the
+                                       screen and of MBDoE over CPU cores,
+                                       in candidate order, so results are
+                                       independent of the worker count.
     layer1_bridge.py                 - the ONLY module that imports Layer 1.
 
 Layer 1 is treated as an immutable high-fidelity simulator; nothing here
@@ -26,6 +30,7 @@ __version__ = "1.0.0"
 from .layer1_bridge import Layer1Bridge, OperatingConditions, literature_guess
 from .parameters import ParameterSpace, PARAM_KEYS, param_keys_for
 from .observation import NoiseModel, Measurement
+from .parallel import ParallelConfig, shutdown_pool
 from .truth import VirtualLaboratory
 from .inference import InferenceModel, covariance_from_fim
 from .design import build_candidates, build_fixed_design, MBDoESelector

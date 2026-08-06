@@ -26,6 +26,7 @@ from scipy.optimize import least_squares
 
 from .layer1_bridge import Layer1Bridge, OperatingConditions
 from .observation import Measurement, NoiseModel
+from .parallel import FIMSpec, condition_information
 from .parameters import ParameterSpace
 
 
@@ -160,21 +161,19 @@ class InferenceModel:
                                  rel_ci_pct=rel_ci)
 
     # ------------------------------------------------------------------ #
+    def fim_spec(self, z_m: np.ndarray, species,
+                 difference: str = "forward") -> FIMSpec:
+        """The self-contained, picklable recipe for scoring one candidate.
+
+        Carries no measurements and no history - only what a design score
+        depends on - so a worker process can evaluate candidates without a
+        copy of the accumulated campaign."""
+        return FIMSpec(bridge=self.bridge, space=self.space, noise=self.noise,
+                       z_m=np.asarray(z_m, dtype=float),
+                       species=tuple(species), difference=difference)
+
     def candidate_information(self, u: OperatingConditions, z_m: np.ndarray,
                               species) -> np.ndarray:
         """Expected FIM contribution of a candidate experiment, evaluated at
         the CURRENT estimate with the ASSUMED noise model (forward FD)."""
-        m_hyp = Measurement(u=u, z_m=np.asarray(z_m, dtype=float),
-                            species=tuple(species),
-                            y=np.zeros(len(z_m) * len(species)))
-        y0 = self.predict(self.theta, m_hyp)
-        p = self.space.n_params
-        S = np.empty((len(y0), p))
-        for q in range(p):
-            h = self.space.fd_steps[q]
-            tp = self.theta.copy()
-            tp[q] += h
-            S[:, q] = (self.predict(tp, m_hyp) - y0) / h
-        cov = self.noise.covariance(y0, m_hyp.species, m_hyp.n_z)
-        Sw = solve_triangular(np.linalg.cholesky(cov), S, lower=True)
-        return Sw.T @ Sw
+        return condition_information(self.fim_spec(z_m, species), self.theta, u)

@@ -446,6 +446,162 @@ def test_identifiability_screen_keeps_identifiable_parameters():
     assert set(nat) == set(space.param_keys)
 
 
+def test_parallel_sweep_is_bit_identical_to_serial():
+    """Spreading the candidate sweeps over worker processes is a SPEED knob
+    only.  Each candidate's information matrix is a pure function of
+    (theta, u) and the sweep is reassembled in candidate order, so the
+    matrices must match bit for bit - not merely to a tolerance - and the
+    greedy first-maximum tie-break must return the same experiment.  Anything
+    weaker would make a campaign's saved figures and CSVs depend on how many
+    cores happened to be free."""
+    from sdl import ParallelConfig, shutdown_pool
+    from sdl.identifiability import information_matrices
+
+    bridge = Layer1Bridge(GEOM, T_REF_K, engine="ode")
+    ports = _ports(bridge)
+    space = ParameterSpace(t_ref_K=T_REF_K,
+                           initial_guess=literature_guess(T_REF_K))
+    noise = NoiseModel(sigma_abs_M=4e-3, sigma_rel=0.02)
+    candidates = build_candidates(DESIGN)
+    two = ParallelConfig(workers=2, backend="process")
+    assert two.enabled and not ParallelConfig(workers=1).enabled
+
+    try:
+        serial = information_matrices(space, bridge, noise, candidates, ports,
+                                      SPECIES)
+        shared = information_matrices(space, bridge, noise, candidates, ports,
+                                      SPECIES, parallel=two)
+        assert len(shared) == len(serial)
+        for a, b in zip(serial, shared):
+            assert np.array_equal(a, b), "parallel sweep perturbed the FIM"
+
+        # ... and the decision the sweep exists to make is unchanged, on both
+        # halves of select(): the chunked grid screen, and the continuous
+        # refinement, whose finite-difference fan is farmed out instead.
+        bounds = {"T_C": [30.0, 95.0], "Q_total_mL_min": [4.0, 12.0],
+                  "C_cat_M": [0.3, 1.0], "C_EGDA_M": [0.5, 1.0]}
+        for continuous in (False, True):
+            picks = []
+            for pcfg in (None, two):
+                _, _, lab, inference, _ = _make_loop(
+                    {"sigma_abs_M": 4e-3, "sigma_rel": 0.02}, seed=11)
+                inference.add_measurement(lab.run_experiment(U0, spatial=True))
+                inference.fit()
+                picks.append(MBDoESelector(
+                    inference=inference, candidates=candidates, spatial=True,
+                    ports_z_m=ports, outlet_z_m=np.array([GEOM["length_m"]]),
+                    species=SPECIES, continuous=continuous,
+                    continuous_bounds=bounds, continuous_maxiter=8,
+                    parallel=pcfg).select())
+            assert picks[0] == picks[1], (
+                f"worker count changed the selected experiment "
+                f"(continuous={continuous}): {picks[0].label()} vs "
+                f"{picks[1].label()}")
+    finally:
+        shutdown_pool()
+
+
+def test_every_figure_has_a_paired_csv():
+    """Project rule: no figure ships without the data behind it.
+
+    Runs a two-strategy micro-campaign and drives every plotting entry point,
+    asserting each writes a non-trivial CSV next to its PNG.  `_save` takes
+    the data as a required argument, so a new plot that forgets it fails at
+    call time - this test is what makes that failure show up in CI rather
+    than in a results folder."""
+    import tempfile
+    from sdl import reporting, run_strategy
+
+    bridge, ports, lab, inference, selector = _make_loop(
+        {"sigma_abs_M": 4e-3, "sigma_rel": 0.02}, seed=13)
+    fixed = build_fixed_design(DESIGN, budget=3)
+    results = {"A": run_strategy("A", lab, inference, fixed, None, budget=3,
+                                 verbose=False)}
+    _, _, lab_c, inf_c, sel_c = _make_loop(
+        {"sigma_abs_M": 4e-3, "sigma_rel": 0.02}, seed=17)
+    results["C"] = run_strategy("C", lab_c, inf_c, fixed, sel_c, budget=3,
+                                verbose=False)
+    truth = lab.reveal_truth()
+    guess = literature_guess(T_REF_K)
+    best = results["C"]
+
+    with tempfile.TemporaryDirectory() as out:
+        p = lambda name: os.path.join(out, name)                  # noqa: E731
+        csvs = [
+            reporting.plot_error_convergence(results, truth, p("err.png")),
+            reporting.plot_uncertainty_convergence(results, p("unc.png")),
+            reporting.plot_final_estimates(results, truth, p("est.png")),
+            reporting.plot_validation_profiles(bridge, truth, best, U0,
+                                               p("val.png")),
+            reporting.plot_prediction_improvement(bridge, truth, guess, best,
+                                                  U0, p("pred.png")),
+            reporting.plot_budget_to_target(results, truth, p("budget.png")),
+            reporting.plot_confidence_ellipses(results, truth, p("ell.png")),
+            reporting.plot_information_landscape(
+                inf_c.fim_spec(ports, SPECIES), inf_c.theta,
+                build_candidates(DESIGN), results, p("land.png")),
+        ]
+        for csv_path in csvs:
+            png = os.path.splitext(csv_path)[0] + ".png"
+            assert os.path.isfile(png), f"figure missing: {png}"
+            assert csv_path.endswith(".csv"), f"not a CSV path: {csv_path}"
+            assert os.path.isfile(csv_path), f"paired CSV missing: {csv_path}"
+            with open(csv_path, encoding="utf-8") as fh:
+                lines = [ln for ln in fh.read().splitlines() if ln.strip()]
+            assert len(lines) >= 2, f"CSV has no data rows: {csv_path}"
+            assert "," in lines[0], f"CSV has no header: {csv_path}"
+
+        summary = reporting.write_summary_csv(results, truth, p("summary.csv"))
+        with open(summary, encoding="utf-8") as fh:
+            assert len(fh.read().splitlines()) == len(results) + 1
+
+
+def test_budget_target_ignores_rounds_with_pinned_parameters():
+    """`experiments_to_target` must not credit a round whose score was
+    computed over a subset of theta.
+
+    The score excludes parameters resting on a box bound, so a round with
+    most of theta pinned is scored on the survivors and can look excellent
+    while the campaign as a whole has determined almost nothing.  Counting
+    such a round would let a conventional design claim it hit a tight target
+    in three experiments and then finish an order of magnitude worse."""
+    from sdl import reporting
+
+    class FakeReport:
+        def __init__(self, bounds, well_posed):
+            self.active_bounds = bounds
+            self.well_posed = well_posed
+
+    class FakeRecord:
+        def __init__(self, n, theta_nat, bounds, well_posed):
+            self.n_experiments = n
+            self.theta_nat = theta_nat
+            self.report = FakeReport(bounds, well_posed)
+
+    class FakeResult:
+        def __init__(self, history, keys):
+            self.history = history
+            self.inference = type("I", (), {"space": type("S", (), {
+                "param_keys": keys})()})()
+
+    keys = ("k1_ref", "Ea1_J")
+    truth = {"k1_ref": 1e-3, "Ea1_J": 40_000.0}
+    spot_on = {"k1_ref": 1e-3, "Ea1_J": 40_000.0}
+    way_off = {"k1_ref": 1e-2, "Ea1_J": 40_000.0}
+
+    # round 1 is perfect on paper but half of theta is pinned; round 2 is
+    # honestly estimated and merely good
+    res = FakeResult([FakeRecord(1, spot_on, ("Ea1_J",), True),
+                      FakeRecord(2, way_off, (), True),
+                      FakeRecord(3, spot_on, (), True)], keys)
+    assert reporting.experiments_to_target(res, truth, 1.0) == 3
+
+    # a rank-deficient round does not count either, however lucky its estimate
+    res2 = FakeResult([FakeRecord(1, spot_on, (), False),
+                       FakeRecord(2, spot_on, (), True)], keys)
+    assert reporting.experiments_to_target(res2, truth, 1.0) == 2
+
+
 def test_score_metric_is_not_dominated_by_one_parameter():
     """The ranking metric must not let a single wild component invert the
     ordering, and must be symmetric in over/under-estimation."""

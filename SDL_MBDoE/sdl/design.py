@@ -21,6 +21,8 @@ from scipy.optimize import minimize
 
 from .inference import InferenceModel
 from .layer1_bridge import OperatingConditions
+from .parallel import (ParallelConfig, condition_information_fanned,
+                       information_matrices)
 
 #: eigenvalue floor for the design criteria - keeps them finite and rankable
 #: while the accumulated FIM is still rank deficient
@@ -78,6 +80,10 @@ class MBDoESelector:
     continuous: bool = False
     continuous_bounds: Optional[Dict[str, Sequence[float]]] = None
     continuous_maxiter: int = 30
+    #: How to spread the grid sweep below over the machine.  Purely a speed
+    #: knob: the sweep is reduced in candidate order, so the chosen experiment
+    #: does not depend on the worker count (see sdl/parallel.py).
+    parallel: Optional[ParallelConfig] = None
 
     _VARIABLES = ("T_C", "Q_total_mL_min", "C_cat_M", "C_EGDA_M")
 
@@ -100,8 +106,7 @@ class MBDoESelector:
         F0 = self.inference.fisher_information()
         z = self.ports_z_m if self.spatial else self.outlet_z_m
         best_u, best_score = None, -np.inf
-        for u in self.candidates:
-            score = self._score_candidate(F0, u, z)
+        for u, score in zip(self.candidates, self._grid_scores(F0, z)):
             if score > best_score:
                 best_u, best_score = u, score
         if best_u is None:
@@ -110,10 +115,23 @@ class MBDoESelector:
             return best_u
 
         bounds = self._validated_continuous_bounds()
+        # Powell proposes one point at a time and waits for its score, so the
+        # candidate list is gone as a source of parallelism.  What remains is
+        # the finite-difference fan of the point under evaluation, which is
+        # farmed out per objective call - on the default config this half of
+        # select() is the larger one.  Same numbers either way.
+        fan = self.parallel if (self.parallel is not None
+                                and self.parallel.enabled) else None
+        spec = self.inference.fim_spec(z, self.species) if fan else None
 
         def objective(x: np.ndarray) -> float:
+            u = self._from_vector(x)
             try:
-                score = self._score_candidate(F0, self._from_vector(x), z)
+                if fan is None:
+                    score = self._score_candidate(F0, u, z)
+                else:
+                    score = self._score(F0 + condition_information_fanned(
+                        spec, self.inference.theta, u, fan))
             except (ValueError, RuntimeError, FloatingPointError,
                     np.linalg.LinAlgError):
                 return 1e100
@@ -128,6 +146,28 @@ class MBDoESelector:
         if np.isfinite(refined_score) and refined_score > best_score:
             return refined_u
         return best_u
+
+    def _grid_scores(self, F0: np.ndarray, z: np.ndarray) -> List[float]:
+        """Design score of every coarse candidate, IN CANDIDATE ORDER.
+
+        This is the campaign's dominant cost: one (p+1)-integration
+        sensitivity pass per candidate, thousands of candidates, every
+        autonomous round.  The passes are independent, so with workers
+        configured they are farmed out and only the ranking - eigenvalues of a
+        p x p matrix, microseconds - stays here.  Order is preserved, so the
+        strict `>` scan in `select` sees exactly the serial sequence and picks
+        the same experiment.
+
+        Serial evaluation deliberately keeps calling
+        `inference.candidate_information`, the same seam the parallel path
+        ultimately routes through, so the selector still works with any object
+        exposing that method (see the synthetic surface in the self-tests)."""
+        if self.parallel is None or not self.parallel.enabled:
+            return [self._score_candidate(F0, u, z) for u in self.candidates]
+        mats = information_matrices(self.inference.fim_spec(z, self.species),
+                                    self.inference.theta, self.candidates,
+                                    self.parallel)
+        return [self._score(F0 + M) for M in mats]
 
     def _score_candidate(self, F0: np.ndarray, u: OperatingConditions,
                          z: np.ndarray) -> float:

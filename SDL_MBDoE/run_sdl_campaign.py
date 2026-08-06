@@ -21,10 +21,10 @@ import numpy as np
 
 from sdl import (
     Layer1Bridge, OperatingConditions, ParameterSpace, NoiseModel,
-    VirtualLaboratory, InferenceModel, MBDoESelector,
+    VirtualLaboratory, InferenceModel, MBDoESelector, ParallelConfig,
     build_candidates, build_fixed_design, literature_guess,
     param_keys_for, run_strategy, STRATEGY_DEFS,
-    reference_design, screen,
+    reference_design, screen, shutdown_pool,
 )
 from sdl.campaign import STRATEGY_NAMES
 from sdl import reporting
@@ -36,6 +36,7 @@ CONFIG = {
     "seed": 7,                      # master RNG seed (per-strategy offsets added)
     "budget": 10,                    # experiments allowed per strategy
     "strategies": ["A", "B", "C", "D"],
+    #"strategies": ["B", "D"],
     "target_rel_ci_pct": None,      # e.g. 5.0 -> stop early when every 95% CI
                                     # is tighter than 5 %; None = use full budget
 
@@ -48,12 +49,12 @@ CONFIG = {
     # ---- hidden truth (used ONLY inside the virtual laboratory) --------------
     "truth": {
         "H2SO4": {
-            "k1_ref": 1.00e-3,      # L/(mol s) at T_ref     (literature: 2.37e-3)
-            "Ea1_kJ": 40,         # kJ/mol                 (literature: 55.0)
-            "k2_ref": 6.50e-4,      # L/(mol s) at T_ref     (literature: 1.15e-3)
-            "Ea2_kJ": 48.0,         # kJ/mol                 (literature: 57.0)
-            "K1_ref": 0.90,         # hydrolysis Keq step 1 at T_ref (lit.: 0.62)
-            "K2_ref": 0.07,         # hydrolysis Keq step 2 at T_ref (lit.: 0.15)
+            "k1_ref": 1.40e-3,      # L/(mol s) at T_ref     (literature: 2.37e-3)
+            "Ea1_kJ": 45,         # kJ/mol                 (literature: 55.0)
+            "k2_ref": 8.50e-4,      # L/(mol s) at T_ref     (literature: 1.15e-3)
+            "Ea2_kJ": 50.0,         # kJ/mol                 (literature: 57.0)
+            "K1_ref": 0.80,         # hydrolysis Keq step 1 at T_ref (lit.: 0.62)
+            "K2_ref": 0.09,         # hydrolysis Keq step 2 at T_ref (lit.: 0.15)
         },
         "NaOH": {
             "k1_ref": 2.20,         # L/(mol s) at T_ref     (literature: 1.58)
@@ -66,7 +67,7 @@ CONFIG = {
     # ---- synthetic CPR-NMR observation model -----------------------------------
     "measurement": {
         "species": ["EGDA", "EGMA", "EG", "AcOH"],   # quantified by NMR
-        "n_ports": 10,               # equally spaced sampling ports (incl. outlet)
+        "n_ports": 20,               # equally spaced sampling ports (incl. outlet)
         "noise_true": {             # noise the virtual instrument actually adds
             "sigma_abs_M": 0.004,   # absolute floor, mol/L
             "sigma_rel": 0.02,      # relative peak-integration error
@@ -104,8 +105,8 @@ CONFIG = {
         "H2SO4": {
             "T_C_levels": [40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160],  # MBDoE stream-1 levels
             "Q_total_mL_min_levels": [0.2, 0.4, 0.8, 1.0, 2.0, 4.0, 8.0],
-            "C_cat_M_levels": [0.1, 0.5, 0.75, 1.0],   # MBDoE stream-2 levels
-            "C_EGDA_M_levels": [0.1, 0.5, 0.75, 1.0],  # MBDoE stream-1 levels
+            "C_cat_M_levels": [0.1, 0.5, 0.75, 1.0, 2.0],   # MBDoE stream-2 levels
+            "C_EGDA_M_levels": [0.1, 0.5, 0.75, 1.0, 2.0],  # MBDoE stream-1 levels
             "C_EGDA_M": 1.0,        # fixed-design stream-1 molarity
             # User-validated admissible region for continuous refinement.
             # These limits constrain the optimizer; they are not a safety
@@ -113,8 +114,8 @@ CONFIG = {
             "continuous_bounds": {
                 "T_C": [30.0, 160.0],
                 "Q_total_mL_min": [0.2, 8.0],
-                "C_cat_M": [0.1, 1.0],
-                "C_EGDA_M": [0.1, 1.0],
+                "C_cat_M": [0.1, 2.0],
+                "C_EGDA_M": [0.1, 2.0],
             },
             # conventional (fixed) campaign: temperature ladder at nominal settings
             "fixed_design_T_C": [40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160],
@@ -160,13 +161,39 @@ CONFIG = {
     # ---- validation figure (per catalyst) ---------------------------------------------------
     "validation_condition": {
         "H2SO4": {"T_C": 160.0, "Q_total_mL_min": 0.5,
-                   "C_EGDA_M": 1.0, "C_cat_M": 1.0},
+                   "C_EGDA_M": 2.0, "C_cat_M": 2.0},
         "NaOH": {"T_C": 30.0, "Q_total_mL_min": 20.0,
                   "C_EGDA_M": 0.5, "C_cat_M": 1.0},
     },
 
+    # ---- compute ---------------------------------------------------------------------------
+    # Nearly all the runtime is two embarrassingly parallel candidate sweeps:
+    # the identifiability screen, and the grid screen inside every autonomous
+    # MBDoE round.  Both are farmed out over CPU cores here.
+    #
+    # Results do NOT depend on this block.  Each candidate's information
+    # matrix is a pure function of (theta, u), the sweep is reassembled in
+    # candidate order, and the winner is still the first strict maximum, so
+    # the selected experiments, the estimates and every saved file are
+    # bit-identical for any worker count (tests/self_test.py asserts it).
+    #
+    #   workers  : "auto" = every logical core, or an integer; 1 = serial
+    #   backend  : "process" (the useful one - the forward model is a Python
+    #              RHS inside solve_ivp, so threads stay GIL-bound and give no
+    #              speedup), "thread" (debugging only), or "serial"
+    #
+    # There is no GPU option on purpose: one forward solve is an ADAPTIVE
+    # integration of a 6-state ODE - a long sequential chain over ~50 numbers,
+    # the worst possible shape for a GPU.  See sdl/parallel.py for what a
+    # GPU port would actually require (and cost).
+    "parallel": {
+        "workers": "auto",
+        "backend": "process",
+        "chunks_per_worker": 4,
+    },
+
     # ---- output ------------------------------------------------------------------------------
-    "outdir": "results",            # relative paths resolve next to this script
+    "outdir": r"D:\Simulations\EGDA_kinetics\Homogenous_Catalysis\MBDoE\CPR_dim\H2SO4",            # relative paths resolve next to this script
 }
 # ============================================================================
 
@@ -178,8 +205,7 @@ def resolve_outdir(outdir: str) -> str:
     return outdir
 
 
-def main() -> None:
-    cfg = CONFIG
+def run(cfg: dict) -> None:
     outdir = resolve_outdir(cfg["outdir"])
     t_ref_K = cfg["t_ref_C"] + 273.15
     catalyst = cfg["catalyst"]
@@ -203,6 +229,7 @@ def main() -> None:
         theta_true["K1_ref"] = tcfg["K1_ref"]
         theta_true["K2_ref"] = tcfg["K2_ref"]
 
+    pcfg = ParallelConfig(**cfg.get("parallel", {}))
     candidates = build_candidates(dcfg)
     # subsample (not truncate) the declared ladder to the budget, so the
     # conventional baseline spans the same box the autonomous strategies see
@@ -220,6 +247,7 @@ def main() -> None:
     print("  autonomous design: "
           + ("coarse grid + bounded continuous refinement"
              if cfg["continuous_design"] else "coarse candidate grid"))
+    print(f"  candidate sweeps run on: {pcfg.describe()}")
     guess_txt = (f"k1_ref={guess['k1_ref']:.3e}, Ea1={guess['Ea1_J'] / 1e3:.1f} kJ, "
                  f"k2_ref={guess['k2_ref']:.3e}, Ea2={guess['Ea2_J'] / 1e3:.1f} kJ")
     if catalyst == "H2SO4":
@@ -242,7 +270,8 @@ def main() -> None:
         sr = screen(base_space, bridge, NoiseModel(**mcfg["noise_assumed"]),
                     list(candidates) + reference_design(dcfg), z_screen,
                     species, budget=cfg["budget"],
-                    max_rel_ci_pct=cfg["identifiability_max_rel_ci_pct"])
+                    max_rel_ci_pct=cfg["identifiability_max_rel_ci_pct"],
+                    parallel=pcfg)
         screen_lines = sr.summary_lines(cfg["identifiability_max_rel_ci_pct"])
         base_space = sr.space
         print("\n".join(screen_lines))
@@ -270,7 +299,8 @@ def main() -> None:
             criterion=cfg["mbdoe_criterion"],
             continuous=cfg["continuous_design"],
             continuous_bounds=dcfg.get("continuous_bounds"),
-            continuous_maxiter=cfg["continuous_maxiter"]) if autonomous else None
+            continuous_maxiter=cfg["continuous_maxiter"],
+            parallel=pcfg) if autonomous else None
         results[key] = run_strategy(
             key, lab, inference, fixed_design, selector,
             budget=cfg["budget"], target_rel_ci_pct=cfg["target_rel_ci_pct"])
@@ -289,6 +319,16 @@ def main() -> None:
     best_key = min(results,
                    key=lambda k: reporting.campaign_score_pct(results[k], truth))
 
+    # predictive accuracy of the literature prior vs each identified model,
+    # at the validation condition - the "what did the campaign buy" number
+    res_val_true = bridge.full_profiles(truth, u_val)
+    rmse_val = {k: reporting.profile_rmse_M(
+        bridge.full_profiles(results[k].history[-1].theta_nat, u_val),
+        res_val_true, species) for k in results}
+    rmse_lit = reporting.profile_rmse_M(
+        bridge.full_profiles(guess, u_val), res_val_true, species)
+
+    print("\nWriting figures and paired CSVs...")
     reporting.plot_error_convergence(
         results, truth, os.path.join(outdir, "convergence_error.png"))
     reporting.plot_uncertainty_convergence(
@@ -298,16 +338,48 @@ def main() -> None:
     reporting.plot_validation_profiles(
         bridge, truth, results[best_key], u_val,
         os.path.join(outdir, "validation_profiles.png"))
+    reporting.plot_prediction_improvement(
+        bridge, truth, guess, results[best_key], u_val,
+        os.path.join(outdir, "prediction_improvement.png"))
+    reporting.plot_budget_to_target(
+        results, truth, os.path.join(outdir, "budget_to_target.png"))
+    reporting.plot_confidence_ellipses(
+        results, truth, os.path.join(outdir, "confidence_ellipses.png"))
+    # one extra candidate sweep at the initial guess: the design-space map the
+    # autonomous strategies are navigating and the fixed ladder cannot see
+    landscape_inference = InferenceModel(base_space, bridge,
+                                         NoiseModel(**mcfg["noise_assumed"]))
+    reporting.plot_information_landscape(
+        landscape_inference.fim_spec(ports, species),
+        landscape_inference.theta, candidates, results,
+        os.path.join(outdir, "information_landscape.png"), parallel=pcfg)
+
     reporting.write_history_csv(
         results, truth, os.path.join(outdir, "campaign_history.csv"))
+    reporting.write_summary_csv(
+        results, truth, os.path.join(outdir, "campaign_summary.csv"),
+        prediction_rmse_M=rmse_val)
     lab_stats = {"experiments": sum(l.n_experiments_run for l in labs.values()),
                  "reveals": sum(l.n_truth_reveals for l in labs.values())}
     text = reporting.write_final_report(
         results, truth, lab_stats, os.path.join(outdir, "final_report.txt"),
-        screen_lines=screen_lines)
+        screen_lines=screen_lines,
+        headline=reporting.headline_lines(results, truth, best_key,
+                                          rmse_lit, rmse_val[best_key]))
     print("\n" + text)
     print(f"Outputs written to: {outdir}")
 
 
+def main() -> None:
+    try:
+        run(CONFIG)
+    finally:
+        # Workers hold an interpreter each; release them even if a campaign
+        # raises, so an IDE "Run" leaves nothing behind.
+        shutdown_pool()
+
+
+# The worker pool spawns fresh interpreters, which re-import this module.
+# Without this guard each child would start its own campaign, recursively.
 if __name__ == "__main__":
     main()
