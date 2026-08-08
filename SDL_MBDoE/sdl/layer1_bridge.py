@@ -161,12 +161,15 @@ class Layer1Bridge:
     def concentrations_at(self, theta_nat: Dict[str, float],
                           u: OperatingConditions,
                           z_m: np.ndarray, species: Sequence[str],
-                          extra_tau_s: float = 0.0) -> np.ndarray:
+                          extra_tau_s=0.0) -> np.ndarray:
         """Concentrations (mol/L) at axial positions z_m, flattened
         species-major:  y[i*Nz + k] = C_{species i}(z_k).
 
         extra_tau_s > 0 lets the sample keep reacting for that long after
-        withdrawal (transfer-line effect; used only by the truth model)."""
+        withdrawal (transfer-line effect).  It may be a SCALAR (same delay at
+        every position - the legacy behaviour) or an ARRAY of len(z_m)
+        (position-dependent transfer geometry, e.g. a capillary whose internal
+        path lengthens toward the inlet)."""
         kin = self.kinetics_from_theta(theta_nat)
         model = KineticModel(kin)
         inlet = self._inlet(u, kin)
@@ -175,24 +178,28 @@ class Layer1Bridge:
         kappa1, kappa2 = model.effective_constants(T_K, inlet.c_cat0)
 
         z_m = np.asarray(z_m, dtype=float)
+        tau_extra = np.broadcast_to(np.asarray(extra_tau_s, dtype=float),
+                                    z_m.shape).copy()
         if self.engine == "analytical":
-            tau = z_m / u_vel + extra_tau_s
+            tau = z_m / u_vel + tau_extra
             prof = analytical_profiles(inlet, kappa1, kappa2, tau)
         else:
             res = simulate_pfr(inlet, self.geometry, T_K, model, self.settings)
             prof = {sp: np.interp(z_m, res.x_m, res.conc[sp]) for sp in res.conc}
-            if extra_tau_s > 0.0:
+            if np.any(tau_extra > 0.0):
                 prof = self._advance_batch(prof, model, T_K, inlet.c_h_plus,
-                                           extra_tau_s)
+                                           tau_extra)
         return np.concatenate([np.atleast_1d(prof[sp]) for sp in species])
 
     def _advance_batch(self, port_conc: Dict[str, np.ndarray],
                        model: KineticModel, T_K: float, c_h_plus: float,
-                       dt_s: float) -> Dict[str, np.ndarray]:
-        """Advance each port composition by dt_s of batch reaction (the batch
-        time evolution of this network equals its PFR tau evolution).
-        Integrates the full (reversible) batch ODEs per port."""
+                       dt_s) -> Dict[str, np.ndarray]:
+        """Advance each position's composition by dt_s of batch reaction (the
+        batch time evolution of this network equals its PFR tau evolution).
+        dt_s: scalar, or array with one entry per position.  Integrates the
+        full (reversible) batch ODEs per position."""
         n = len(np.atleast_1d(port_conc[SPECIES[0]]))
+        dt = np.broadcast_to(np.asarray(dt_s, dtype=float), (n,))
         out = {sp: np.empty(n) for sp in SPECIES}
         nu = nu_matrix(model.params.catalyst)
 
@@ -203,7 +210,12 @@ class Layer1Bridge:
         for k in range(n):
             y0 = np.array([float(np.atleast_1d(port_conc[sp])[k])
                            for sp in SPECIES])
-            sol = solve_ivp(rhs, (0.0, dt_s), y0, method=self.settings.method,
+            if dt[k] <= 0.0:
+                for i, sp in enumerate(SPECIES):
+                    out[sp][k] = y0[i]
+                continue
+            sol = solve_ivp(rhs, (0.0, float(dt[k])), y0,
+                            method=self.settings.method,
                             rtol=self.settings.rtol, atol=self.settings.atol)
             if not sol.success:
                 raise RuntimeError(f"Batch advance failed: {sol.message}")

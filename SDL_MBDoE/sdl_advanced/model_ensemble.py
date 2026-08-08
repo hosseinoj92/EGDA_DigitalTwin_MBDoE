@@ -35,22 +35,72 @@ from sdl.parameters import ParameterSpace, param_keys_for, ACID_PARAM_KEYS, \
 from .posterior import GaussianPrior, LaplacePosterior
 
 
+@dataclass(frozen=True)
+class AssumedTransfer:
+    """INFERENCE-SIDE transfer knowledge: only COMMANDED / CALIBRATED
+    quantities (nominal line volume, sampling flow, geometry model).  It is
+    a deliberate approximation of the truth-side TransferConfig - mean delay
+    only, no RTD realization, no carryover state, no hidden nuisances.
+
+        tau(z) = V(z) / Q_sample,   V(z) = V_fixed (+ v_per_m * (L - z))
+
+    enabled=False (or zero volume) reduces every prediction exactly to the
+    Layer-1 reactor composition."""
+    enabled: bool = False
+    Q_sample_mL_min: float = 0.5
+    V_fixed_mL: float = 0.0
+    geometry: str = "constant"          # "constant" | "linear"
+    v_per_m_mL: float = 0.0
+    length_m: float = 0.0               # reactor length for the linear model
+
+    @classmethod
+    def from_scalar_tau(cls, tau_s: float) -> "AssumedTransfer":
+        """Back-compatible constructor for a plain mean-delay correction."""
+        if tau_s <= 0.0:
+            return cls(enabled=False)
+        return cls(enabled=True, Q_sample_mL_min=60.0, V_fixed_mL=tau_s)
+
+    def tau_s(self, z_m: np.ndarray) -> np.ndarray:
+        z = np.atleast_1d(np.asarray(z_m, dtype=float))
+        if not self.enabled:
+            return np.zeros_like(z)
+        v = np.full_like(z, self.V_fixed_mL)
+        if self.geometry == "linear":
+            v = v + self.v_per_m_mL * np.maximum(self.length_m - z, 0.0)
+        q = max(self.Q_sample_mL_min, 1e-9) / 60.0          # mL/s
+        return v / q
+
+
 class TransportAwareInference(InferenceModel):
-    """InferenceModel whose predictions include the COMMANDED/CALIBRATED
-    mean transfer delay (V_transfer / Q_sample, public knowledge), so the
-    kinetic model is compared against what the NMR actually sees.  The
+    """InferenceModel whose expected-observation operator includes the
+    COMMANDED/CALIBRATED mean transfer delay tau(z) (public knowledge), so
+    the kinetic model is compared against what the NMR actually sees.  The
     truth's RTD dispersion and carryover remain unmodelled - a deliberate,
-    realistic imperfection of the correction.  extra_tau_s = 0 reduces this
-    exactly to the base class."""
+    realistic imperfection of the correction.
 
-    def __init__(self, *args, extra_tau_s: float = 0.0, **kwargs):
+    Because ONLY predict_at is overridden, every consumer of the operator
+    (estimation, sensitivities, FIM, spatial design, EIG, diagnostics)
+    inherits the correction consistently.  With transfer disabled this class
+    is exactly the base InferenceModel (asserted by test)."""
+
+    def __init__(self, *args, assumed_transfer: Optional[AssumedTransfer]
+                 = None, extra_tau_s: float = 0.0, **kwargs):
         super().__init__(*args, **kwargs)
-        self.extra_tau_s = float(extra_tau_s)
+        # extra_tau_s kept for back-compatibility (scalar mean delay)
+        self.assumed_transfer = (assumed_transfer
+                                 if assumed_transfer is not None
+                                 else AssumedTransfer.from_scalar_tau(
+                                     float(extra_tau_s)))
 
-    def predict(self, theta_vec: np.ndarray, m: Measurement) -> np.ndarray:
+    def predict_at(self, theta_vec: np.ndarray, u: OperatingConditions,
+                   z_m: np.ndarray, species) -> np.ndarray:
         nat = self.space.to_natural(theta_vec)
-        return self.bridge.concentrations_at(nat, m.u, m.z_m, m.species,
-                                             extra_tau_s=self.extra_tau_s)
+        z = np.asarray(z_m, dtype=float)
+        tau = self.assumed_transfer.tau_s(z)
+        if not np.any(tau > 0.0):
+            return self.bridge.concentrations_at(nat, u, z, tuple(species))
+        return self.bridge.concentrations_at(nat, u, z, tuple(species),
+                                             extra_tau_s=tau)
 
 
 @dataclass
@@ -70,6 +120,22 @@ class CandidateModel:
                                             NoiseModel())
         if self.posterior is None:
             self.posterior = LaplacePosterior(self.inference, self.prior)
+
+    # ------------------------------------------------------------------ #
+    def predict_observation(self, theta_vec: np.ndarray,
+                            u: OperatingConditions, z_m: np.ndarray,
+                            species: Sequence[str]) -> np.ndarray:
+        """The candidate's expected-observation operator - the ONE way any
+        controller-side code predicts a measurement under this model."""
+        return self.inference.predict_at(theta_vec, u, z_m, species)
+
+    @property
+    def theta_hat(self) -> np.ndarray:
+        """Current MAP if fitted, else the initial guess (for pre-data
+        design)."""
+        if self.posterior.theta_map is not None:
+            return self.posterior.theta_map
+        return self.space.to_vector(self.space.initial_guess)
 
 
 @dataclass
@@ -134,10 +200,11 @@ class ModelEnsemble:
 
     def predict(self, particle: Particle, u: OperatingConditions,
                 z_m: np.ndarray, species: Sequence[str]) -> np.ndarray:
+        """Particle prediction through the candidate's expected-observation
+        operator (NOT the bare reactor model), so EIG sees the same
+        transport-corrected observable as estimation does."""
         cm = self.models[particle.model_index]
-        nat = cm.space.to_natural(particle.theta)
-        return cm.bridge.concentrations_at(nat, u, np.asarray(z_m, float),
-                                           tuple(species))
+        return cm.predict_observation(particle.theta, u, z_m, species)
 
 
 # --------------------------------------------------------------------------- #
@@ -148,14 +215,17 @@ def build_egda_family(geometry: Dict[str, float], t_ref_K: float,
                       ka2_model: str = "tdep",
                       fixed: Optional[Dict[str, float]] = None,
                       noise_assumed: Optional[NoiseModel] = None,
-                      assumed_extra_tau_s: float = 0.0
+                      assumed_extra_tau_s: float = 0.0,
+                      assumed_transfer: Optional[AssumedTransfer] = None
                       ) -> List[CandidateModel]:
     """The interpretable EGDA/H2SO4 candidate family (see module docstring).
     `include` lets benchmark scenarios remove the correct structure
     (Scenario 5: model inadequacy).  `fixed` pins parameters (e.g. K1_ref
     from the identifiability screen) in the reversible models.
     `noise_assumed` is the fallback covariance for measurements that carry
-    no cov_y (direct-observation ablations)."""
+    no cov_y (direct-observation ablations).  `assumed_transfer` (or the
+    legacy scalar `assumed_extra_tau_s`) is the inference-side transfer
+    correction, shared by all candidates."""
     guess = literature_guess(t_ref_K, "H2SO4")
     fixed = dict(fixed or {})
     noise = noise_assumed or NoiseModel()
@@ -174,7 +244,8 @@ def build_egda_family(geometry: Dict[str, float], t_ref_K: float,
             name=name, description=desc, bridge=bridge, space=sp,
             prior=GaussianPrior.from_space(sp),
             inference=TransportAwareInference(
-                sp, bridge, noise, extra_tau_s=assumed_extra_tau_s))
+                sp, bridge, noise, assumed_transfer=assumed_transfer,
+                extra_tau_s=assumed_extra_tau_s))
 
     if "rev-pitzer" in include:
         out.append(_model("rev-pitzer",

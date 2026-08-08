@@ -54,23 +54,46 @@ class ResourceMeter:
     """Accumulates the campaign's physical cost from logged events."""
 
     TOTAL_KEYS = ("time_s", "egda_mol", "acid_mol", "liquid_mL", "waste_mL",
-                  "sample_mL", "nmr_acquisitions", "capillary_travel_m",
+                  "sample_mL", "nmr_acquisitions", "nmr_reacquisitions",
+                  "qc_rejected", "capillary_travel_m",
                   "condition_changes", "temperature_changes", "energy_kJ",
                   "reactor_conditions", "spatial_samples")
+
+    #: relative tolerance when deciding whether a condition actually changed
+    _COND_RTOL = 1e-9
 
     def __init__(self, costs: ResourceCosts, reactor_volume_mL: float):
         self.costs = costs
         self.reactor_volume_mL = float(reactor_volume_mL)
         self.events: List[ResourceEvent] = []
-        self._last_T_C: Optional[float] = None
+        #: FULL last condition (T, Q_total, C_EGDA, C_cat) - a change in ANY
+        #: of them is a condition change; z-moves alone never re-stabilize
+        self._last_cond: Optional[tuple] = None
         self._last_z_m: Optional[float] = None
 
     # ------------------------------------------------------------------ #
+    def _cond_changed(self, cond: tuple) -> bool:
+        if self._last_cond is None:
+            return True
+        return any(abs(a - b) > self._COND_RTOL * max(abs(a), abs(b), 1.0)
+                   for a, b in zip(cond, self._last_cond))
+
     def log_condition(self, T_C: float, Q_total_mL_min: float,
                       C_EGDA_M: float, C_cat_M: float) -> None:
-        """Reactor condition set + stabilization to steady state."""
+        """Reactor condition set + stabilization to steady state.
+
+        Idempotent for an UNCHANGED condition: re-sampling positions at the
+        same (T, Q, C_EGDA, C_cat) logs a zero-cost 'condition_hold' event
+        (audit trail) and NO new stabilization - moving the capillary does
+        not perturb the reactor."""
+        cond = (float(T_C), float(Q_total_mL_min), float(C_EGDA_M),
+                float(C_cat_M))
+        if not self._cond_changed(cond):
+            self.events.append(ResourceEvent("condition_hold", {}))
+            return
         c = self.costs
-        dT = abs(T_C - self._last_T_C) if self._last_T_C is not None else 0.0
+        dT = (abs(T_C - self._last_cond[0])
+              if self._last_cond is not None else 0.0)
         ramp_s = dT * c.temp_change_s_per_K
         stab_mL = c.stabilization_volumes * self.reactor_volume_mL
         stab_s = stab_mL / max(Q_total_mL_min, 1e-9) * 60.0
@@ -88,37 +111,46 @@ class ResourceMeter:
             "liquid_mL": Q_total_mL_min / 60.0 * (ramp_s + stab_s),
             "waste_mL": Q_total_mL_min / 60.0 * (ramp_s + stab_s),
             "energy_kJ": heat_kJ,
-            "condition_changes": 1.0 if self._last_T_C is not None else 0.0,
+            "condition_changes": 1.0 if self._last_cond is not None else 0.0,
             "temperature_changes": 1.0 if dT > 1e-9 else 0.0,
             "reactor_conditions": 1.0,
         }))
-        self._last_T_C = T_C
+        self._last_cond = cond
 
     def log_acquisition(self, z_m: float, u_T_C: float,
                         Q_total_mL_min: float, C_EGDA_M: float,
-                        C_cat_M: float) -> None:
-        """Capillary move + flush + one NMR acquisition at position z."""
+                        C_cat_M: float, retry: bool = False) -> None:
+        """Capillary move + flush + one NMR acquisition at position z.
+        retry=True marks a QC-triggered reacquisition (separately counted)."""
         c = self.costs
         travel = (abs(z_m - self._last_z_m)
                   if self._last_z_m is not None else 0.0)
         move_s = travel / max(c.capillary_speed_m_s, 1e-12)
         acq_s = c.nmr_acquisition_s + c.flush_time_s + move_s
         feed_mL = Q_total_mL_min / 60.0 * acq_s
-        self.events.append(ResourceEvent("acquisition", {
-            "time_s": acq_s,
-            "egda_mol": C_EGDA_M * 0.5 * feed_mL / 1e3,
-            "acid_mol": C_cat_M * 0.5 * feed_mL / 1e3,
-            "liquid_mL": feed_mL,
-            "waste_mL": feed_mL + c.sample_volume_mL + c.flush_volume_mL,
-            "sample_mL": c.sample_volume_mL + c.flush_volume_mL,
-            "nmr_acquisitions": 1.0,
-            "capillary_travel_m": travel,
-            "spatial_samples": 1.0,
-            "energy_kJ": (Q_total_mL_min / 60.0 * acq_s
-                          * c.rho_cp_J_per_mL_K
-                          * max(u_T_C - c.temp_ambient_C, 0.0)) / 1e3,
-        }))
+        self.events.append(ResourceEvent(
+            "reacquisition" if retry else "acquisition", {
+                "time_s": acq_s,
+                "egda_mol": C_EGDA_M * 0.5 * feed_mL / 1e3,
+                "acid_mol": C_cat_M * 0.5 * feed_mL / 1e3,
+                "liquid_mL": feed_mL,
+                "waste_mL": feed_mL + c.sample_volume_mL + c.flush_volume_mL,
+                "sample_mL": c.sample_volume_mL + c.flush_volume_mL,
+                "nmr_acquisitions": 1.0,
+                "nmr_reacquisitions": 1.0 if retry else 0.0,
+                "capillary_travel_m": travel,
+                "spatial_samples": 0.0 if retry else 1.0,
+                "energy_kJ": (Q_total_mL_min / 60.0 * acq_s
+                              * c.rho_cp_J_per_mL_K
+                              * max(u_T_C - c.temp_ambient_C, 0.0)) / 1e3,
+            }))
         self._last_z_m = z_m
+
+    def log_qc_reject(self, z_m: float) -> None:
+        """A position whose data was rejected by the QC gate (not
+        assimilated); auditable, no physical cost beyond the acquisitions
+        already logged."""
+        self.events.append(ResourceEvent("qc_reject", {"qc_rejected": 1.0}))
 
     # ------------------------------------------------------------------ #
     def totals(self) -> Dict[str, float]:
@@ -133,12 +165,18 @@ class ResourceMeter:
                           z_positions: np.ndarray) -> float:
         """Scalar penalty term of the resource-aware utility for a
         HYPOTHETICAL experiment (no events are logged).  Uses the lambda_*
-        weights; returns 0 when all weights are zero."""
+        weights; returns 0 when all weights are zero.  Uses the SAME
+        assumptions as the realized event accounting: an unchanged full
+        condition incurs NO stabilization/ramp/switch cost."""
         c = self.costs
-        dT = abs(T_C - self._last_T_C) if self._last_T_C is not None else 0.0
-        ramp_s = dT * c.temp_change_s_per_K
-        stab_mL = c.stabilization_volumes * self.reactor_volume_mL
-        stab_s = stab_mL / max(Q_total_mL_min, 1e-9) * 60.0
+        cond = (float(T_C), float(Q_total_mL_min), float(C_EGDA_M),
+                float(C_cat_M))
+        changed = self._cond_changed(cond)
+        dT = (abs(T_C - self._last_cond[0])
+              if (changed and self._last_cond is not None) else 0.0)
+        ramp_s = dT * c.temp_change_s_per_K if changed else 0.0
+        stab_s = ((c.stabilization_volumes * self.reactor_volume_mL)
+                  / max(Q_total_mL_min, 1e-9) * 60.0 if changed else 0.0)
         z_sorted = np.sort(np.asarray(z_positions, dtype=float))
         z_start = self._last_z_m if self._last_z_m is not None else z_sorted[0]
         travel = float(abs(z_sorted[0] - z_start)
@@ -153,7 +191,7 @@ class ResourceMeter:
         energy_kJ = (feed_mL * c.rho_cp_J_per_mL_K
                      * max(T_C - c.temp_ambient_C, 0.0)
                      + c.energy_ramp_J_per_K * dT) / 1e3
-        switches = 1.0 if (self._last_T_C is not None and dT > 1e-9) else 0.0
+        switches = 1.0 if (changed and self._last_cond is not None) else 0.0
         return (c.lambda_time_per_s * time_s
                 + c.lambda_material_per_mol * egda
                 + c.lambda_waste_per_mL * waste

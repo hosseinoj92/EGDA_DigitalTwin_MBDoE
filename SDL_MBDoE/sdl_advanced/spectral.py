@@ -157,6 +157,21 @@ class SpectralNuisance:
     # per-species response (calibration) error, e.g. {"EGMA": 1.03}
     t1_s: Dict[str, float] = field(default_factory=lambda: dict(DEFAULT_T1_S))
 
+    # ---- TRUTH-MODEL MISMATCH (anti-"inverse-crime") ------------------- #
+    # The fitting model is pure-Lorentzian with the nominal shift/J database;
+    # the TRUTH deliberately deviates in ways the fitter does NOT know, so
+    # synthetic validation is not the trivial exercise of fitting a model to
+    # itself.  All values are ASSUMED plausible magnitudes (CAL: replace by
+    # measured lineshape studies on the real instrument); every effect is
+    # off when enabled=False.
+    gaussian_fraction: float = 0.15      # pseudo-Voigt truth lineshape
+    j_mismatch_hz: float = 0.15          # true 3J differs from the database
+    static_shift_ppm: float = 0.0008     # per-group STATIC calibration error
+                                         # (drawn once per campaign, 1 sigma)
+    noise_ar1: float = 0.3               # AR(1) coefficient: colored noise
+    baseline_cubic: float = 0.01         # cubic baseline term the fitter's
+                                         # quadratic model cannot represent
+
     def ideal(self) -> "SpectralNuisance":
         return replace(self, enabled=False)
 
@@ -221,15 +236,35 @@ class NMRSimulator:
                  nuisance: Optional[SpectralNuisance] = None):
         self.acq = acq
         self.nuisance = nuisance or SpectralNuisance()
+        #: static per-group shift-calibration error of THIS instrument
+        #: realization - drawn once on first use (truth-side state the
+        #: fitter never sees)
+        self._static_shift: Optional[np.ndarray] = None
+
+    def _static_shifts(self, rng: Optional[np.random.Generator]
+                       ) -> np.ndarray:
+        nu = self.nuisance
+        if not nu.enabled or nu.static_shift_ppm <= 0.0 or rng is None:
+            return np.zeros(len(CARBON_BOUND_GROUPS))
+        if self._static_shift is None:
+            self._static_shift = rng.normal(0.0, nu.static_shift_ppm,
+                                            len(CARBON_BOUND_GROUPS))
+        return self._static_shift
 
     # ------------------------------------------------------------------ #
     def lines(self, conc_M: Dict[str, float],
-              realized: Optional[RealizedNuisance] = None) -> List[Line]:
-        """Transition list for a composition (Layer-1 names, mol/L)."""
+              realized: Optional[RealizedNuisance] = None,
+              static_shift: Optional[np.ndarray] = None) -> List[Line]:
+        """Transition list for a composition (Layer-1 names, mol/L).
+        static_shift: the per-group STATIC calibration error of the truth
+        instrument (mismatch effect; zero for the fitting basis)."""
         acq, nu = self.acq, self.nuisance
         rl = realized or RealizedNuisance()
         jitter = (rl.group_jitter_ppm if rl.group_jitter_ppm is not None
                   else np.zeros(len(CARBON_BOUND_GROUPS)))
+        static = (static_shift if static_shift is not None
+                  else np.zeros(len(CARBON_BOUND_GROUPS)))
+        j_true = acq.j_hz + (nu.j_mismatch_hz if nu.enabled else 0.0)
         out: List[Line] = []
         for g, (label, delta, n_part, n_h, sp) in enumerate(
                 CARBON_BOUND_GROUPS):
@@ -239,9 +274,10 @@ class NMRSimulator:
             resp = (nu.response_factors.get(sp, 1.0) if nu.enabled else 1.0)
             relax = flow_response(acq, nu.t1_s.get(sp, 3.0))
             area_g = n_h * c * resp * relax * rl.gain
-            center = delta + rl.shift_offset_ppm + float(jitter[g])
+            center = (delta + rl.shift_offset_ppm + float(jitter[g])
+                      + float(static[g]))
             fwhm = acq.fwhm_sharp_hz * rl.linewidth_factor
-            for p, w in first_order_multiplet(center, n_part, acq.j_hz,
+            for p, w in first_order_multiplet(center, n_part, j_true,
                                               acq.hz_per_ppm):
                 out.append(Line(ppm=p, area=w * area_g, fwhm_hz=fwhm,
                                 species=sp))
@@ -281,11 +317,32 @@ class NMRSimulator:
             return line.area / np.pi * dx / (dx ** 2 + hw ** 2)
         return line.area * hw / np.pi / (dx ** 2 + hw ** 2)
 
+    @staticmethod
+    def _gauss(ppm: np.ndarray, line: Line, hz_per_ppm: float) -> np.ndarray:
+        """Unit-area Gaussian with the same FWHM (pseudo-Voigt component)."""
+        w = line.fwhm_hz / hz_per_ppm
+        c = 4.0 * np.log(2.0) / w ** 2
+        return line.area * np.sqrt(c / np.pi) * np.exp(
+            -c * (ppm - line.ppm) ** 2)
+
+    def _truth_lineshape(self, ppm: np.ndarray, ln: Line) -> np.ndarray:
+        """TRUTH-side lineshape: pseudo-Voigt mixture the pure-Lorentzian
+        fitting basis does not know about (mismatch effect; pure Lorentzian
+        when nuisances are disabled).  The broad exchange pool stays
+        Lorentzian."""
+        nu = self.nuisance
+        f = (nu.gaussian_fraction
+             if (nu.enabled and ln.species != "exchange") else 0.0)
+        yl = self._lorentz(ppm, ln, self.acq.hz_per_ppm)
+        if f <= 0.0:
+            return yl
+        return (1.0 - f) * yl + f * self._gauss(ppm, ln, self.acq.hz_per_ppm)
+
     def _spectrum_analytic(self, lines: Sequence[Line]) -> np.ndarray:
         ppm = self.acq.ppm_grid()
         y = np.zeros_like(ppm)
         for ln in lines:
-            y += self._lorentz(ppm, ln, self.acq.hz_per_ppm)
+            y += self._truth_lineshape(ppm, ln)
         return y
 
     def _spectrum_fid(self, lines: Sequence[Line], phase_rad: float,
@@ -300,17 +357,30 @@ class NMRSimulator:
         dt = 1.0 / sw_hz                                    # complex dwell
         t = np.arange(n) * dt
         center_ppm = 0.5 * (acq.ppm_min + acq.ppm_max)
+        nu = self.nuisance
+        g_frac = nu.gaussian_fraction if nu.enabled else 0.0
         fid = np.zeros(n, dtype=complex)
         for ln in lines:
             f = (ln.ppm - center_ppm) * acq.hz_per_ppm      # offset, Hz
             r2 = np.pi * ln.fwhm_hz                          # 1/T2*
-            fid += ln.area * np.exp((2j * np.pi * f - r2) * t)
+            env = np.exp(-r2 * t)
+            if g_frac > 0.0 and ln.species != "exchange":
+                # Gaussian FID envelope with the same frequency-domain FWHM:
+                # FT[exp(-a t^2)] has FWHM w when a = (pi w)^2 / (4 ln 2)
+                a_g = (np.pi * ln.fwhm_hz) ** 2 / (4.0 * np.log(2.0))
+                env = (1.0 - g_frac) * env + g_frac * np.exp(-a_g * t ** 2)
+            fid += ln.area * env * np.exp(2j * np.pi * f * t)
         fid[0] *= 0.5                                        # half first point
         if rng is not None and noise_sigma > 0.0:
             # equivalent frequency-domain sigma = noise_sigma (area/ppm units)
             sig_t = noise_sigma * np.sqrt(n / 2.0) / (acq.hz_per_ppm * dt * n)
-            fid += sig_t * (rng.standard_normal(n)
-                            + 1j * rng.standard_normal(n))
+            eps = (rng.standard_normal(n) + 1j * rng.standard_normal(n))
+            phi_ar = nu.noise_ar1 if nu.enabled else 0.0
+            if phi_ar > 0.0:                 # colored (AR1) receiver noise
+                for k in range(1, n):
+                    eps[k] += phi_ar * eps[k - 1]
+                eps *= np.sqrt(1.0 - phi_ar ** 2)
+            fid += sig_t * eps
         fid *= np.exp(1j * phase_rad)
         # x2: the one-sided FID transform carries half the two-sided
         # Lorentzian area; the half-first-point correction fixes the DC bias
@@ -347,7 +417,7 @@ class NMRSimulator:
         acq, nu = self.acq, self.nuisance
         rl = (self.draw_realization(rng) if (nu.enabled and rng is not None)
               else RealizedNuisance())
-        lines = self.lines(conc_M, rl)
+        lines = self.lines(conc_M, rl, static_shift=self._static_shifts(rng))
         noise_per_scan = nu.noise_sigma if nu.enabled else 0.0
         sigma = noise_per_scan / np.sqrt(max(acq.n_scans, 1))
         if acq.engine == "fid":
@@ -364,13 +434,20 @@ class NMRSimulator:
                     yd += ln.area / np.pi * dx / (dx ** 2 + hw ** 2)
                 y = np.cos(rl.phase_rad) * y + np.sin(rl.phase_rad) * yd
             if nu.enabled and rng is not None and sigma > 0.0:
-                y = y + rng.normal(0.0, sigma, y.shape)
+                eps = rng.standard_normal(y.shape)
+                if nu.noise_ar1 > 0.0:       # colored noise (mismatch)
+                    phi_ar = nu.noise_ar1
+                    for k in range(1, len(eps)):
+                        eps[k] += phi_ar * eps[k - 1]
+                    eps *= np.sqrt(1.0 - phi_ar ** 2)
+                y = y + sigma * eps
         if nu.enabled:
             ppm = acq.ppm_grid()
             x = (2.0 * (ppm - acq.ppm_min) / (acq.ppm_max - acq.ppm_min)
                  - 1.0)
-            y = y + rl.baseline[0] + rl.baseline[1] * x ** 2
-        return acq.ppm_grid(), y, rl
+            y = (y + rl.baseline[0] + rl.baseline[1] * x ** 2
+                 + nu.baseline_cubic * x ** 3)   # cubic: outside the fitter's
+        return acq.ppm_grid(), y, rl             # quadratic baseline model
 
     # ------------------------------------------------------------------ #
     def basis_spectrum(self, species: str,

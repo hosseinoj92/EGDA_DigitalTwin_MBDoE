@@ -1,14 +1,22 @@
 """
-Main EGDA advanced benchmark: scenarios S1-S6, strategies A-F (+ ablations),
-many random seeds, publication figures E-H, the strategy comparison table,
-and the complete per-round metrics CSV.
+Main EGDA advanced benchmark (corrected framework, v2 outputs).
 
-IDE workflow: edit CONFIG below and press Run.
-Runtime scales ~linearly in len(seeds); CONFIG["smoke"] = True runs a
-1-seed, 3-round miniature for a quick end-to-end check.
+Runs the scenario suite of sdl_advanced.benchmark in one of three modes
+("smoke" seconds / "demo" default / "publication" many seeds), with
+common-random-number seed lists shared across strategies, and writes a NEW
+results directory (never silently overwriting the previous reference run):
 
-Everything needed for exact reproduction (CONFIG, scenario specs, truth,
-nuisance assumptions, seeds) is saved to <outdir>/benchmark_config.json.
+  results_advanced_v2/benchmark/
+    benchmark_rounds.csv          every per-round metric, every campaign
+    benchmark_params.csv          per-parameter posterior rows (#13)
+    strategy_table.csv/.txt       distributional summary (median/IQR/CI)
+    paired_comparisons.csv        per-seed paired differences + P(better)
+    governor_validation.json      measured FP rate + detection rounds
+    quantification_validation.csv suites A/B/FID (bias/RMSE/coverage)
+    figure_* ...                  the figure set (see FIGURES in README)
+    benchmark_config.json         exact reproduction record
+
+IDE workflow: edit CONFIG and press Run.
 """
 
 from __future__ import annotations
@@ -23,14 +31,17 @@ import numpy as np
 
 from sdl_advanced import benchmark as bm
 from sdl_advanced import reporting as rep
+from sdl_advanced import validation as val
 
 CONFIG = {
-    "seeds": [1, 2, 3, 4],
-    "budget": 6,                    # reactor conditions per campaign
-    "scenarios": ["S1_ideal", "S2_nmr", "S3_transport", "S4_ambiguity",
-                  "S5_inadequacy", "S6_resources"],
-    "outdir": "results_advanced/benchmark",
-    "smoke": False,
+    "mode": "demo",                 # "smoke" | "demo" | "publication"
+    "outdir": "results_advanced_v2/benchmark",
+    # optional overrides of the mode defaults (None -> use MODES[mode]):
+    "seeds": None,
+    "budget": None,
+    "scenarios": None,
+    "governor_mc_seeds": None,      # default: seeds of the mode, min 12
+    "run_quant_validation": True,
 }
 
 
@@ -43,39 +54,41 @@ def resolve_outdir(outdir: str) -> str:
 
 
 def _write_rows(rows, path):
+    if not rows:
+        return
     keys = sorted({k for r in rows for k in r})
     with open(path, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=keys)
         w.writeheader()
         w.writerows(rows)
-    print(f"saved: {path}")
+    print(f"saved: {os.path.relpath(path)}")
 
 
 def _mean_curves(rows, scenario, x_key="round"):
-    """strategy -> {metric: [per-round mean over seeds]} for one scenario."""
     out = {}
     sc_rows = [r for r in rows if r["scenario"] == scenario]
+    metrics = ("param_err_pct", "max_rel_ci_pct", "p_correct",
+               "model_entropy", "blind_rmse_M", "time_s", "egda_mol",
+               "nmr_acquisitions", "energy_kJ", "capillary_travel_m",
+               "spatial_samples")
     for strat in sorted({r["strategy"] for r in sc_rows}):
         s_rows = [r for r in sc_rows if r["strategy"] == strat]
         rounds = sorted({r["round"] for r in s_rows})
         cur = {x_key: []}
-        metrics = ("param_err_pct", "max_rel_ci_pct", "p_correct",
-                   "blind_rmse_M", "time_s", "egda_mol",
-                   "nmr_acquisitions", "energy_kJ", "capillary_travel_m")
         for m in metrics:
             cur[m] = []
         for rnd in rounds:
             rr = [r for r in s_rows if r["round"] == rnd]
             cur[x_key].append(rnd)
             for m in metrics:
-                vals = [r[m] for r in rr if np.isfinite(r.get(m, np.nan))]
+                vals = [r[m] for r in rr
+                        if np.isfinite(r.get(m, np.nan))]
                 cur[m].append(float(np.mean(vals)) if vals else float("nan"))
         out[strat] = cur
     return out
 
 
-def _final_rows(rows, scenario):
-    """strategy -> dict of final-round seed-averaged metrics."""
+def _finals(rows, scenario):
     out = {}
     sc = [r for r in rows if r["scenario"] == scenario]
     for strat in sorted({r["strategy"] for r in sc}):
@@ -84,11 +97,10 @@ def _final_rows(rows, scenario):
         fr = [r for r in s_rows if r["round"] == last]
         agg = {}
         for k in fr[0]:
-            if k in ("scenario", "strategy", "gov_state"):
-                continue
             vals = [r[k] for r in fr
                     if isinstance(r[k], (int, float)) and np.isfinite(r[k])]
-            agg[k] = float(np.mean(vals)) if vals else float("nan")
+            if vals:
+                agg[k] = float(np.median(vals))
         agg["n_seeds"] = len(fr)
         out[strat] = agg
     return out
@@ -96,47 +108,108 @@ def _final_rows(rows, scenario):
 
 def main() -> None:
     cfg = dict(CONFIG)
-    if cfg["smoke"]:
-        cfg["seeds"], cfg["budget"] = [1], 3
+    mode = bm.MODES[cfg["mode"]]
+    seeds = cfg["seeds"] or mode["seeds"]
+    budget = cfg["budget"] or mode["budget"]
+    scenarios = cfg["scenarios"] or mode["scenarios"]
     outdir = resolve_outdir(cfg["outdir"])
     t0 = time.time()
+    print(f"=== advanced benchmark v2 | mode={cfg['mode']} | "
+          f"{len(seeds)} seeds | budget {budget} ===")
 
-    all_rows = []
-    runtimes = {}
-    for scen_name in cfg["scenarios"]:
-        spec = bm.SCENARIOS[scen_name]
-        print(f"\n=== {scen_name}: {spec.description}")
-        print(f"    strategies {spec.strategies} x seeds {cfg['seeds']}")
+    all_rows, all_prows, runtimes = [], [], {}
+    for scen in scenarios:
+        spec = bm.SCENARIOS[scen]
+        print(f"\n=== {scen}: {spec.description}")
         t_s = time.time()
-        rows = bm.run_scenario(spec, cfg["seeds"], cfg["budget"],
-                               verbose=True)
-        runtimes[scen_name] = time.time() - t_s
+        rows, prows = bm.run_scenario(spec, seeds, budget, verbose=True)
+        runtimes[scen] = time.time() - t_s
         all_rows.extend(rows)
-        print(f"    {scen_name} done in {runtimes[scen_name]:.0f} s")
+        all_prows.extend(prows)
+        print(f"    {scen} done in {runtimes[scen]:.0f} s")
 
     _write_rows(all_rows, os.path.join(outdir, "benchmark_rounds.csv"))
+    _write_rows(all_prows, os.path.join(outdir, "benchmark_params.csv"))
 
-    # ---- Figure E: learning curves (per condition AND per resource) ------ #
-    for scen in cfg["scenarios"]:
+    # ---- (1) strategy table: distributional, no cherry-picking ---------- #
+    table = []
+    for scen in scenarios:
+        table.extend(bm.summarize_final(all_rows, scen))
+    text = rep.write_strategy_table(
+        table, os.path.join(outdir, "strategy_table.csv"))
+    print("\n" + text)
+
+    # ---- paired comparisons (common random numbers) --------------------- #
+    pairs = []
+    for scen, a, b in (("S1_ideal", "F", "D"), ("S2_nmr", "F", "D"),
+                       ("S3_transport", "F", "D"),
+                       ("S3_transport", "F", "F-uncorr"),
+                       ("S6_resources", "F-res-1x", "F")):
+        if scen in scenarios:
+            for metric in ("blind_rmse_M", "param_err_pct"):
+                pc = bm.paired_comparison(all_rows, scen, a, b, metric)
+                if pc:
+                    pairs.append(pc)
+    _write_rows(pairs, os.path.join(outdir, "paired_comparisons.csv"))
+
+    # ---- (2,3,4) convergence vs round / acquisitions / time ------------- #
+    for scen in scenarios:
         if scen not in {r["scenario"] for r in all_rows}:
             continue
         curves = _mean_curves(all_rows, scen)
         rep.figure_e_convergence(
             curves, "round",
-            os.path.join(outdir, f"figure_E_{scen}_per_condition.png"))
-        for strat in curves:            # resource-based x axis
-            curves[strat]["time_s"] = curves[strat]["time_s"]
-        rep.figure_e_convergence(
-            curves, "time_s",
-            os.path.join(outdir, f"figure_E_{scen}_per_time.png"))
+            os.path.join(outdir, f"figure_conv_{scen}_per_round.png"))
+        for x_key, tag in (("nmr_acquisitions", "per_acquisition"),
+                           ("time_s", "per_time")):
+            cur2 = {s: dict(c, **{x_key: c[x_key]})
+                    for s, c in curves.items()}
+            rep.figure_e_convergence(
+                cur2, x_key,
+                os.path.join(outdir, f"figure_conv_{scen}_{tag}.png"))
 
-    # ---- Figure F: inadequacy challenge (S5) ----------------------------- #
-    if "S5_inadequacy" in cfg["scenarios"]:
+    # ---- (6) model probabilities / entropy vs round (S4a, S4b) ---------- #
+    for scen in ("S4a_ambiguity", "S4b_identifiable"):
+        if scen not in scenarios:
+            continue
+        curves = _mean_curves(all_rows, scen)
+        rep.figure_e_convergence(
+            curves, "round",
+            os.path.join(outdir, f"figure_model_probs_{scen}.png"),
+            panels=(("p_correct", "P(correct model)"),
+                    ("model_entropy", "model entropy / nats"),
+                    ("param_err_pct", "parameter error / %"),
+                    ("blind_rmse_M", "blind RMSE / M")))
+
+    # ---- (7) parameter posterior evolution (#13) ------------------------ #
+    for scen, strat in (("S1_ideal", "F"), ("S2_nmr", "F"),
+                        ("S4b_identifiable", "F")):
+        if scen in scenarios:
+            rep.figure_param_evolution(
+                all_prows, scen, strat,
+                os.path.join(outdir, f"figure_params_{scen}_{strat}.png"))
+
+    # ---- (11) governor diagnostics + MC validation ---------------------- #
+    gov_seeds = cfg["governor_mc_seeds"] or list(seeds)
+    if len(gov_seeds) < 12:
+        gov_seeds = list(range(1, 13))
+    t_g = time.time()
+    gov = bm.governor_mc_validation(gov_seeds, budget=budget)
+    gov["runtime_s"] = time.time() - t_g
+    with open(os.path.join(outdir, "governor_validation.json"), "w") as fh:
+        json.dump(gov, fh, indent=2)
+    print(f"\ngovernor MC validation ({len(gov_seeds)} seeds): "
+          f"false-inadequacy campaign rate = "
+          f"{gov['false_inadequacy_campaign_rate']:.2f}, detection prob = "
+          f"{gov['detection_probability']:.2f}, median detection round = "
+          f"{gov['median_detection_round']}")
+    if "S5_inadequacy" in scenarios:
         s5 = [r for r in all_rows if r["scenario"] == "S5_inadequacy"]
-        seeds0 = cfg["seeds"][0]
+        seed0 = seeds[0]
         naive = [r for r in s5 if r["strategy"] == "D"
-                 and r["seed"] == seeds0]
-        govd = [r for r in s5 if r["strategy"] == "F" and r["seed"] == seeds0]
+                 and r["seed"] == seed0]
+        govd = [r for r in s5 if r["strategy"] == "F"
+                and r["seed"] == seed0]
         if naive and govd:
             trip = next((r["round"] for r in govd
                          if r["gov_state"] == "MODEL_INADEQUATE"), None)
@@ -146,78 +219,76 @@ def main() -> None:
                 [r["param_err_pct"] for r in naive],
                 [g["gov_score"] for g in govd],
                 [g["gov_state"] for g in govd], trip,
-                os.path.join(outdir, "figure_F_inadequacy.png"))
+                os.path.join(outdir, "figure_governor_S5.png"))
 
-    # ---- Figure G: resource efficiency (S6 if present, else S1) ---------- #
-    scen_g = ("S6_resources" if "S6_resources" in cfg["scenarios"]
-              else cfg["scenarios"][0])
-    finals_g = _final_rows(all_rows, scen_g)
-    rep.figure_g_resources(
-        {k: v for k, v in finals_g.items()},
-        os.path.join(outdir, f"figure_G_resources_{scen_g}.png"))
+    # ---- (12) resource Pareto (S6 lambda sweep) ------------------------- #
+    if "S6_resources" in scenarios:
+        finals6 = _finals(all_rows, "S6_resources")
+        rep.figure_g_resources(
+            {k: v for k, v in finals6.items() if "blind_rmse_M" in v},
+            os.path.join(outdir, "figure_pareto_S6.png"))
 
-    # ---- Figure H: ablation ---------------------------------------------- #
-    bars = {}
-    def _grab(scen, strat, label):
-        f = _final_rows(all_rows, scen) if scen in cfg["scenarios"] else {}
-        if strat in f:
-            bars[label] = {"param_err_pct": f[strat]["param_err_pct"],
-                           "blind_rmse_M": f[strat]["blind_rmse_M"]}
-    _grab("S1_ideal", "F", "ideal conc. (F)")
-    _grab("S2_nmr", "D", "NMR, naive noise (D)")
-    _grab("S2_nmr", "F", "NMR, Sigma-aware (F)")
-    _grab("S3_transport", "F-uncorr", "NMR+transport, uncorrected")
-    _grab("S3_transport", "F", "NMR+transport, modeled")
-    if bars:
-        rep.figure_h_ablation(bars,
-                              os.path.join(outdir, "figure_H_ablation.png"))
+    # ---- (13) transport ablation ---------------------------------------- #
+    ab = {}
+    for scen, label in (("S3ab_delay", "delay + reaction (plug)"),
+                        ("S3ab_rtd", "+ RTD dispersion"),
+                        ("S3_transport", "+ carryover (full)")):
+        if scen in scenarios:
+            f = _finals(all_rows, scen)
+            ab[label] = {s: f[s]["blind_rmse_M"] for s in ("D", "F")
+                         if s in f and "blind_rmse_M" in f[s]}
+    if ab:
+        rep.figure_transport_ablation(
+            ab, os.path.join(outdir, "figure_transport_ablation.png"))
 
-    # ---- strategy comparison table (S1 = like-for-like) ------------------ #
-    table_rows = []
-    for scen in cfg["scenarios"]:
-        for strat, f in _final_rows(all_rows, scen).items():
-            table_rows.append({
-                "scenario": scen, "strategy": strat,
-                "param_err_pct": f["param_err_pct"],
-                "max_rel_ci_pct": f["max_rel_ci_pct"],
-                "p_correct": f["p_correct"],
-                "blind_rmse_mM": f["blind_rmse_M"] * 1e3,
-                "conditions": f["reactor_conditions"],
-                "acquisitions": f["nmr_acquisitions"],
-                "egda_mol": f["egda_mol"],
-                "time_h": f["time_s"] / 3600.0,
-                "travel_m": f["capillary_travel_m"],
-                "energy_kJ": f["energy_kJ"],
-                "n_seeds": f["n_seeds"],
-            })
-    text = rep.write_strategy_table(
-        table_rows, os.path.join(outdir, "strategy_table.csv"))
-    print("\n" + text)
+    # ---- (14) spatial-mode comparison (S7) ------------------------------ #
+    if "S7_spatial_modes" in scenarios:
+        curves = _mean_curves(all_rows, "S7_spatial_modes")
+        rep.figure_e_convergence(
+            curves, "nmr_acquisitions",
+            os.path.join(outdir, "figure_spatial_modes_S7.png"),
+            panels=(("param_err_pct", "parameter error / %"),
+                    ("blind_rmse_M", "blind RMSE / M"),
+                    ("spatial_samples", "axial samples used"),
+                    ("time_s", "campaign time / s")))
+        # (5) selected z/L by round comes from the demo runner's Figure B;
+        # here the CSV carries the per-round z counts per mode
 
-    # ---- false-positive rate of the governor under the correct model ----- #
+    # ---- (9,10) quantification validation + spectra --------------------- #
+    if cfg["run_quant_validation"]:
+        t_v = time.time()
+        results = val.run_validation(bm.ACQ, bm.NMR_NUISANCE_TRUE,
+                                     bm.GEOMETRY, bm.T_REF_C + 273.15,
+                                     __import__("sdl").literature_guess(
+                                         bm.T_REF_C + 273.15), seed=0)
+        _write_rows(val.validation_rows(results),
+                    os.path.join(outdir, "quantification_validation.csv"))
+        print(f"quantification validation done in {time.time() - t_v:.0f} s")
+
+    # ---- reproducibility record ----------------------------------------- #
     fp_rows = [r for r in all_rows
                if r["scenario"] in ("S1_ideal", "S2_nmr")
                and r["strategy"] == "F"]
     n_fp = sum(1 for r in fp_rows if r["gov_state"] == "MODEL_INADEQUATE")
-    fp_rate = n_fp / len(fp_rows) if fp_rows else float("nan")
-    print(f"\nGovernor false-positive rate under correct model "
-          f"(per round): {n_fp}/{len(fp_rows)} = {fp_rate:.1%}")
-
-    # ---- reproducibility record ------------------------------------------ #
     with open(os.path.join(outdir, "benchmark_config.json"), "w") as fh:
         json.dump({
-            "CONFIG": cfg, "runtimes_s": runtimes,
-            "governor_false_positive_rate": fp_rate,
+            "CONFIG": {k: v for k, v in cfg.items()},
+            "mode_resolved": {"seeds": list(seeds), "budget": budget,
+                              "scenarios": list(scenarios)},
+            "runtimes_s": runtimes,
+            "per_round_false_inadequacy_S1_S2":
+                (n_fp / len(fp_rows)) if fp_rows else None,
+            "governor_validation": gov,
             "truth": bm.TRUTH, "geometry": bm.GEOMETRY, "design": bm.DESIGN,
             "scenarios": {k: dataclasses.asdict(v)
                           for k, v in bm.SCENARIOS.items()
-                          if k in cfg["scenarios"]},
+                          if k in scenarios},
             "nmr_nuisance_true": dataclasses.asdict(bm.NMR_NUISANCE_TRUE),
             "acquisition": dataclasses.asdict(bm.ACQ),
             "transfer_true": dataclasses.asdict(bm.TRANSFER_TRUE),
         }, fh, indent=2, default=str)
     print(f"\nBenchmark finished in {(time.time() - t0) / 60.0:.1f} min. "
-          f"Outputs in: {outdir}")
+          f"Outputs in: {os.path.relpath(outdir)}")
 
 
 if __name__ == "__main__":

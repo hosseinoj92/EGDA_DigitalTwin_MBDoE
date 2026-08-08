@@ -113,6 +113,27 @@ def test_carryover_mixes_previous_position():
     assert abs(egda_out_noflush - m_ref.y[0]) < 1e-8
 
 
+def test_carryover_from_position_zero_regression():
+    """z = 0.0 is a legitimate previous position: the falsy-zero bug
+    (`self._prev_z or z_m`) treated it as 'no previous position' and
+    silently skipped carryover.  Regression-pinned here."""
+    line = TransferLine(TransferConfig(enabled=True, carryover=True,
+                                       flush_volumes=0.0,
+                                       react_in_line=False), 0.5)
+    ident = lambda c, tau: dict(c)
+    line.sample({"EGDA": 1.0}, 0.0, ident)      # previous position IS z=0
+    out = line.sample({"EGDA": 0.2}, 0.4, ident)
+    # flush_volumes=0 -> f=1: the observed sample IS the old line content
+    assert abs(out["EGDA"] - 1.0) < 1e-12, out
+    # and sampling the same position twice must NOT apply carryover mixing
+    line2 = TransferLine(TransferConfig(enabled=True, carryover=True,
+                                        flush_volumes=0.0,
+                                        react_in_line=False), 0.5)
+    line2.sample({"EGDA": 1.0}, 0.0, ident)
+    same = line2.sample({"EGDA": 0.2}, 0.0, ident)
+    assert abs(same["EGDA"] - 0.2) < 1e-12
+
+
 def test_transfer_line_state_resets_between_conditions():
     line = TransferLine(TransferConfig(enabled=True, carryover=True,
                                        flush_volumes=0.0), 0.5)

@@ -78,6 +78,55 @@ def test_posterior_sampling_within_bounds():
     assert np.all(draws >= lo - 1e-12) and np.all(draws <= hi + 1e-12)
 
 
+def test_truncated_sampling_has_no_clip_pileup():
+    """np.clip piled ~half the posterior mass EXACTLY on a bound that cuts
+    through the Gaussian.  Proper truncated sampling must place ZERO atoms
+    on the bound and keep all mass strictly inside."""
+    bridge = Layer1Bridge(GEOM, T_REF_K)
+    space = ParameterSpace(t_ref_K=T_REF_K,
+                           initial_guess=literature_guess(T_REF_K))
+    inf = InferenceModel(space, bridge, NOISE)
+    for m in _measurements(4):
+        inf.add_measurement(m)
+    post = LaplacePosterior(inf, GaussianPrior.from_space(space))
+    post.fit_map()
+    lo, hi = space.bounds()
+    # squeeze the box so a bound cuts through the posterior: move the upper
+    # bound of parameter 0 to the MAP itself
+    hi_t = hi.copy()
+    hi_t[0] = post.theta_map[0]
+    space_bounds_orig = space.bounds
+    try:
+        space.bounds = lambda: (lo, hi_t)     # type: ignore
+        draws = post.sample(300, np.random.default_rng(1))
+    finally:
+        space.bounds = space_bounds_orig      # type: ignore
+    assert np.all(draws[:, 0] <= hi_t[0] + 1e-12)
+    n_on_bound = int(np.sum(np.isclose(draws[:, 0], hi_t[0],
+                                       rtol=0.0, atol=1e-12)))
+    assert n_on_bound == 0, f"{n_on_bound}/300 samples piled on the bound"
+    # roughly half the mass should sit in the lower half of the truncated
+    # Gaussian - a clip would concentrate it at the wall instead
+    med_gap = np.median(hi_t[0] - draws[:, 0])
+    sig0 = float(np.sqrt(post.cov[0, 0]))
+    assert med_gap > 0.3 * sig0
+
+
+def test_bound_interaction_diagnostic():
+    bridge = Layer1Bridge(GEOM, T_REF_K)
+    space = ParameterSpace(t_ref_K=T_REF_K,
+                           initial_guess=literature_guess(T_REF_K))
+    inf = InferenceModel(space, bridge, NOISE)
+    for m in _measurements(5):
+        inf.add_measurement(m)
+    post = LaplacePosterior(inf, GaussianPrior.from_space(space))
+    post.fit_map()
+    frac = post.bound_interaction()
+    assert set(frac) == set(space.param_keys)
+    for k, v in frac.items():
+        assert 0.0 <= v <= 1.0, (k, v)
+
+
 def test_evidence_prefers_correct_structure():
     """Scenario-4 miniature: reversible truth -> the reversible candidate
     must beat the irreversible one on model probability."""

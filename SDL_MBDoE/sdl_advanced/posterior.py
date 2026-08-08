@@ -110,17 +110,70 @@ class LaplacePosterior:
                 - 0.5 * float(logdet_H))
 
     # ------------------------------------------------------------------ #
+    def bound_interaction(self) -> Dict[str, float]:
+        """Per-parameter Gaussian posterior mass lying OUTSIDE the box -
+        the diagnostic for 'is the Laplace approximation clashing with the
+        bounds?'.  Values are marginal tail probabilities; anything above a
+        few percent means the truncation is materially reshaping the
+        posterior and results for that parameter should be read as
+        bound-limited."""
+        if self.theta_map is None:
+            raise RuntimeError("fit_map() before diagnostics.")
+        from scipy.stats import norm
+        lo, hi = self.inference.space.bounds()
+        sig = np.sqrt(np.maximum(np.diag(self.cov), 1e-300))
+        out = {}
+        for q, k in enumerate(self.inference.space.param_keys):
+            out[k] = float(norm.cdf((lo[q] - self.theta_map[q]) / sig[q])
+                           + norm.sf((hi[q] - self.theta_map[q]) / sig[q]))
+        return out
+
     def sample(self, n: int, rng: np.random.Generator) -> np.ndarray:
-        """n posterior draws (rows), truncated to the box by clipping.
-        (Clipping is acceptable for the weakly-truncated posteriors here;
-        an SMC backend would replace this.)"""
+        """n draws from the Laplace Gaussian PROPERLY truncated to the box.
+
+        Strategy: batched rejection sampling while the acceptance rate is
+        healthy; when the Gaussian mass inside the box is small (posterior
+        pressed against a bound), fall back to a Gibbs truncated-MVN
+        sampler (Geweke-style coordinate conditionals via scipy.truncnorm).
+        No np.clip anywhere: samples never pile up ON a bound (asserted by
+        test); the truncated distribution is sampled, not distorted."""
         if self.theta_map is None:
             raise RuntimeError("fit_map() before sampling.")
-        L = np.linalg.cholesky(self.cov + 1e-12 * np.eye(len(self.theta_map)))
+        p = len(self.theta_map)
         lo, hi = self.inference.space.bounds()
-        draws = self.theta_map[None, :] + rng.standard_normal(
-            (n, len(self.theta_map))) @ L.T
-        return np.clip(draws, lo, hi)
+        cov = self.cov + 1e-12 * np.eye(p)
+        L = np.linalg.cholesky(cov)
+        # ---- rejection phase ------------------------------------------- #
+        out = np.empty((0, p))
+        attempts = 0
+        while len(out) < n and attempts < 8:
+            batch = self.theta_map[None, :] + rng.standard_normal(
+                (max(2 * (n - len(out)), 16), p)) @ L.T
+            ok = np.all((batch >= lo) & (batch <= hi), axis=1)
+            out = np.vstack([out, batch[ok]])
+            attempts += 1
+        if len(out) >= n:
+            return out[:n]
+        # ---- Gibbs truncated-MVN fallback ------------------------------ #
+        from scipy.stats import truncnorm
+        P = np.linalg.inv(cov)                       # precision
+        x = np.clip(self.theta_map.copy(), lo, hi)   # feasible start only
+        draws = np.empty((n, p))
+        n_burn = 20
+        for it in range(n_burn + n):
+            for k in range(p):
+                cond_var = 1.0 / P[k, k]
+                cond_mu = self.theta_map[k] - cond_var * float(
+                    P[k, :] @ (x - self.theta_map) - P[k, k]
+                    * (x[k] - self.theta_map[k]))
+                sd = np.sqrt(cond_var)
+                a = (lo[k] - cond_mu) / sd
+                b = (hi[k] - cond_mu) / sd
+                x[k] = float(truncnorm.rvs(a, b, loc=cond_mu, scale=sd,
+                                           random_state=rng))
+            if it >= n_burn:
+                draws[it - n_burn] = x
+        return draws
 
     def log_likelihood(self, theta: np.ndarray) -> float:
         r = self.inference._whitened_residuals(theta)

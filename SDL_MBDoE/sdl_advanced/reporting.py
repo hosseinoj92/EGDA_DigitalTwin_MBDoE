@@ -284,6 +284,74 @@ def figure_h_ablation(bars: Dict[str, Dict[str, float]], path: str) -> None:
          [[k] + [bars[k][mk] for mk, _ in metrics] for k in labels])
 
 
+def figure_param_evolution(param_rows: List[Dict], scenario: str,
+                           strategy: str, path: str) -> None:
+    """Per-parameter posterior evolution: median 95%-interval relative width
+    and median true relative error vs round (identifiability vs accuracy,
+    reported per parameter - not hidden behind an aggregate)."""
+    rows = [r for r in param_rows
+            if r["scenario"] == scenario and r["strategy"] == strategy]
+    params = sorted({r["param"] for r in rows})
+    if not params:
+        return
+    fig, axes = plt.subplots(1, len(params),
+                             figsize=(2.9 * len(params), 3.6), squeeze=False)
+    csv_rows = []
+    for ax, pk in zip(axes[0], params):
+        pr = [r for r in rows if r["param"] == pk]
+        rounds = sorted({r["round"] for r in pr})
+        w_med, e_med = [], []
+        for rnd in rounds:
+            rr = [r for r in pr if r["round"] == rnd]
+            w = [x["rel_width_pct"] for x in rr
+                 if np.isfinite(x["rel_width_pct"])]
+            e = [x["rel_error_pct"] for x in rr
+                 if np.isfinite(x.get("rel_error_pct", np.nan))]
+            w_med.append(np.median(w) if w else np.nan)
+            e_med.append(np.median(e) if e else np.nan)
+            csv_rows.append([pk, rnd, w_med[-1], e_med[-1],
+                             int(np.sum([x["bound_active"] for x in rr]))])
+        ax.plot(rounds, w_med, "o-", color="#1b3a5c",
+                label="95% interval width")
+        ax.plot(rounds, e_med, "s--", color="#a23b2e",
+                label="true |error| (post-hoc)")
+        ax.set_yscale("log")
+        ax.set_title(pk, fontsize=9)
+        ax.set_xlabel("round")
+    axes[0][0].set_ylabel("percent")
+    axes[0][0].legend(fontsize=7, frameon=False)
+    fig.suptitle(f"parameter posterior evolution - {scenario}/{strategy} "
+                 "(median over seeds)")
+    _save(fig, path)
+    _csv(path.replace(".png", ".csv"),
+         ["param", "round", "median_rel_width_pct",
+          "median_rel_error_pct", "n_bound_active"], csv_rows)
+
+
+def figure_transport_ablation(bars: Dict[str, Dict[str, float]],
+                              path: str) -> None:
+    """Which transport effect biases naive inference: final blind RMSE of
+    naive D vs transport-aware F under each truth-physics variant."""
+    labels = list(bars)
+    fig, ax = plt.subplots(figsize=(7.5, 4.2))
+    x = np.arange(len(labels))
+    wd = 0.36
+    ax.bar(x - wd / 2, [bars[k].get("D", np.nan) for k in labels], wd,
+           color="#1b3a5c", label="D (naive concentration-at-z)")
+    ax.bar(x + wd / 2, [bars[k].get("F", np.nan) for k in labels], wd,
+           color="#a23b2e", label="F (mean-delay corrected)")
+    ax.set_xticks(x, labels, rotation=12, ha="right", fontsize=9)
+    ax.set_yscale("log")
+    ax.set_ylabel("final blind RMSE / M (median over seeds)")
+    ax.legend(fontsize=9, frameon=False)
+    fig.suptitle("transport ablation: which physical effect matters")
+    _save(fig, path)
+    _csv(path.replace(".png", ".csv"),
+         ["variant", "D_blind_rmse_M", "F_blind_rmse_M"],
+         [[k, bars[k].get("D", np.nan), bars[k].get("F", np.nan)]
+          for k in labels])
+
+
 # ------------------------------------------------------------------------- #
 def write_strategy_table(rows: List[Dict], path: str) -> str:
     """The A-F comparison table (CSV + printable text)."""

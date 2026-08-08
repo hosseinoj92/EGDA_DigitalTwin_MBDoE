@@ -168,6 +168,13 @@ class AdvancedDesignConfig:
     beta_model: float = 1.0
     beta_model_discrimination: float = 4.0   # boost while discriminating
     seed_offset: int = 104729          # design RNG stream separator
+    # design objective (#identifiability vs #prediction):
+    #   "parameter"  - D-optimal information / EIG on theta (default)
+    #   "predictive" - minimize predictive variance over a reference
+    #                  prediction grid (V-optimality flavour): accurate
+    #                  process prediction may be reachable before every
+    #                  microscopic parameter is individually identifiable
+    objective: str = "parameter"
 
 
 @dataclass
@@ -193,7 +200,12 @@ class AdvancedSelector:
                  species: Sequence[str],
                  cfg: AdvancedDesignConfig = AdvancedDesignConfig(),
                  bounds: Optional[Dict[str, Sequence[float]]] = None,
-                 seed: int = 0):
+                 seed: int = 0,
+                 reference_conditions: Optional[Sequence] = None):
+        # reference_conditions: [(u, z_array), ...] defining the PREDICTIVE
+        # objective's reference grid.  Must be an internal documented grid -
+        # NEVER the blind validation set (which stays invisible by design).
+        self.reference_conditions = list(reference_conditions or [])
         if not candidates:
             raise ValueError("Need at least one operating-condition candidate.")
         self.ensemble = ensemble
@@ -221,15 +233,16 @@ class AdvancedSelector:
 
     # ------------------------------------------------------------------ #
     def _field_for(self, u: OperatingConditions) -> SensitivityField:
+        """Sensitivity field of the EXPECTED OBSERVATION (through the
+        candidate's predict_observation operator, so spatial design and FIM
+        screening see the same transport-corrected observable as
+        estimation and EIG do)."""
         cm = self.ensemble.best
-        theta = (cm.posterior.theta_map if cm.posterior.theta_map is not None
-                 else cm.space.to_vector(cm.space.initial_guess))
 
         def predict(th: np.ndarray, z: np.ndarray) -> np.ndarray:
-            return cm.bridge.concentrations_at(cm.space.to_natural(th), u,
-                                               z, self.species)
+            return cm.predict_observation(th, u, z, self.species)
 
-        return SensitivityField(predict, theta, cm.space.fd_steps,
+        return SensitivityField(predict, cm.theta_hat, cm.space.fd_steps,
                                 self.designer.candidate_grid(),
                                 len(self.species))
 
@@ -238,10 +251,38 @@ class AdvancedSelector:
             self.ensemble.best.posterior.theta_map)
 
     # ------------------------------------------------------------------ #
+    def _reference_G(self) -> Optional[np.ndarray]:
+        """Sensitivity matrix of the reference-grid predictions wrt theta
+        (best model, through the observation operator) - the G of the
+        predictive V-optimality objective.  None when no grid configured."""
+        if not self.reference_conditions:
+            return None
+        cm = self.ensemble.best
+        th = cm.theta_hat
+        rows = []
+        y0 = np.concatenate([cm.predict_observation(th, u, z, self.species)
+                             for u, z in self.reference_conditions])
+        for q in range(cm.space.n_params):
+            tp = th.copy()
+            tp[q] += cm.space.fd_steps[q]
+            yq = np.concatenate([
+                cm.predict_observation(tp, u, z, self.species)
+                for u, z in self.reference_conditions])
+            rows.append((yq - y0) / cm.space.fd_steps[q])
+        return np.stack(rows, axis=1)          # (n_pred, p)
+
+    @staticmethod
+    def _pred_var(G: np.ndarray, F: np.ndarray) -> float:
+        w, V = np.linalg.eigh(F)
+        Vinv = V @ np.diag(1.0 / np.maximum(w, _EIG_FLOOR)) @ V.T
+        return float(np.trace(G @ Vinv @ G.T))
+
     def select(self, governor_state: str = GovernorState.NORMAL_LEARNING
                ) -> DesignDecision:
         cfg = self.cfg
         F0 = self._accumulated_fim()
+        G = (self._reference_G() if cfg.objective == "predictive" else None)
+        pv0 = self._pred_var(G, F0) if G is not None else 0.0
         screened: List[Tuple[float, OperatingConditions, np.ndarray,
                              SensitivityField]] = []
         for u in self.candidates:
@@ -252,13 +293,23 @@ class AdvancedSelector:
                 F = F + self.designer._fim_at(field, float(z))
             cost = self.meter.cost_of_candidate(
                 u.T_C, u.Q1_mL_min + u.Q2_mL_min, u.C_EGDA_M, u.C_cat_M, zs)
-            screened.append((_logdet_floored(F) - _logdet_floored(F0) - cost,
-                             u, zs, field))
+            if G is not None:            # predictive-variance reduction
+                score = pv0 - self._pred_var(G, F) - cost
+            else:                        # D-optimal information gain
+                score = _logdet_floored(F) - _logdet_floored(F0) - cost
+            screened.append((score, u, zs, field))
         screened.sort(key=lambda t: -t[0])
         top = screened[:max(cfg.top_k, 1)]
 
         if governor_state == GovernorState.MODEL_INADEQUATE:
             return self._select_diagnostic(top)
+        if cfg.objective == "predictive":
+            score, u, zs, _f = top[0]
+            cost = self.meter.cost_of_candidate(
+                u.T_C, u.Q1_mL_min + u.Q2_mL_min, u.C_EGDA_M, u.C_cat_M, zs)
+            return DesignDecision(u=u, z_positions=zs, utility=score,
+                                  eig_param=np.nan, eig_model=np.nan,
+                                  cost=cost, mode="predictive")
 
         beta = (cfg.beta_model_discrimination
                 if governor_state == GovernorState.MODEL_DISCRIMINATION
@@ -290,33 +341,55 @@ class AdvancedSelector:
         return best
 
     # ------------------------------------------------------------------ #
+    def _normalized_u(self, u: OperatingConditions) -> np.ndarray:
+        """Operating point in [0,1]^4 (bounds-normalized) for distances."""
+        vals = {"T_C": u.T_C, "Q_total_mL_min": u.Q1_mL_min + u.Q2_mL_min,
+                "C_cat_M": u.C_cat_M, "C_EGDA_M": u.C_EGDA_M}
+        out = []
+        for k, v in vals.items():
+            if self.bounds and k in self.bounds:
+                lo, hi = self.bounds[k]
+                out.append((v - lo) / max(hi - lo, 1e-12))
+            else:
+                out.append(0.0)
+        return np.array(out)
+
     def _select_diagnostic(self, top) -> DesignDecision:
         """MODEL_INADEQUATE: stop exploiting the (wrong) model's FIM.
-        Choose the candidate maximizing expected whitened DISAGREEMENT
-        between the candidate models' MAP predictions - the experiment most
-        able to separate 'parameters uncertain' from 'structure wrong',
-        because structure errors grow where model families diverge."""
+
+        Score = expected whitened DISAGREEMENT between the candidate models'
+        MAP predictions (the experiment most able to separate 'parameters
+        uncertain' from 'structure wrong', because structure errors grow
+        where model families diverge)  +  a structural-stress exploration
+        term (distance to already-visited operating points x the screened
+        information gain), which drives the search toward unexplored regions
+        where interpolation cannot hide a structural failure - and is the
+        active term when the family has only one member."""
+        visited = [self._normalized_u(m.u)
+                   for m in self.ensemble.best.inference.measurements]
         best_dec, best_score = None, -np.inf
-        for _screen, u, zs, _field in top:
+        for screen_gain, u, zs, _field in top:
             preds = []
             for cm in self.ensemble.models:
-                th = (cm.posterior.theta_map
-                      if cm.posterior.theta_map is not None
-                      else cm.space.to_vector(cm.space.initial_guess))
-                preds.append(cm.bridge.concentrations_at(
-                    cm.space.to_natural(th), u, zs, self.species))
+                preds.append(cm.predict_observation(cm.theta_hat, u, zs,
+                                                    self.species))
             P = np.stack(preds)
             y_ref = np.mean(P, axis=0)
             cov = self.surrogate.cov_profile(y_ref, len(zs))
             L = np.linalg.cholesky(cov + 1e-14 * np.eye(cov.shape[0]))
             W = np.linalg.solve(L, (P - y_ref[None, :]).T).T
-            score = float(np.mean(np.sum(W ** 2, axis=1)))
+            disagreement = float(np.mean(np.sum(W ** 2, axis=1)))
+            xu = self._normalized_u(u)
+            min_dist = (min(float(np.linalg.norm(xu - v)) for v in visited)
+                        if visited else 1.0)
+            stress = min_dist * max(float(screen_gain), 0.0)
             cost = self.meter.cost_of_candidate(
                 u.T_C, u.Q1_mL_min + u.Q2_mL_min, u.C_EGDA_M, u.C_cat_M, zs)
-            if score - cost > best_score:
-                best_score = score - cost
+            score = disagreement + stress - cost
+            if score > best_score:
+                best_score = score
                 best_dec = DesignDecision(
-                    u=u, z_positions=zs, utility=score - cost,
+                    u=u, z_positions=zs, utility=score,
                     eig_param=np.nan, eig_model=np.nan, cost=cost,
                     mode="diagnostic")
         return best_dec

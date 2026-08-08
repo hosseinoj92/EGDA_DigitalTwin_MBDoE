@@ -124,9 +124,11 @@ class TransferLine:
             self._prev_z = z_m
             return dict(conc_at_z)
         seen = self._through_line(conc_at_z, z_m, propagate)
-        if (self.cfg.carryover and self._prev_conc is not None
-                and self._prev_z is not None
-                and abs(z_m - (self._prev_z or z_m)) > 0.0):
+        # explicit None handling: z = 0.0 is a legitimate previous position
+        # and must NOT be treated as "no previous position" (falsy-zero bug)
+        moved = (self._prev_z is not None
+                 and abs(z_m - self._prev_z) > 0.0)
+        if self.cfg.carryover and self._prev_conc is not None and moved:
             f = float(np.exp(-max(self.cfg.flush_volumes, 0.0)))
             mixed = {sp: (1.0 - f) * seen[sp]
                      + f * self._prev_conc.get(sp, 0.0) for sp in seen}

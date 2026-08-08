@@ -46,23 +46,65 @@ def test_overlap_produces_correlated_errors():
     assert res.corr[ia, ib] < 0.0
 
 
-def test_noisy_recovery_and_coverage():
-    """Acceptance criterion 7 (reduced-size): Monte Carlo intervals from the
-    fitted covariance must achieve roughly their nominal 95% coverage."""
-    nu = SpectralNuisance(noise_sigma=0.10, shift_drift_ppm=0.002,
-                          shift_jitter_ppm=0.0, linewidth_rel_sigma=0.03,
-                          baseline_offset=0.005, baseline_curve=0.01,
-                          phase_error_deg=0.0, gain_drift_rel_sigma=0.0)
+def test_noisy_recovery_and_coverage_after_calibration():
+    """Monte Carlo intervals under the FULL truth-model mismatch, after the
+    response calibration a real campaign would perform.  Honest
+    expectations: >=85% for the resolved species, >=70% for AcOH (its error
+    is bias-dominated in the 1-4 Hz acetyl overlap cluster - a KNOWN,
+    reported limitation, see spectral_fit.py)."""
+    from sdl_advanced.spectral_fit import calibrate_responses
+    nu = SpectralNuisance()                    # all mismatch effects active
     sim = NMRSimulator(ACQ, nu)
     fitter = SpectralFitter(ACQ)
+    rng = np.random.default_rng(1)
+    calibrate_responses(fitter, lambda s, r: sim.simulate(s, r)[:2], rng)
     t0 = time.time()
     out = bootstrap_coverage(fitter, sim, CONC, n_boot=30, seed=1)
     dt = time.time() - t0
+    floor = {"EGDA": 0.85, "EGMA": 0.85, "EG": 0.85, "AcOH": 0.70}
     for sp, cov_p, rmse in zip(fitter.species, out["coverage"], out["rmse"]):
-        assert cov_p >= 0.7, (sp, cov_p)      # loose: only 30 replicates
+        assert cov_p >= floor[sp], (sp, cov_p)
         assert rmse < 0.05, (sp, rmse)        # mol/L
     print(f"    (coverage {np.round(out['coverage'], 2)}, "
           f"rmse {np.round(out['rmse'], 4)} M, {dt:.1f} s / 30 fits)")
+
+
+def test_fid_truth_quantified_by_approximate_fitter():
+    """Anti-inverse-crime: FID-engine truth (time-domain generation, colored
+    noise, Gaussian envelopes) quantified by the analytic-basis fitter -
+    errors must stay at the mM scale with sane claimed sigmas."""
+    import dataclasses
+    from sdl_advanced.spectral_fit import calibrate_responses
+    acq_fid = dataclasses.replace(ACQ, engine="fid")
+    sim = NMRSimulator(acq_fid, SpectralNuisance())
+    fitter = SpectralFitter(acq_fid)
+    rng = np.random.default_rng(2)
+    calibrate_responses(fitter, lambda s, r: sim.simulate(s, r)[:2], rng)
+    errs = []
+    for _ in range(6):
+        ppm, y, _ = sim.simulate(CONC, rng)
+        res = fitter.fit(ppm, y)
+        errs.append(res.conc_M - np.array([CONC[s] for s in res.species]))
+    rmse = np.sqrt(np.mean(np.array(errs) ** 2, axis=0))
+    assert np.all(rmse < 0.05), rmse           # mol/L
+
+
+def test_low_concentration_censoring_flagged():
+    """A species at/near zero that lands on the non-negativity bound must be
+    FLAGGED as censored rather than reported with a symmetric Gaussian
+    interval."""
+    sim = NMRSimulator(ACQ, SpectralNuisance())
+    fitter = SpectralFitter(ACQ)
+    rng = np.random.default_rng(5)
+    conc = {"EGDA": 0.40, "EGMA": 0.0, "EG": 0.0, "AcOH": 0.03, "H2O": 53.0}
+    n_censored = 0
+    for _ in range(8):
+        ppm, y, _ = sim.simulate(conc, rng)
+        res = fitter.fit(ppm, y)
+        n_censored += len(res.censored)
+        for sp in res.censored:
+            assert sp in ("EGMA", "EG", "AcOH")
+    assert n_censored > 0                      # zero species DO hit the bound
 
 
 def test_qc_flags_on_garbage_spectrum():

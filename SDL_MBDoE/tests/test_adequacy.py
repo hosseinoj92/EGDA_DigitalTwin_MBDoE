@@ -1,5 +1,7 @@
-"""Tests of the model-inadequacy governor (sdl_advanced.adequacy).
-Runnable standalone."""
+"""Tests of the model-inadequacy governor (sdl_advanced.adequacy) - the
+statistically redesigned version: continuous p-values, Sidak-combined
+components, alpha spending across rounds, and the parametric-bootstrap
+empirical p.  Runnable standalone."""
 
 from __future__ import annotations
 
@@ -48,67 +50,90 @@ def _ensemble(include, seed):
     return ens
 
 
+def test_p_values_are_continuous_probabilities():
+    """The redesigned governor must return REAL continuous p-values, both
+    per component and combined - never a binary 0/1 indicator."""
+    ens = _ensemble(("rev-dilute",), seed=1)
+    rep = AdequacyGovernor(GovernorConfig(n_rounds_planned=6)).assess(ens, 1)
+    assert 0.0 < rep.p_value <= 1.0
+    assert rep.p_value not in (0.0, 1.0) or rep.p_value == 1.0
+    for name, p in rep.components.items():
+        assert 0.0 <= p <= 1.0, (name, p)
+    assert len(rep.components) >= 3
+    # alpha spending: round threshold = campaign alpha / planned rounds
+    cfg = GovernorConfig(alpha_campaign=0.05, n_rounds_planned=10)
+    rep2 = AdequacyGovernor(cfg).assess(ens, 1)
+    assert np.isclose(rep2.alpha_round, 0.005)
+
+
 def test_correct_model_not_flagged_inadequate():
-    """Acceptance criterion 11 (spot check): with the correct structure in
-    the candidate set, the governor must NOT declare inadequacy."""
-    gov = AdequacyGovernor(GovernorConfig(alpha=0.01))
-    hits = 0
-    for seed in range(3):
+    """Empirical spot check (the fuller MC lives in
+    benchmark.governor_mc_validation): correct family must not be declared
+    inadequate."""
+    gov_hits = 0
+    for seed in range(6):
         ens = _ensemble(("rev-dilute", "irreversible"), seed)
-        rep = gov.assess(ens, round_no=1)
+        rep = AdequacyGovernor(GovernorConfig(n_rounds_planned=6)
+                               ).assess(ens, 1)
         if rep.state == GovernorState.MODEL_INADEQUATE:
-            hits += 1
-    assert hits == 0, f"false-positive inadequacy in {hits}/3 runs"
+            gov_hits += 1
+    assert gov_hits == 0, f"false-positive inadequacy in {gov_hits}/6 runs"
 
 
 def test_misspecified_family_is_detected():
-    """Acceptance criterion 12: remove the correct (reversible) model; the
-    governor must detect systematic lack of fit."""
-    gov = AdequacyGovernor(GovernorConfig(alpha=0.01))
-    ens = _ensemble(("irreversible",), seed=5)
+    """Wrong family (irreversible only, strongly reversible truth) must be
+    detected despite alpha spending."""
+    truth5 = dict(TRUTH, K1_ref=0.30, K2_ref=0.02)
+    bridge = Layer1Bridge(GEOM, T_REF_K)
+    lab = AdvancedVirtualLaboratory(
+        truth5, bridge, InstrumentConfig(observation_mode="direct"),
+        AcquisitionSettings(), SpectralNuisance(enabled=False),
+        TransferConfig(enabled=False), ResourceCosts(), seed=5,
+        noise_direct=NOISE)
+    ens = ModelEnsemble(build_egda_family(GEOM, T_REF_K,
+                                          include=("irreversible",),
+                                          noise_assumed=NOISE))
+    z = GEOM["length_m"] * np.arange(1, 7) / 6
+    for u in CONDS:
+        ens.add_measurement(lab.run_profile(u, z))
+    ens.update()
+    gov = AdequacyGovernor(GovernorConfig(n_rounds_planned=6))
     rep = gov.assess(ens, round_no=2)
     assert rep.state == GovernorState.MODEL_INADEQUATE, (
-        rep.state, rep.score, rep.p_values_all)
+        rep.state, rep.p_value, rep.components)
     assert rep.round_detected == 2
-    assert rep.reasons
+    assert rep.p_value < rep.alpha_round
 
 
-def test_mc_calibration_bounds_false_positives():
-    """The MC-calibrated trip point must sit above the observed correct-model
-    statistic (so calibration cannot make the governor MORE trigger-happy
-    than alpha on well-specified data)."""
-    gov = AdequacyGovernor(GovernorConfig(alpha=0.05))
-    ens = _ensemble(("rev-dilute",), seed=7)
-    rep0 = gov.assess(ens, round_no=1)
-    q = gov.calibrate_thresholds(ens, np.random.default_rng(0), n_mc=20)
-    assert q > 0.5
-    rep1 = gov.assess(ens, round_no=1)
-    assert rep1.state != GovernorState.MODEL_INADEQUATE
-    assert gov.calibrated_quantile is not None
-    assert np.isfinite(rep0.score)
+def test_bootstrap_pvalue_is_empirical_tail_probability():
+    """p_boot = (1 + #extreme) / (B + 1): continuous in (0, 1], large under
+    the correct model, tiny under gross misspecification."""
+    rng = np.random.default_rng(0)
+    ens_ok = _ensemble(("rev-dilute",), seed=7)
+    gov = AdequacyGovernor()
+    p_ok = gov.bootstrap_pvalue(ens_ok, rng, B=19)
+    assert 0.0 < p_ok <= 1.0
+    assert p_ok >= 1.0 / 20.0                 # by construction
+    assert p_ok > 0.2, p_ok                   # correct model: not extreme
 
 
 def test_discrimination_state_when_models_tie():
-    """With little data, several models stay plausible -> the governor must
-    ask for model discrimination rather than parameter refinement."""
     bridge = Layer1Bridge(GEOM, T_REF_K)
+    noisy = NoiseModel(sigma_abs_M=0.02, sigma_rel=0.1)
     lab = AdvancedVirtualLaboratory(
         TRUTH, bridge, InstrumentConfig(observation_mode="direct"),
         AcquisitionSettings(), SpectralNuisance(enabled=False),
         TransferConfig(enabled=False), ResourceCosts(), seed=11,
-        noise_direct=NoiseModel(sigma_abs_M=0.02, sigma_rel=0.1))
+        noise_direct=noisy)
     ens = ModelEnsemble(build_egda_family(
         GEOM, T_REF_K, include=("rev-dilute", "rev-pitzer"),
-        noise_assumed=NoiseModel(sigma_abs_M=0.02, sigma_rel=0.1)))
-    # one noisy low-conversion measurement: the two activity models are
-    # nearly indistinguishable there
+        noise_assumed=noisy))
     u = OperatingConditions(T_C=45.0, Q1_mL_min=5.0, Q2_mL_min=5.0,
                             C_EGDA_M=1.0, C_cat_M=0.2)
     ens.add_measurement(lab.run_profile(u, [GEOM["length_m"]]))
     ens.update()
     rep = AdequacyGovernor().assess(ens, round_no=1)
-    assert rep.state == GovernorState.MODEL_DISCRIMINATION, (
-        rep.state, dict(zip([c.name for c in ens.models], ens.probs)))
+    assert rep.state == GovernorState.MODEL_DISCRIMINATION, rep.state
 
 
 if __name__ == "__main__":

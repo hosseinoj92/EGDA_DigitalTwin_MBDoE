@@ -6,7 +6,7 @@ Advanced closed-loop campaign controller: strategies E and F (+ ablations).
         observation) - isolates the value of WHERE you sample.
     F   optimized/adaptive spatial positions + Bayesian multi-model,
         resource-aware EIG design + realistic NMR/transport observation
-        + the model-inadequacy governor.
+        + the model-inadequacy governor + the measurement-fault QC gate.
 
 Ablations of F are expressed through the lab/flags the caller passes in
 (benchmark.py builds them):
@@ -15,6 +15,20 @@ Ablations of F are expressed through the lab/flags the caller passes in
     F-noTransport transfer.enabled=False
     F-noGovernor  use_governor=False
     F-full        everything on
+
+All controller-side predictions route through the models' single
+expected-observation operator (`CandidateModel.predict_observation` /
+`InferenceModel.predict_at`), so estimation, sensitivities, FIM, spatial
+design, EIG and diagnostics are mutually consistent - including the assumed
+transfer correction when configured.
+
+QC GATE (measurement-fault handling): a spectrum whose deconvolution raises
+FAIL quality flags is NEVER assimilated into the kinetic posterior.  The
+controller re-acquires the same position up to `qc.max_retries` times
+(metered as reacquisitions); persistently failing positions are dropped and
+counted; if more than `qc.max_reject_fraction` of a round's positions fail,
+the campaign PAUSES safely (stop_reason='MEASUREMENT_FAULT') instead of
+designing new chemistry experiments on corrupted data.
 
 FIREWALL: this module only ever touches lab.run_profile() and the resulting
 Measurement objects.  Baseline strategies A-D remain in sdl.campaign,
@@ -25,20 +39,20 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
 from sdl.design import MBDoESelector
 from sdl.inference import InferenceModel
 from sdl.layer1_bridge import OperatingConditions
-from sdl.observation import NoiseModel
+from sdl.observation import Measurement, NoiseModel
 
 from .adequacy import AdequacyGovernor, AdequacyReport, GovernorState
 from .bayes_design import (AdvancedDesignConfig, AdvancedSelector,
                            DesignDecision, NoiseSurrogate)
 from .instrument import AdvancedVirtualLaboratory
-from .model_ensemble import ModelEnsemble
+from .model_ensemble import CandidateModel, ModelEnsemble
 from .spatial_design import (SensitivityField, SpatialDesignConfig,
                              SpatialDesigner, fixed_equal_positions)
 
@@ -46,6 +60,13 @@ ADV_STRATEGY_NAMES = {
     "E": "optimized spatial + FIM MBDoE",
     "F": "adaptive spatial + Bayesian multi-model + realistic NMR/transport",
 }
+
+
+@dataclass(frozen=True)
+class QCGateConfig:
+    enabled: bool = True
+    max_retries: int = 1              # reacquisitions per failing position
+    max_reject_fraction: float = 0.5  # above this per round -> pause campaign
 
 
 @dataclass
@@ -63,6 +84,11 @@ class AdvRoundRecord:
     eig_param: float = float("nan")
     eig_model: float = float("nan")
     sigma_scaled: Optional[np.ndarray] = None
+    param_keys: Tuple[str, ...] = ()
+    bound_active: Tuple[str, ...] = ()
+    corr_max_offdiag: float = float("nan")
+    n_rejected: int = 0
+    n_reacquired: int = 0
 
 
 @dataclass
@@ -72,8 +98,11 @@ class AdvancedStrategyResult:
     ensemble: Optional[ModelEnsemble] = None
     inference: Optional[InferenceModel] = None
     runtime_s: float = 0.0
+    stop_reason: str = "budget exhausted"
 
 
+# --------------------------------------------------------------------------- #
+# shared helpers
 # --------------------------------------------------------------------------- #
 def _noise_cov_builder(noise: NoiseModel, species: Sequence[str]):
     def cov_at(y_pos: np.ndarray) -> np.ndarray:
@@ -81,6 +110,120 @@ def _noise_cov_builder(noise: NoiseModel, species: Sequence[str]):
     return cov_at
 
 
+def _field_for_model(cm: CandidateModel, u: OperatingConditions,
+                     designer: SpatialDesigner,
+                     species: Sequence[str]) -> SensitivityField:
+    """Sensitivity field of the model's EXPECTED OBSERVATION at u."""
+    def predict(th, z):
+        return cm.predict_observation(th, u, z, species)
+    return SensitivityField(predict, cm.theta_hat, cm.space.fd_steps,
+                            designer.candidate_grid(), len(species))
+
+
+def _split_positions(m: Measurement) -> List[Dict]:
+    """Per-position view of a species-major Measurement."""
+    n_s, n_z = len(m.species), m.n_z
+    qc = (m.meta or {}).get("qc", [{} for _ in range(n_z)])
+    spectra = (m.meta or {}).get("spectra")
+    out = []
+    for k in range(n_z):
+        idx = [i * n_z + k for i in range(n_s)]
+        out.append({
+            "z": float(m.z_m[k]),
+            "y": m.y[idx].copy(),
+            "cov": (m.cov_y[np.ix_(idx, idx)].copy()
+                    if m.cov_y is not None else None),
+            "qc": qc[k] if k < len(qc) else {},
+            "spectrum": spectra[k] if spectra and k < len(spectra) else None,
+        })
+    return out
+
+
+def _combine_positions(u: OperatingConditions, species: Tuple[str, ...],
+                       parts: List[Dict],
+                       extra_meta: Optional[Dict] = None) -> Measurement:
+    """Rebuild one species-major Measurement from per-position parts."""
+    n_s, n_z = len(species), len(parts)
+    y = np.zeros(n_s * n_z)
+    have_cov = all(p["cov"] is not None for p in parts)
+    cov = np.zeros((n_s * n_z, n_s * n_z)) if have_cov else None
+    qc, spectra = [], []
+    for k, p in enumerate(parts):
+        for i in range(n_s):
+            y[i * n_z + k] = p["y"][i]
+            if have_cov:
+                for j in range(n_s):
+                    cov[i * n_z + k, j * n_z + k] = p["cov"][i, j]
+        qc.append(p["qc"])
+        if p["spectrum"] is not None:
+            spectra.append(p["spectrum"])
+    meta = {"qc": qc, **(extra_meta or {})}
+    if spectra:
+        meta["spectra"] = spectra
+    return Measurement(u=u, z_m=np.array([p["z"] for p in parts]),
+                       species=species, y=y, cov_y=cov, meta=meta)
+
+
+def _qc_failed(qc_entry: Dict) -> bool:
+    return any(str(f).startswith("FAIL")
+               for f in qc_entry.get("qc_flags", []))
+
+
+def measure_with_qc(lab: AdvancedVirtualLaboratory, u: OperatingConditions,
+                    zs: Sequence[float], qc: QCGateConfig
+                    ) -> Tuple[Optional[Measurement], int, int, bool]:
+    """Measure the positions with the QC gate applied BEFORE assimilation.
+
+    Returns (measurement_of_passing_positions_or_None, n_rejected,
+    n_reacquired, fault).  fault=True when the reject fraction exceeds the
+    configured limit - the caller must pause, not continue designing."""
+    m = lab.run_profile(u, zs)
+    if not qc.enabled or (m.meta or {}).get("observation_mode") == "direct" \
+            or lab.config.observation_mode == "direct":
+        return m, 0, 0, False
+    parts = _split_positions(m)
+    kept, n_rej, n_re = [], 0, 0
+    for p in parts:
+        if not _qc_failed(p["qc"]):
+            kept.append(p)
+            continue
+        recovered = False
+        for _ in range(max(qc.max_retries, 0)):
+            n_re += 1
+            m_re = lab.run_profile(u, [p["z"]], reacquire=True)
+            p_re = _split_positions(m_re)[0]
+            if not _qc_failed(p_re["qc"]):
+                kept.append(p_re)
+                recovered = True
+                break
+        if not recovered:
+            n_rej += 1
+            lab.meter.log_qc_reject(p["z"])
+    fault = (len(parts) > 0
+             and n_rej / len(parts) > qc.max_reject_fraction)
+    if not kept:
+        return None, n_rej, n_re, True
+    kept.sort(key=lambda p: p["z"])
+    return (_combine_positions(u, lab.species, kept,
+                               {"observation_mode": "nmr"}),
+            n_rej, n_re, fault)
+
+
+def _posterior_diag(cm: CandidateModel) -> Dict:
+    """Per-parameter posterior diagnostics for reporting (#13): scaled
+    sigmas, active bounds, worst off-diagonal correlation."""
+    sig = np.sqrt(np.maximum(np.diag(cm.posterior.cov), 0.0))
+    theta = cm.posterior.theta_map
+    bound_active = cm.space.active_bounds(theta)
+    denom = np.outer(sig, sig)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        corr = np.where(denom > 0, cm.posterior.cov / denom, 0.0)
+    off = corr - np.diag(np.diag(corr))
+    return {"sigma": sig, "bound_active": tuple(bound_active),
+            "corr_max": float(np.max(np.abs(off))) if off.size else 0.0}
+
+
+# --------------------------------------------------------------------------- #
 def run_strategy_e(lab: AdvancedVirtualLaboratory,
                    inference: InferenceModel,
                    candidates: List[OperatingConditions],
@@ -91,7 +234,9 @@ def run_strategy_e(lab: AdvancedVirtualLaboratory,
                    continuous_bounds: Optional[Dict] = None,
                    verbose: bool = True) -> AdvancedStrategyResult:
     """E: baseline WLS/FIM inference + baseline condition MBDoE, but the
-    POSITIONS each round are the greedy incremental D-optimal set."""
+    POSITIONS each round are the greedy incremental D-optimal set.  All
+    predictions route through inference.predict_at (the observation
+    operator), so a transport-aware inference corrects E consistently too."""
     t0 = time.time()
     result = AdvancedStrategyResult(key="E", inference=inference)
     L = lab.length_m
@@ -100,8 +245,7 @@ def run_strategy_e(lab: AdvancedVirtualLaboratory,
 
     def field_for(u: OperatingConditions) -> SensitivityField:
         def predict(th, z):
-            return inference.bridge.concentrations_at(
-                inference.space.to_natural(th), u, z, lab.species)
+            return inference.predict_at(th, u, z, lab.species)
         return SensitivityField(predict, inference.theta,
                                 inference.space.fd_steps,
                                 designer.candidate_grid(), len(lab.species))
@@ -121,7 +265,9 @@ def run_strategy_e(lab: AdvancedVirtualLaboratory,
             theta_nat=inference.space.to_natural(inference.theta),
             best_model="wls", model_probs={"wls": 1.0}, governor=None,
             resources=lab.meter.totals(), n_data=inference.n_data,
-            design_mode="fim", sigma_scaled=rep.sigma))
+            design_mode="fim", sigma_scaled=rep.sigma,
+            param_keys=tuple(inference.space.param_keys),
+            bound_active=tuple(rep.active_bounds)))
         if verbose:
             print(f"  [E] round {r}/{budget}  {u_next.label():34s} "
                   f"z/L={np.round(np.asarray(z_next) / L, 3)} "
@@ -150,46 +296,86 @@ def run_strategy_f(lab: AdvancedVirtualLaboratory,
                    governor: Optional[AdequacyGovernor] = None,
                    use_governor: bool = True,
                    surrogate: Optional[NoiseSurrogate] = None,
+                   cov_model=None,
+                   qc: QCGateConfig = QCGateConfig(),
                    bounds: Optional[Dict] = None,
                    seed: int = 0,
                    verbose: bool = True,
                    key: str = "F") -> AdvancedStrategyResult:
-    """F: the full advanced loop (see module docstring)."""
+    """F: the full advanced loop (see module docstring).
+
+    cov_model: optional measurement-aware expected-covariance model (e.g.
+    SpectralCovarianceModel) used for spatial design and EIG; the
+    NoiseSurrogate remains the fallback and keeps learning from data."""
     t0 = time.time()
     result = AdvancedStrategyResult(key=key, ensemble=ensemble)
     governor = governor or AdequacyGovernor()
     surrogate = surrogate or NoiseSurrogate(lab.species)
+    exp_cov = cov_model if cov_model is not None else surrogate
     L = lab.length_m
-    designer = SpatialDesigner(spatial_cfg, L, surrogate.cov_at)
-    selector = AdvancedSelector(ensemble, candidates, designer, surrogate,
+    designer = SpatialDesigner(spatial_cfg, L, exp_cov.cov_at)
+    ref_conds = None
+    if design_cfg.objective == "predictive":
+        # internal reference-prediction grid for the predictive objective:
+        # a coarse sweep of the candidate space (documented; NOT the blind
+        # validation set, which no controller code may see)
+        z_ref = np.array([0.5 * L, L])
+        step = max(len(candidates) // 6, 1)
+        ref_conds = [(u, z_ref) for u in candidates[::step]]
+    selector = AdvancedSelector(ensemble, candidates, designer, exp_cov,
                                 lab.meter, lab.species, design_cfg,
-                                bounds=bounds, seed=seed)
+                                bounds=bounds, seed=seed,
+                                reference_conditions=ref_conds)
     state = GovernorState.NORMAL_LEARNING
     decision: Optional[DesignDecision] = None
     u_next = first_u
     for r in range(1, budget + 1):
-        # ---- spatial measurement set for this condition ----------------- #
+        # ---- measure this round's spatial set --------------------------- #
+        n_rej = n_re = 0
         if spatial_cfg.mode == "adaptive_sequential" and r > 1:
-            meas = _adaptive_profile(lab, ensemble, designer, u_next,
-                                     spatial_cfg, surrogate)
+            meas_list, n_rej, n_re, fault = _adaptive_profile_bayes(
+                lab, ensemble, designer, surrogate, u_next, spatial_cfg, qc)
+            zs_measured = np.concatenate([m.z_m for m in meas_list]) \
+                if meas_list else np.array([])
         else:
             if decision is not None:
                 zs = decision.z_positions
             elif spatial_cfg.mode == "fixed_equal":
                 zs = fixed_equal_positions(L, spatial_cfg.n_positions)
             else:
-                zs = _initial_positions(ensemble, designer, u_next,
-                                        lab.species)
-            meas = lab.run_profile(u_next, zs)
-        surrogate.observe(meas)
-        ensemble.add_measurement(meas)
-        ensemble.update()
+                zs = designer.positions(
+                    _field_for_model(ensemble.best, u_next, designer,
+                                     lab.species),
+                    np.zeros((ensemble.best.space.n_params,) * 2)
+                    if ensemble.best.posterior.theta_map is None
+                    else ensemble.best.inference.fisher_information(
+                        ensemble.best.posterior.theta_map))
+            meas, n_rej, n_re, fault = measure_with_qc(lab, u_next, zs, qc)
+            if meas is not None and not fault:
+                surrogate.observe(meas)
+                ensemble.add_measurement(meas)
+                ensemble.update()
+            meas_list = [meas] if meas is not None else []
+            zs_measured = meas.z_m if meas is not None else np.array([])
+        if fault:
+            result.stop_reason = ("MEASUREMENT_FAULT: QC rejected "
+                                  f"{n_rej} positions in round {r}; "
+                                  "campaign paused")
+            if verbose:
+                print(f"  [{key}] round {r}: {result.stop_reason}")
+            break
+        if spatial_cfg.mode == "adaptive_sequential" and r > 1 \
+                and not meas_list:
+            result.stop_reason = f"no assimilable data in round {r}; paused"
+            break
+
         gov_rep = governor.assess(ensemble, r)
         state = gov_rep.state if use_governor \
             else GovernorState.NORMAL_LEARNING
         best = ensemble.best
+        diag = _posterior_diag(best)
         result.history.append(AdvRoundRecord(
-            round=r, u=u_next, z_positions=np.asarray(meas.z_m),
+            round=r, u=u_next, z_positions=np.asarray(zs_measured),
             theta_nat=best.space.to_natural(best.posterior.theta_map),
             best_model=best.name,
             model_probs={cm.name: float(p) for cm, p
@@ -199,13 +385,16 @@ def run_strategy_f(lab: AdvancedVirtualLaboratory,
             design_mode=decision.mode if decision else "seed",
             eig_param=decision.eig_param if decision else float("nan"),
             eig_model=decision.eig_model if decision else float("nan"),
-            sigma_scaled=np.sqrt(np.maximum(
-                np.diag(best.posterior.cov), 0.0))))
+            sigma_scaled=diag["sigma"],
+            param_keys=tuple(best.space.param_keys),
+            bound_active=diag["bound_active"],
+            corr_max_offdiag=diag["corr_max"],
+            n_rejected=n_rej, n_reacquired=n_re))
         if verbose:
             probs = " ".join(f"{cm.name}={p:.2f}" for cm, p
                              in zip(ensemble.models, ensemble.probs))
             print(f"  [{key}] round {r}/{budget}  {u_next.label():34s} "
-                  f"n_z={meas.n_z}  {gov_rep.state:20s} {probs}")
+                  f"n_z={len(zs_measured)}  {gov_rep.state:20s} {probs}")
         if r == budget:
             break
         decision = selector.select(state)
@@ -215,71 +404,54 @@ def run_strategy_f(lab: AdvancedVirtualLaboratory,
 
 
 # --------------------------------------------------------------------------- #
-def _initial_positions(ensemble: ModelEnsemble, designer: SpatialDesigner,
-                       u: OperatingConditions,
-                       species: Sequence[str]) -> np.ndarray:
-    cm = ensemble.best
-    theta = (cm.posterior.theta_map if cm.posterior.theta_map is not None
-             else cm.space.to_vector(cm.space.initial_guess))
+def _adaptive_profile_bayes(lab: AdvancedVirtualLaboratory,
+                            ensemble: ModelEnsemble,
+                            designer: SpatialDesigner,
+                            surrogate: NoiseSurrogate,
+                            u: OperatingConditions,
+                            cfg: SpatialDesignConfig,
+                            qc: QCGateConfig
+                            ) -> Tuple[List[Measurement], int, int, bool]:
+    """TRULY data-adaptive sequential axial sampling:
 
-    def predict(th, z):
-        return cm.bridge.concentrations_at(cm.space.to_natural(th), u, z,
-                                           tuple(species))
+        choose z -> acquire NMR -> deconvolve -> QC gate ->
+        UPDATE THE FULL POSTERIOR with the actual measurement ->
+        recompute the information landscape -> choose the next z
 
-    field = SensitivityField(predict, theta, cm.space.fd_steps,
-                             designer.candidate_grid(), len(species))
-    p = cm.space.n_params
-    return designer.positions(field, np.zeros((p, p)))
-
-
-def _adaptive_profile(lab: AdvancedVirtualLaboratory,
-                      ensemble: ModelEnsemble, designer: SpatialDesigner,
-                      u: OperatingConditions, cfg: SpatialDesignConfig,
-                      surrogate: NoiseSurrogate):
-    """Measure one position at a time at the SAME condition; stop when the
-    expected marginal information per acquisition falls below the
-    threshold or n_positions is reached.  The between-acquisition update is
-    the (cheap) FIM update; the full Bayesian update runs once per round."""
-    cm = ensemble.best
-    theta = cm.posterior.theta_map
-
-    def predict(th, z):
-        return cm.bridge.concentrations_at(cm.space.to_natural(th), u, z,
-                                           tuple(lab.species))
-
-    field = SensitivityField(predict, theta, cm.space.fd_steps,
-                             designer.candidate_grid(), len(lab.species))
-    F = cm.inference.fisher_information(theta)
+    for EVERY acquisition (the between-position update is the full Bayesian
+    ensemble update, not just an expected-FIM bookkeeping step), so the
+    realized measurement outcome can change the next selected position.
+    Stops when the expected marginal information per acquisition falls
+    below the threshold or n_positions is reached."""
     chosen: List[float] = []
-    parts = []
+    out: List[Measurement] = []
+    n_rej_tot = n_re_tot = 0
     while len(chosen) < cfg.n_positions:
+        cm = ensemble.best
+        field = _field_for_model(cm, u, designer, lab.species)
+        F = (cm.inference.fisher_information(cm.posterior.theta_map)
+             if cm.posterior.theta_map is not None
+             else np.zeros((cm.space.n_params,) * 2))
         z_next, gain = designer.next_position(field, F, chosen)
         if z_next is None:
             break
         if chosen and cfg.allow_profile_early_stop \
                 and gain < cfg.marginal_information_threshold:
             break
-        m = lab.run_profile(u, [z_next])
-        parts.append(m)
+        meas, n_rej, n_re, fault = measure_with_qc(lab, u, [float(z_next)],
+                                                   qc)
+        n_rej_tot += n_rej
+        n_re_tot += n_re
         chosen.append(float(z_next))
-        F = F + designer._fim_at(field, float(z_next))
-    # merge the single-z measurements into one species-major Measurement
-    from sdl.observation import Measurement
-    n_s, n_z = len(lab.species), len(parts)
-    y = np.zeros(n_s * n_z)
-    cov = np.zeros((n_s * n_z, n_s * n_z))
-    qc = []
-    have_cov = all(m.cov_y is not None for m in parts)
-    for k, m in enumerate(parts):
-        for i in range(n_s):
-            y[i * n_z + k] = m.y[i]
-            if have_cov:
-                for j in range(n_s):
-                    cov[i * n_z + k, j * n_z + k] = m.cov_y[i, j]
-        qc.extend((m.meta or {}).get("qc", []))
-    return Measurement(u=u, z_m=np.array(chosen), species=lab.species, y=y,
-                       cov_y=cov if have_cov else None,
-                       meta={"qc": qc, "adaptive": True})
+        if fault:
+            return out, n_rej_tot, n_re_tot, True
+        if meas is None:
+            continue                      # position rejected; try another z
+        surrogate.observe(meas)
+        ensemble.add_measurement(meas)
+        ensemble.update()                 # <- posterior updated PER MEASUREMENT
+        out.append(meas)
+    return out, n_rej_tot, n_re_tot, False
 
 
 # --------------------------------------------------------------------------- #

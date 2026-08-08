@@ -330,9 +330,9 @@
     "semantic_hash": "e482f36bc966704211f79b44861f7d96"
   },
   "README.md": {
-    "mtime": 1785914658.0376418,
-    "ast_hash": "256a50b7ca1a8b8e31d9a5782a9cd5ff",
-    "semantic_hash": "256a50b7ca1a8b8e31d9a5782a9cd5ff"
+    "mtime": 1786200735.5454032,
+    "ast_hash": "b5ef074914dd43873bea7a0eb7291d78",
+    "semantic_hash": ""
   },
   "SDL_MBDoE/README.md": {
     "mtime": 1786192141.0537739,
@@ -430,28 +430,28 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/results/final_report.txt": {
-    "mtime": 1785967201.4585395,
-    "ast_hash": "98eac1ed562eda1e103bad57e053b178",
+    "mtime": 1786192479.2737927,
+    "ast_hash": "3cb964122efad01fc63e74ad22e1eb47",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results/convergence_error.png": {
-    "mtime": 1785967200.964539,
-    "ast_hash": "4b51d61f1f246a5caa3b93a0a845deb9",
+    "mtime": 1786192478.692824,
+    "ast_hash": "59399c5133cf288ac318e13d63d55c92",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results/convergence_uncertainty.png": {
-    "mtime": 1785967201.0990567,
-    "ast_hash": "000428c41092cd9befee6572be120236",
+    "mtime": 1786192478.8411336,
+    "ast_hash": "c72d17394220d67753e3473c081f96bd",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results/final_estimates.png": {
-    "mtime": 1785967201.354782,
-    "ast_hash": "fd65a72160db8e54022e289844155666",
+    "mtime": 1786192479.1451397,
+    "ast_hash": "0a4563f37f9a41d433605bf578324ad7",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results/validation_profiles.png": {
-    "mtime": 1785967201.4570096,
-    "ast_hash": "5cf7d649e72a2ab3207cf6f5360f49bd",
+    "mtime": 1785967201.0,
+    "ast_hash": "39ca18b31d6a39d4be29482f7a8776a2",
     "semantic_hash": ""
   },
   "EGDA_NMR_sim/sim_nmr(2).py": {
@@ -475,8 +475,8 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/run_advanced_campaign.py": {
-    "mtime": 1786191206.8641076,
-    "ast_hash": "a76881c966c97acf41ee7f0c72b41978",
+    "mtime": 1786192311.6260712,
+    "ast_hash": "a72453268d9b1a90e9ee3480f3926506",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/__init__.py": {
@@ -670,8 +670,8 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced/figure_A_spatial.png": {
-    "mtime": 1786192176.2176282,
-    "ast_hash": "70dd94b3d41959a24ffe2ffb21a321a5",
+    "mtime": 1786192318.2361443,
+    "ast_hash": "83860479193fd03081c32d6d43f5bb34",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced/figure_B_positions.png": {
@@ -687,6 +687,91 @@
   "SDL_MBDoE/results_advanced/figure_D_recovery.png": {
     "mtime": 1786192178.4930432,
     "ast_hash": "6fe95618d9eb03628a574471033826c1",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/benchmark_config.json": {
+    "mtime": 1786192337.8623672,
+    "ast_hash": "ef8bba00f2e4e222362a37ec8a186b9b",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/strategy_table.txt": {
+    "mtime": 1786192337.8618567,
+    "ast_hash": "97d4d1266fbc530ce41995de710aeeb5",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/figure_E_S1_ideal_per_condition.png": {
+    "mtime": 1786192334.755395,
+    "ast_hash": "00b01b939b1d5df48f2e535ca29f79d8",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/figure_E_S1_ideal_per_time.png": {
+    "mtime": 1786192334.9820762,
+    "ast_hash": "5caa1f34e85ddc1978a8521d4e890002",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/figure_E_S2_nmr_per_condition.png": {
+    "mtime": 1786192335.219016,
+    "ast_hash": "0aa414f6053e5704d27a9289dbf871cd",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/figure_E_S2_nmr_per_time.png": {
+    "mtime": 1786192335.4389384,
+    "ast_hash": "bcb9f4dcf04348c0f84a7100086e0a34",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/figure_E_S3_transport_per_condition.png": {
+    "mtime": 1786192335.686888,
+    "ast_hash": "f0d9723727082dd5f54bde043d4a684b",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/figure_E_S3_transport_per_time.png": {
+    "mtime": 1786192335.9415443,
+    "ast_hash": "19820f9a12696b913b9719b0c94d55a1",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/figure_E_S4_ambiguity_per_condition.png": {
+    "mtime": 1786192336.1603796,
+    "ast_hash": "40312e556b1fe7b1625c705ec3ab2cd2",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/figure_E_S4_ambiguity_per_time.png": {
+    "mtime": 1786192336.4153752,
+    "ast_hash": "0fe9e36921d83cac8f50db69fee310e0",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/figure_E_S5_inadequacy_per_condition.png": {
+    "mtime": 1786192336.6412156,
+    "ast_hash": "56045515e0eee7e51c5bda0606075fd4",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/figure_E_S5_inadequacy_per_time.png": {
+    "mtime": 1786192336.8983285,
+    "ast_hash": "2b6209aac7202e14e62a91ec6c2d2d2d",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/figure_E_S6_resources_per_condition.png": {
+    "mtime": 1786192337.1157258,
+    "ast_hash": "4d0fb78eb13d5657b6b6c836667ed2a0",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/figure_E_S6_resources_per_time.png": {
+    "mtime": 1786192337.3644493,
+    "ast_hash": "22c00deae47e1ba7134ccfc6fb853454",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/figure_F_inadequacy.png": {
+    "mtime": 1786192337.4839768,
+    "ast_hash": "5a1a23e3f89c762ad1dd4515085780f6",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/figure_G_resources_S6_resources.png": {
+    "mtime": 1786192337.6879292,
+    "ast_hash": "35ee91ee764f31896d5db8f0bc56a947",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced/benchmark/figure_H_ablation.png": {
+    "mtime": 1786192337.859353,
+    "ast_hash": "57a771c48c0d8a11c4d757a41759f49a",
     "semantic_hash": ""
   }
 }

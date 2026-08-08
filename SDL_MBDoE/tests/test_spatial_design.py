@@ -126,6 +126,43 @@ def test_force_outlet_and_adaptive_gains_decrease():
     assert gains[0] >= gains[-1] - 1e-9
 
 
+def test_adaptive_next_position_depends_on_measured_data():
+    """TRUE closed-loop requirement: changing the FIRST measured result must
+    be able to change the SECOND selected axial position (the posterior is
+    updated with the actual measurement before choosing the next z)."""
+    from sdl_advanced.model_ensemble import ModelEnsemble, build_egda_family
+    from sdl_advanced.controller import _field_for_model
+    from sdl.observation import Measurement
+
+    def next_z_after(y_scale: float) -> float:
+        fam = build_egda_family({"length_m": 0.5, "diameter_m": 0.018},
+                                T_REF_K, include=("rev-dilute",),
+                                noise_assumed=NOISE)
+        ens = ModelEnsemble(fam)
+        cm = fam[0]
+        z1 = 0.25
+        y_true = cm.bridge.concentrations_at(
+            cm.space.to_natural(cm.space.to_vector(cm.space.initial_guess)),
+            U0, np.array([z1]), SPECIES)
+        ens.add_measurement(Measurement(
+            u=U0, z_m=np.array([z1]), species=SPECIES,
+            y=y_true * y_scale))              # the "measured outcome"
+        ens.update()                          # POSTERIOR update per measurement
+        designer = SpatialDesigner(
+            SpatialDesignConfig(mode="adaptive_sequential", n_positions=6,
+                                candidate_grid_size=41,
+                                continuous_refinement=False),
+            0.5, lambda y_pos: NOISE.covariance(y_pos, SPECIES, 1))
+        field = _field_for_model(cm, U0, designer, SPECIES)
+        F = cm.inference.fisher_information(cm.posterior.theta_map)
+        z2, _ = designer.next_position(field, F, [z1])
+        return float(z2)
+
+    z2_nominal = next_z_after(1.0)
+    z2_shifted = next_z_after(2.5)            # very different outcome
+    assert z2_nominal != z2_shifted, (z2_nominal, z2_shifted)
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:

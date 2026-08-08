@@ -43,7 +43,7 @@ from pfr_twin import KineticModel                                # noqa: E402
 
 from .spectral import (AcquisitionSettings, NMRSimulator,        # noqa: E402
                        SpectralNuisance, QUANTIFIED_SPECIES)
-from .spectral_fit import SpectralFitter                         # noqa: E402
+from .spectral_fit import SpectralFitter, calibrate_responses    # noqa: E402
 from .transfer import TransferConfig, TransferLine               # noqa: E402
 from .resources import ResourceCosts, ResourceMeter              # noqa: E402
 
@@ -54,6 +54,10 @@ class InstrumentConfig:
     nmr_mode: str = "realistic"          # "ideal" | "realistic"
     store_spectra: bool = False
     species_measured: Tuple[str, ...] = QUANTIFIED_SPECIES
+    # pre-campaign per-species response calibration against prepared
+    # standards (the real Fourier-80 workflow); absorbs systematic
+    # lineshape/response bias into measured public factors
+    calibrate_responses: bool = True
 
     def __post_init__(self):
         if self.observation_mode not in ("nmr", "direct"):
@@ -93,6 +97,15 @@ class AdvancedVirtualLaboratory:
         self.n_acquisitions = 0
         self.n_truth_reveals = 0
         self._last_u: Optional[OperatingConditions] = None
+        # pre-campaign response calibration: prepared standards measured
+        # through the REAL (truth-side) channel, fitted by the public
+        # fitter - standard compositions are public, so no firewall breach
+        if (config.observation_mode == "nmr" and config.calibrate_responses
+                and config.nmr_mode == "realistic"):
+            calibrate_responses(
+                self._fitter,
+                lambda std, r: self._nmr.simulate(std, r)[:2],
+                self._rng)
 
     # ------------------------------------------------------------------ #
     @property
@@ -129,10 +142,16 @@ class AdvancedVirtualLaboratory:
 
     # ------------------------------------------------------------------ #
     def run_profile(self, u: OperatingConditions,
-                    z_positions: Sequence[float]) -> Measurement:
+                    z_positions: Sequence[float],
+                    reacquire: bool = False) -> Measurement:
         """Set condition u, sample the requested positions in the given
         order (one moving capillary!), return ONE species-major Measurement
-        carrying its own covariance and QC metadata."""
+        carrying its own covariance and QC metadata.
+
+        The meter's condition logging is idempotent: repeated calls at an
+        UNCHANGED (T, Q, C_EGDA, C_cat) - e.g. adaptive one-z-at-a-time
+        sampling - do not incur repeated reactor stabilization.
+        reacquire=True marks QC-triggered re-measurements in the accounting."""
         z = np.asarray(z_positions, dtype=float)
         if np.any(z < 0.0) or np.any(z > self.length_m + 1e-12):
             raise ValueError("Sampling position outside the reactor.")
@@ -154,7 +173,8 @@ class AdvancedVirtualLaboratory:
             seen = self._transfer.sample(conc_true, float(z_k), propagate)
             self.meter.log_acquisition(float(z_k), u.T_C,
                                        u.Q1_mL_min + u.Q2_mL_min,
-                                       u.C_EGDA_M, u.C_cat_M)
+                                       u.C_EGDA_M, u.C_cat_M,
+                                       retry=reacquire)
             self.n_acquisitions += 1
             if self.config.observation_mode == "direct":
                 est, cov_k, meta_k = self._observe_direct(seen)
@@ -200,6 +220,7 @@ class AdvancedVirtualLaboratory:
         est = np.array([res.conc_M[list(res.species).index(sp)]
                         for sp in self.species])
         meta = {"mode": "nmr", "qc_flags": list(res.qc_flags),
+                "censored": list(res.censored),
                 "residual_rms": res.residual_rms,
                 "condition_number": res.condition_number,
                 "corr_EGDA_EGMA": float(

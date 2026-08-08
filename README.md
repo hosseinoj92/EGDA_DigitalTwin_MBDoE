@@ -45,6 +45,7 @@ the inference or design code (see §8).
    - [5.10 Resource-aware utility](#510-resource-aware-utility)
    - [5.11 Strategies E, F and the ablations](#511-strategies-e-f-and-the-ablations)
    - [5.12 The truth/inference firewall](#512-the-truthinference-firewall)
+   - [5.13 Framework corrections (v2)](#513-framework-corrections-v2)
 6. [Benchmark results](#6-benchmark-results)
 7. [User manual](#7-user-manual)
 8. [Scientific integrity and calibration status](#8-scientific-integrity-and-calibration-status)
@@ -890,6 +891,13 @@ any data arrives it falls back to the documented prior guesses.
 
 ### 5.9 The model-inadequacy governor
 
+> **v2 note:** the statistics below were redesigned after review — see §5.13
+> item 4. In particular, under NMR observation the z-autocorrelation test is
+> reported but excluded from the inadequacy decision (composition-smooth
+> quantification bias mimics it), the p-values are continuous and
+> Šidák-combined, and alpha is spent uniformly across planned rounds.
+
+
 The controller must distinguish *"my parameters are uncertain"* from *"my
 model is systematically wrong"* **before** exploiting the current model for
 D-optimal or EIG refinement. `adequacy.py` implements a four-state governor:
@@ -996,9 +1004,54 @@ hidden truth.
 
 ---
 
+## 5.13 Framework corrections (v2)
+
+An external-review pass produced a corrected framework (all 78 tests green; new outputs in `results_advanced_v2/`, the previous reference run is preserved). The corrections, each pinned by tests:
+
+1. **One measurement-aware prediction operator.** `InferenceModel.predict_at(θ, u, z, species)` is now the single expected-observation operator; `TransportAwareInference` overrides only it, so estimation, sensitivities, FIM, spatial design, particle/EIG prediction and diagnostic design ALL carry the assumed transfer correction consistently (previously EIG/spatial design bypassed it via direct `bridge.concentrations_at` calls). The assumed delay may be position-dependent, `τ(z) = V(z)/Q_sample`, from commanded geometry only; with the correction disabled the operator reduces exactly to the Layer-1 prediction (tested).
+2. **NMR observability in design.** `SpectralCovarianceModel` predicts Σ_y for candidate compositions from the spectral basis/Jacobian plus the fitter's documented augmentation terms — so FIM screening, spatial design and EIG see the concentration/overlap dependence of spectral identifiability without simulating hypothetical spectra and without touching truth-side nuisances. The data-fitted `NoiseSurrogate` remains as fallback.
+3. **Truly data-adaptive sequential sampling.** In `adaptive_sequential` mode the FULL Bayesian ensemble update runs after EVERY acquisition (measure → deconvolve → QC → update posterior → recompute information landscape → next z); a test demonstrates that changing the first measured result changes the second selected position. Modes: `fixed_equal` / `optimized` (alias `optimized_batch`) / `adaptive_sequential`.
+4. **Governor statistics redesigned.** Continuous per-component p-values (χ², z-autocorrelation, species bias, worst experiment×species cell, T-trend), Šidák-combined; uniform alpha-spending over planned rounds bounds the campaign-level false-alarm rate; an optional parametric-bootstrap-with-refit empirical p `p = (1+#{T*≥T})/(B+1)` replaces the earlier binary indicator. A documented `systematic_allowance` κ widens each null by the quantification-systematic share that the claimed Σ_y itself declares. Measured (not claimed): campaign-level false-inadequacy 0/8 under the correct family; detection of a 41 mM structural footprint (~2.7× the declared systematics) is *marginal at budget 6* — the honest detectability-limit finding: structural errors below the instrument's composition-dependent quantification systematics are not reliably detectable by any residual statistic, which sets a concrete calibration requirement for the real Fourier 80.
+5. **MEASUREMENT_FAULT is a control state.** Spectral QC now gates BEFORE assimilation: failing spectra are never assimilated, the position is re-acquired up to `max_retries` (metered as reacquisitions), persistent failures are dropped and counted, and a round exceeding the reject fraction PAUSES the campaign (tested end-to-end).
+6. **Inverse crime removed.** The truth simulator now deviates from the fitting model in ways the fitter does not know: pseudo-Voigt lineshapes, J-coupling mismatch, static per-group shift miscalibration, AR(1) colored noise, cubic baseline; a FID-truth validation suite fits FID-generated spectra with the analytic-basis fitter. A simulated **per-species response calibration against prepared standards** (public compositions — firewall-clean) absorbs the systematic shape bias exactly as real Fourier-80 calibration would; the residual composition-dependent systematic (~2–3%) is declared in Σ_y and honestly reported where coverage suffers (AcOH in the 1–4 Hz acetyl overlap: ~80–90% at nominal 95%).
+7. **Quantification validation** (`sdl_advanced/validation.py`): three suites — synthetic-mixture stress test (labeled as such), physically reachable Layer-1 compositions, and FID-truth — reporting bias/RMSE/coverage with censored (bound-active) species separated and one-sided intervals for them.
+8. **Bounded posterior sampling fixed.** `np.clip` replaced by rejection sampling with a Gibbs truncated-MVN fallback; zero samples pile on bounds (tested); `bound_interaction()` reports the Gaussian mass outside the box per parameter.
+9. **Resource accounting corrected.** The meter tracks the FULL condition (T, Q, C_EGDA, C_cat): re-sampling z at an unchanged condition logs a zero-cost hold, not a new stabilization; reacquisitions and QC rejections are separate auditable counters; predicted candidate cost and realized event cost use identical assumptions (tested to 1e-9).
+10. **Transfer carryover z=0 bug fixed** (`prev_z or z` treated position 0.0 as "no previous position"); regression-pinned.
+11. **Benchmark strengthened.** Scenarios: S3 transport ablation (delay/RTD/carryover separated), S4a (hard 3-model ambiguity, extended budget, entropy tracked — may honestly end undecided), S4b (identifiable reversible-vs-irreversible discrimination), S6 λ-sweep Pareto frontier (no single weight vector presented as universal), S7 spatial-mode comparison; per-parameter posterior reporting (estimate, σ, 95% interval, width, bound-active flag, truth error post-hoc only); distributional summaries (median/IQR/bootstrap CI), common-random-number paired comparisons and P(A better than B); smoke/demo/publication modes with fixed seed lists (no cherry-picking). A configurable design objective separates "predictive kinetic model" (V-optimality over an internal reference grid) from "mechanistically identifiable parameters" (D-optimal/EIG).
+12. **Firewall tests hardened.** The tautological assertion was replaced by a full object-graph reachability walk proving the virtual laboratory, its truth dict, truth transfer line and truth nuisance objects are unreachable from the controller's object graph, plus a test that the operator holds the ASSUMED (deliberately different) transfer volume, not the truth's.
+
 ## 6. Benchmark results
 
-All numbers below are from the checked-in benchmark
+**The tables below are the v1 reference run (preserved for comparison in `results_advanced/`).** The corrected-framework v2 outputs live in `results_advanced_v2/benchmark/` (distributional `strategy_table.csv`, `paired_comparisons.csv`, `governor_validation.json`, `quantification_validation.csv`, per-parameter `benchmark_params.csv`, and the full figure set including the transport ablation, Pareto frontier and spatial-mode comparison); headline v2 findings are summarized in §6.1 below. All numbers everywhere are DEMONSTRATED BY SIMULATION under ASSUMED instrument parameters — nothing here is an experimentally validated Fourier-80 property.
+
+### 6.1 Corrected-framework (v2) headline results
+
+Demo mode: 6 common-random-number seeds per strategy, budget 6 reactor
+conditions (S4a: 10, S4b: 8), 10 positions/profile, full truth-model
+mismatch + response calibration active, total runtime 42.8 min (single
+laptop core).  Values are MEDIANS over seeds; distributions, IQRs and
+bootstrap CIs in `results_advanced_v2/benchmark/strategy_table.csv`.
+
+| Scenario | Result (median param err % / blind RMSE mM) |
+|---|---|
+| S1 ideal | F **16%**/0.30 · D 48%/0.39 · E 54%/0.32 · C 69% · B 131% · A 215% |
+| S2 NMR (with mismatch) | F **24%**/2.3 · D 85%/3.1 · B 291%/9.4 — paired P(F better than D)=1.0 |
+| S3 transport | F **14%**/2.1 · F-uncorr 103%/15.0 · D 102%/17.9 — P(F better)=1.0 |
+| S3 ablation | naive-D bias: delay-only 114%/18.8 · +RTD 104%/17.9 · +carryover 102%/17.9 → **the mean delay + in-line reaction is the dominant effect**; RTD/carryover are second-order here |
+| S4a hard ambiguity | honestly UNRESOLVED: final P(rev-pitzer)=0.17, entropy 0.85 — pitzer vs dilute activity is experimentally indistinguishable in this domain (irreversible is eliminated); F still delivers 18%/1.9 mM vs D 75%/2.8 mM |
+| S4b identifiable ambiguity | **P(correct)=1.00, entropy ≈ 0 in all seeds** — when the discriminating region exists, model-EIG finds it and discrimination completes |
+| S5 inadequacy | governor: campaign FP **0/12**, detection 3/12 (median round 4) at a 41 mM footprint ≈ 2.7× declared systematics — the detectability-limit finding of §5.13(4); F ≈ F-noGovernor ≈ D on blind RMSE (4.7–5.2 mM): detection, not accuracy, is the governor's value here |
+| S6 resources | F-res-1x vs F: **−31% EGDA, −33% time, −56% energy proxy, −22% waste** at 29% vs 24% param err; λ-sweep frontier flat from 1× to 4× (`figure_pareto_S6`) |
+| S7 spatial modes | optimized-batch 24% ≈ adaptive 27% > fixed-equal 33% param err at equal acquisition budgets (adaptive: 1 of 6 seeds paused on a QC fault — the gate working as designed) |
+
+NMR quantification validation (`quantification_validation.csv`; bias/RMSE/
+95%-coverage per suite): stress-mixture and FID-truth suites cover at
+0.91–1.00 for all species; the REACHABLE-composition suite exposes the known
+AcOH weakness honestly — coverage 0.59 (n=73, bias −6 mM, acetyl-overlap
+bias-dominated) — the concrete calibration target for the real instrument.
+
+All v1 numbers below are from the checked-in benchmark
 (`SDL_MBDoE/run_advanced_benchmark.py`): **6 scenarios × 4 seeds × budget 6
 reactor conditions**, 10 positions per profile, blind validation on 4
 predetermined conditions spanning the admissible box (never visible to any

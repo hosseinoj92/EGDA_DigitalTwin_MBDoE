@@ -1,0 +1,18 @@
+# OS artifacts
+.DS_Store
+**/.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# generated knowledge-graph caches (rebuildable via `graphify update .`)
+graphify-out/cache/
+
+# scratch / temporary benchmark outputs (curated results are committed
+# explicitly; anything under *_tmp or results_scratch is disposable)
+*_tmp/
+results_scratch/

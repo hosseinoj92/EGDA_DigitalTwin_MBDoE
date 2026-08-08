@@ -58,6 +58,10 @@ class QuantificationResult:
     eta: Dict[str, float]              # fitted nonlinear nuisances
     nuisance_amplitudes: Dict[str, float]   # pool area, baseline coefficients
     qc_flags: List[str] = field(default_factory=list)
+    #: species whose non-negativity bound is ACTIVE: the local Gaussian
+    #: covariance is unreliable there - treat the estimate as censored at 0
+    #: (one-sided) rather than symmetric-Gaussian (see validation.py)
+    censored: Tuple[str, ...] = ()
 
     @property
     def ok(self) -> bool:
@@ -80,14 +84,20 @@ class SpectralFitter:
                  rms_fail_factor: float = 8.0,
                  cond_warn: float = 1e4,
                  sigma_floor_abs_M: float = 0.002,
-                 sigma_floor_rel: float = 0.01,
+                 sigma_floor_rel: float = 0.03,
                  gain_drift_rel: float = 0.01,
                  shift_jitter_ppm: float = 0.001):
-        # sigma_floor_*: instrument REPRODUCIBILITY term added in quadrature
-        # to the single-spectrum fit covariance.  The fit covariance captures
-        # only within-spectrum noise; acquisition-to-acquisition effects
-        # (per-species response/calibration error, residual carryover) do
-        # not appear in one spectrum's Jacobian.
+        # sigma_floor_*: instrument REPRODUCIBILITY/ACCURACY term added in
+        # quadrature to the single-spectrum fit covariance.  The fit
+        # covariance captures only within-spectrum noise; acquisition-to-
+        # acquisition effects and the residual COMPOSITION-DEPENDENT
+        # lineshape/overlap systematic that survives response calibration
+        # (~2-3%, the classic qNMR accuracy scale) do not appear in one
+        # spectrum's Jacobian.  KNOWN LIMITATION (measured, reported in
+        # validation.py): in the 1-4 Hz acetyl overlap cluster the residual
+        # error is bias-dominated, so symmetric Gaussian intervals for AcOH
+        # under-cover (~80-90% at nominal 95%) - flagged for bootstrap
+        # intervals once real mixture standards exist.
         # gain_drift_rel: acquisition-to-acquisition receiver-gain drift; a
         # gain error scales EVERY species coherently, so it contributes the
         # rank-one CORRELATED covariance  g^2 * y y^T , not a diagonal term.
@@ -111,6 +121,11 @@ class SpectralFitter:
         self.cond_warn = cond_warn
         self.fit_phase = fit_phase
         self.phase_bound = np.deg2rad(phase_bound_deg)
+        #: per-species response-calibration factors (fitted amplitude per
+        #: unit true concentration), measured from PREPARED standards via
+        #: calibrate_responses() - the simulation analogue of real
+        #: Fourier-80 response calibration.  1.0 = uncalibrated/nominal.
+        self.response_correction: Dict[str, float] = {}
         self._ppm = acq.ppm_grid()
         x = (2.0 * (self._ppm - acq.ppm_min)
              / (acq.ppm_max - acq.ppm_min) - 1.0)
@@ -246,8 +261,18 @@ class SpectralFitter:
             flags.append(f"FAIL residual rms {rms:.3g} >> noise scale "
                          f"{med:.3g} - lineshape model inadequate?")
 
+        # response calibration (measured on standards; see
+        # calibrate_responses): conc = amplitude / response_factor, with the
+        # covariance transformed consistently
+        conc = a[:n_s].copy()
+        if self.response_correction:
+            rf = np.array([self.response_correction.get(sp, 1.0)
+                           for sp in self.species])
+            conc = conc / rf
+            cov = cov / np.outer(rf, rf)
+
         return QuantificationResult(
-            species=self.species, conc_M=a[:n_s].copy(), cov=cov,
+            species=self.species, conc_M=conc, cov=cov,
             fitted=B @ a, residual=r, residual_rms=rms,
             noise_sigma_hat=float(np.sqrt(sigma2)),
             condition_number=cond, corr=corr,
@@ -259,10 +284,151 @@ class SpectralFitter:
                                  "b0": float(a[n_s + 1]),
                                  "b1": float(a[n_s + 2]),
                                  "b2": float(a[n_s + 3])},
-            qc_flags=flags)
+            qc_flags=flags, censored=tuple(active))
 
 
 # --------------------------------------------------------------------------- #
+class SpectralCovarianceModel:
+    """DESIGN-TIME predictor of the deconvolution covariance for a CANDIDATE
+    composition - the measurement-aware alternative to the NoiseSurrogate.
+
+    For expected concentrations C at a hypothetical (u, z, theta) it
+    evaluates the SAME covariance construction the fitter documents
+    (spectral Fisher/Jacobian at the nominal lineshape + reproducibility
+    floor + coherent-gain term + shift-jitter propagation), but with the
+    ASSUMED/CALIBRATED per-point noise level instead of a realized fit
+    residual.  It therefore carries the concentration-, species- and
+    overlap-dependence of spectral identifiability into FIM screening,
+    spatial design and EIG - without ever simulating a hypothetical
+    spectrum pixel-by-pixel and without touching any truth-side nuisance
+    realization.
+
+    All inputs are public/assumed quantities (marked CAL where they must be
+    replaced by instrument calibration): the shift database, the commanded
+    acquisition settings, `assumed_noise_sigma` (per-point receiver noise)
+    and `assumed_pool_area` (residual water-pool amplitude entering the
+    eta-sensitivity columns)."""
+
+    def __init__(self, fitter: SpectralFitter,
+                 assumed_noise_sigma: float = 0.10,     # CAL
+                 assumed_pool_area: float = 100.0):     # CAL (~2*[H2O]*supp)
+        self.fitter = fitter
+        self.species = fitter.species
+        self.assumed_noise_sigma = float(assumed_noise_sigma)
+        self.assumed_pool_area = float(assumed_pool_area)
+        pool0 = fitter._pool_center_guess()
+        self._eta0 = np.array([0.0, 0.0, pool0, 0.0])
+        self._B = fitter._basis(self._eta0)             # cached linear basis
+        n_lin = self._B.shape[1]
+        # cached eta-derivative bases per LINEAR component (unit amplitude):
+        # column q of J_eta is  sum_i a_i * dB[:, i]/d eta_q
+        h = np.array([1e-5, 1e-4, 1e-4, 1e-4])
+        self._dB = []                                    # (4, n_pts, n_lin)
+        for q in range(4):
+            ep = self._eta0.copy()
+            ep[q] += h[q]
+            self._dB.append((fitter._basis(ep) - self._B) / h[q])
+        # cached unit-amplitude group-shift derivative vectors (jitter term)
+        self._group_dv = []                              # (group, vec, sp_idx)
+        sp_index = {sp: i for i, sp in enumerate(self.species)}
+        hj = 5e-4
+        for g, (_l, _d, _n, _nh, sp) in enumerate(CARBON_BOUND_GROUPS):
+            if sp not in sp_index:
+                continue
+            v = (fitter.sim.group_basis(g, hj) - fitter.sim.group_basis(g)) \
+                / hj
+            self._group_dv.append((sp_index[sp], v))
+        self._n_lin = n_lin
+
+    # ------------------------------------------------------------------ #
+    def cov_at(self, y_pos: np.ndarray) -> np.ndarray:
+        """Predicted Sigma_y for ONE position's species concentrations."""
+        f = self.fitter
+        n_s = len(self.species)
+        a = np.zeros(self._n_lin)
+        a[:n_s] = np.maximum(np.asarray(y_pos, dtype=float)[:n_s], 0.0)
+        a[n_s] = self.assumed_pool_area
+        J_eta = np.stack([dB @ a for dB in self._dB], axis=1)
+        J = np.concatenate([self._B, J_eta], axis=1)
+        JtJ = J.T @ J
+        wv, V = np.linalg.eigh(JtJ)
+        fl = max(float(wv[-1]), 1e-300) * 1e-14
+        cov_full = (V @ np.diag(1.0 / np.maximum(wv, fl)) @ V.T) \
+            * self.assumed_noise_sigma ** 2
+        cov = cov_full[:n_s, :n_s].copy()
+        cov[np.diag_indices(n_s)] = np.maximum(np.diag(cov), _VAR_FLOOR)
+        floor = (f.sigma_floor_abs_M
+                 + f.sigma_floor_rel * a[:n_s]) ** 2
+        cov[np.diag_indices(n_s)] = np.diag(cov) + floor
+        cov = cov + f.gain_drift_rel ** 2 * np.outer(a[:n_s], a[:n_s])
+        if f.shift_jitter_ppm > 0.0:
+            for sp_i, v_unit in self._group_dv:
+                amp = a[sp_i]
+                if amp <= 0.0:
+                    continue
+                dx, *_ = np.linalg.lstsq(self._B, amp * v_unit, rcond=None)
+                jg = dx[:n_s] * f.shift_jitter_ppm
+                cov = cov + np.outer(jg, jg)
+        return cov
+
+    def cov_profile(self, y: np.ndarray, n_z: int) -> np.ndarray:
+        """Species-major covariance for a whole candidate profile."""
+        n_s = len(self.species)
+        cov = np.zeros((n_s * n_z, n_s * n_z))
+        for k in range(n_z):
+            idx = [i * n_z + k for i in range(n_s)]
+            cov[np.ix_(idx, idx)] = self.cov_at(y[idx])
+        return cov
+
+    def observe(self, m) -> None:
+        """No-op: this model is analytic, not data-fitted (interface parity
+        with NoiseSurrogate)."""
+
+
+# --------------------------------------------------------------------------- #
+def calibrate_responses(fitter: SpectralFitter, acquire, rng,
+                        standards: Optional[List[Dict[str, float]]] = None,
+                        n_rep: int = 3) -> Dict[str, float]:
+    """Per-species response calibration against PREPARED standards - the
+    simulation analogue of the calibration a real Fourier-80 campaign
+    performs before autonomous operation.
+
+    `acquire(conc_dict, rng) -> (ppm, spectrum)` is the measurement channel
+    (in simulation, the truth-side simulator; on hardware, the real
+    spectrometer).  Standard compositions are PREPARED and therefore public
+    knowledge - using them does not breach the truth/inference firewall.
+    The calibration absorbs systematic lineshape/response biases (e.g. the
+    truth's pseudo-Voigt shape or unknown response factors) into measured
+    per-species factors, exactly as real calibration would; residual
+    COMPOSITION-DEPENDENT effects (overlap!) remain uncorrected and must be
+    covered by the claimed covariance."""
+    if standards is None:
+        standards = [
+            {"EGDA": 0.40, "EGMA": 0.0, "EG": 0.0, "AcOH": 0.0, "H2O": 53.0},
+            {"EGDA": 0.0, "EGMA": 0.30, "EG": 0.0, "AcOH": 0.0, "H2O": 53.0},
+            {"EGDA": 0.0, "EGMA": 0.0, "EG": 0.30, "AcOH": 0.0, "H2O": 53.0},
+            {"EGDA": 0.0, "EGMA": 0.0, "EG": 0.0, "AcOH": 0.40, "H2O": 53.0},
+            {"EGDA": 0.20, "EGMA": 0.10, "EG": 0.05, "AcOH": 0.15,
+             "H2O": 52.0},
+        ]
+    fitter.response_correction = {}          # fit standards uncorrected
+    num = {sp: 0.0 for sp in fitter.species}
+    den = {sp: 0.0 for sp in fitter.species}
+    for std in standards:
+        for _ in range(n_rep):
+            ppm, y = acquire(std, rng)
+            res = fitter.fit(ppm, y)
+            for i, sp in enumerate(fitter.species):
+                c_true = float(std.get(sp, 0.0))
+                if c_true > 0.0:             # regression through the origin
+                    num[sp] += res.conc_M[i] * c_true
+                    den[sp] += c_true ** 2
+    factors = {sp: (num[sp] / den[sp] if den[sp] > 0 else 1.0)
+               for sp in fitter.species}
+    fitter.response_correction = factors
+    return factors
+
+
 def bootstrap_coverage(fitter: SpectralFitter, simulator: NMRSimulator,
                        conc_true_M: Dict[str, float], n_boot: int,
                        seed: int = 0, level: float = 0.95

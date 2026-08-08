@@ -35,7 +35,7 @@ CONFIG = {
     "budget": 6,                  # reactor conditions per strategy
     "scenario": "S3_transport",   # the full-physics demonstration
     "strategies": ["D", "F"],
-    "outdir": "results_advanced",
+    "outdir": "results_advanced_v2",   # v2: corrected framework outputs
     "n_recovery_mc": 120,         # Figure D Monte Carlo size
 }
 
@@ -88,9 +88,11 @@ def _figure_a(outdir: str) -> None:
 
 def _figure_d(outdir: str, n_mc: int, seed: int) -> None:
     """Truth vs deconvolved concentration over random compositions."""
+    from sdl_advanced.spectral_fit import calibrate_responses
     rng = np.random.default_rng(seed)
     sim = NMRSimulator(bm.ACQ, bm.NMR_NUISANCE_TRUE)
     fitter = SpectralFitter(bm.ACQ)
+    calibrate_responses(fitter, lambda s, r: sim.simulate(s, r)[:2], rng)
     truths, ests, sigs = [], [], []
     for _ in range(n_mc):
         c = {"EGDA": rng.uniform(0.0, 0.5), "EGMA": rng.uniform(0.0, 0.3),

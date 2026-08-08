@@ -1,28 +1,37 @@
 """
 Reproducible Monte Carlo benchmark of strategies A-F on the EGDA/H2SO4
-system (scenarios 1-6 of the concept document).
+system.
 
-FAIRNESS RULES implemented here:
+FAIRNESS RULES:
 
   * every strategy in a scenario faces the SAME AdvancedVirtualLaboratory
-    physics (identical observation pathway, transport truth, noise class),
-    differing only in what the controller/inference is allowed to assume;
-  * baselines A-D run UNCHANGED sdl.campaign.run_strategy code through a
-    thin adapter around the advanced instrument (their measurements have
-    cov_y stripped, reproducing the legacy assumed-NoiseModel behaviour);
-  * resources are metered identically for all strategies from the same
-    event log, so results can be reported BOTH per reactor condition and
-    per actual measurement/resource budget;
-  * hidden truth is revealed only in the post-campaign scoring below.
+    physics, differing only in what the controller/inference may assume;
+  * baselines A-D run UNCHANGED sdl.campaign code through a thin adapter
+    (their measurements have cov_y stripped -> legacy assumed-NoiseModel);
+  * resources are metered identically from one event log; results are
+    reportable per reactor condition AND per actual resource budget;
+  * the same seed list is used for every strategy (common random numbers),
+    so per-seed PAIRED differences are meaningful;
+  * hidden truth is revealed only in post-campaign scoring.
 
-Scenario -> strategy map (see SCENARIOS):
+Scenario map (see SCENARIOS):
 
-  S1_ideal      correct model, ideal direct observation, no transport
-  S2_nmr        realistic spectra + deconvolution covariance
-  S3_transport  + position delay, RTD, in-line reaction, carryover
-  S4_ambiguity  multi-model truth-recovery (Bayesian discrimination)
-  S5_inadequacy correct model REMOVED from the candidate family
-  S6_resources  resource-aware vs pure-information design
+  S1_ideal        correct model, ideal direct observation, no transport
+  S2_nmr          synthetic 80 MHz spectra (WITH truth-model mismatch) +
+                  deconvolution covariance
+  S3_transport    + position delay, RTD, in-line reaction, carryover
+  S3ab_*          transport ablation: which physical effect biases naive
+                  inference (delay only / +RTD / +carryover)
+  S4a_ambiguity   hard realistic model discrimination (3 candidates,
+                  extended budget) - may honestly end undecided
+  S4b_identifiable structurally identifiable discrimination (reversible vs
+                  irreversible under strongly reversible truth): the
+                  discriminating region exists and the learner must find it
+  S5_inadequacy   correct model removed from the candidate family
+  S6_resources    resource-aware design, lambda-sweep -> Pareto frontier
+
+Modes: "smoke" (seconds), "demo" (default), "publication" (many seeds) -
+see MODES; runners may override any entry.
 """
 
 from __future__ import annotations
@@ -43,30 +52,31 @@ from sdl import (Layer1Bridge, OperatingConditions, ParameterSpace,
 from sdl.campaign import StrategyResult
 from sdl.reporting import log_mean_rel_error_pct
 
-from .adequacy import AdequacyGovernor, GovernorConfig
+from .adequacy import AdequacyGovernor, GovernorConfig, GovernorState
 from .bayes_design import AdvancedDesignConfig
-from .controller import (AdvancedStrategyResult, run_strategy_e,
-                         run_strategy_f)
-from .instrument import (AdvancedVirtualLaboratory, InstrumentConfig)
-from .model_ensemble import (ModelEnsemble, TransportAwareInference,
+from .controller import (AdvancedStrategyResult, QCGateConfig,
+                         run_strategy_e, run_strategy_f)
+from .instrument import AdvancedVirtualLaboratory, InstrumentConfig
+from .model_ensemble import (AssumedTransfer, ModelEnsemble,
                              build_egda_family)
 from .resources import ResourceCosts, ResourceMeter
 from .spatial_design import SpatialDesignConfig, fixed_equal_positions
 from .spectral import AcquisitionSettings, SpectralNuisance
+from .spectral_fit import SpectralCovarianceModel, SpectralFitter
 from .transfer import TransferConfig
 
 # ------------------------------------------------------------------------- #
-# Shared benchmark configuration (single source; runners may override)
+# Shared benchmark configuration
 # ------------------------------------------------------------------------- #
 GEOMETRY = {"length_m": 0.06, "diameter_m": 0.004}     # Layer-1 base case
 T_REF_C = 60.0
-TRUTH = {"k1_ref": 1.00e-3, "Ea1_J": 40_000.0,          # run_sdl_campaign's
-         "k2_ref": 6.50e-4, "Ea2_J": 48_000.0,          # hidden truth
+TRUTH = {"k1_ref": 1.00e-3, "Ea1_J": 40_000.0,          # hidden truth
+         "k2_ref": 6.50e-4, "Ea2_J": 48_000.0,
          "K1_ref": 0.90, "K2_ref": 0.07}
 SPECIES = ("EGDA", "EGMA", "EG", "AcOH")
 N_PORTS = 10
 
-DESIGN = {  # coarser than run_sdl_campaign (benchmark tractability)
+DESIGN = {
     "T_C_levels": [40, 60, 80, 100, 120, 140, 160],
     "Q_total_mL_min_levels": [0.5, 2.0, 8.0],
     "C_cat_M_levels": [0.5, 1.0],
@@ -94,7 +104,11 @@ TRANSFER_TRUE = TransferConfig(
     rtd="gamma", n_tanks=4.0, n_quad=5, react_in_line=True,
     carryover=True, flush_volumes=3.0)
 
-NMR_NUISANCE_TRUE = SpectralNuisance(     # ASSUMED plausible imperfections
+# ASSUMED plausible imperfections of the synthetic 80 MHz NMR observation
+# model - NOT measured Fourier-80 properties.  Includes the truth-model
+# mismatch block (pseudo-Voigt, J mismatch, static shifts, AR(1) noise,
+# cubic baseline) so the fitter never fits its own exact physics.
+NMR_NUISANCE_TRUE = SpectralNuisance(
     noise_sigma=0.10, shift_drift_ppm=0.004, shift_jitter_ppm=0.001,
     linewidth_rel_sigma=0.08, baseline_offset=0.02, baseline_curve=0.03,
     phase_error_deg=2.0, gain_drift_rel_sigma=0.01,
@@ -102,6 +116,24 @@ NMR_NUISANCE_TRUE = SpectralNuisance(     # ASSUMED plausible imperfections
 
 ACQ = AcquisitionSettings(n_points=2048, nmr_temperature_C=27.0)
 NOISE_DIRECT = NoiseModel(sigma_abs_M=0.004, sigma_rel=0.02, rho_overlap=0.3)
+
+#: benchmark modes (#14): reproducible seed lists, no cherry-picking
+MODES = {
+    "smoke": {"seeds": [1], "budget": 3,
+              "scenarios": ["S1_ideal", "S3_transport", "S5_inadequacy"]},
+    "demo": {"seeds": [1, 2, 3, 4, 5, 6], "budget": 6,
+             "scenarios": ["S1_ideal", "S2_nmr", "S3_transport",
+                           "S3ab_delay", "S3ab_rtd",
+                           "S4a_ambiguity", "S4b_identifiable",
+                           "S5_inadequacy", "S6_resources",
+                           "S7_spatial_modes"]},
+    "publication": {"seeds": list(range(1, 41)), "budget": 8,
+                    "scenarios": ["S1_ideal", "S2_nmr", "S3_transport",
+                                  "S3ab_delay", "S3ab_rtd",
+                                  "S4a_ambiguity", "S4b_identifiable",
+                                  "S5_inadequacy", "S6_resources",
+                                  "S7_spatial_modes"]},
+}
 
 
 @dataclass(frozen=True)
@@ -117,14 +149,23 @@ class ScenarioSpec:
     baseline_bridge_kwargs: Dict = field(default_factory=dict)
     f_variants: Dict[str, Dict] = field(default_factory=dict)
     track_correct_model: Optional[str] = None
-    # per-scenario hidden-truth override (Scenario 5 uses a documented
-    # HYPOTHETICAL strongly reversible ester chemistry so that the removed
-    # model family leaves a detectable footprint)
     truth_override: Dict[str, float] = field(default_factory=dict)
+    budget_override: Optional[int] = None
 
     @property
     def truth(self) -> Dict[str, float]:
         return {**TRUTH, **self.truth_override}
+
+
+def _resource_lambdas(scale: float) -> ResourceCosts:
+    """The S6 lambda sweep: one base weight vector x a scale factor.
+    The base values are ARBITRARY units chosen for the study - the Pareto
+    sweep exists precisely so no single weight vector is presented as
+    universal."""
+    return ResourceCosts(
+        lambda_time_per_s=2e-3 * scale, lambda_material_per_mol=50.0 * scale,
+        lambda_waste_per_mL=5e-3 * scale, lambda_energy_per_kJ=0.05 * scale,
+        lambda_switch=1.0 * scale, lambda_motion_per_m=2.0 * scale)
 
 
 SCENARIOS: Dict[str, ScenarioSpec] = {
@@ -134,7 +175,8 @@ SCENARIOS: Dict[str, ScenarioSpec] = {
         strategies=("A", "B", "C", "D", "E", "F")),
     "S2_nmr": ScenarioSpec(
         name="S2_nmr",
-        description="realistic Fourier-80 spectra + deconvolution",
+        description="synthetic 80 MHz spectra (truth-model mismatch active) "
+                    "+ deconvolution covariance",
         observation_mode="nmr", nmr_mode="realistic",
         strategies=("B", "D", "F")),
     "S3_transport": ScenarioSpec(
@@ -142,36 +184,75 @@ SCENARIOS: Dict[str, ScenarioSpec] = {
         description="NMR + transport: delay, RTD, in-line reaction, carryover",
         observation_mode="nmr", nmr_mode="realistic",
         transfer=TRANSFER_TRUE, strategies=("D", "F-uncorr", "F"),
-        f_variants={"F-uncorr": {"assumed_tau": 0.0},
-                    "F": {"assumed_tau": None}}),   # None -> commanded V/Q
-    "S4_ambiguity": ScenarioSpec(
-        name="S4_ambiguity",
-        description="Bayesian model discrimination (reversible truth)",
+        f_variants={"F-uncorr": {"transport_aware": False},
+                    "F": {"transport_aware": True}}),
+    # ---- transport ablation (which effect matters?) --------------------- #
+    "S3ab_delay": ScenarioSpec(
+        name="S3ab_delay",
+        description="transport ablation: mean delay + in-line reaction only "
+                    "(plug RTD, no carryover)",
+        observation_mode="nmr", nmr_mode="realistic",
+        transfer=replace(TRANSFER_TRUE, rtd="delta", carryover=False),
+        strategies=("D", "F"),
+        f_variants={"F": {"transport_aware": True}}),
+    "S3ab_rtd": ScenarioSpec(
+        name="S3ab_rtd",
+        description="transport ablation: delay + gamma RTD dispersion "
+                    "(no carryover)",
+        observation_mode="nmr", nmr_mode="realistic",
+        transfer=replace(TRANSFER_TRUE, carryover=False),
+        strategies=("D", "F"),
+        f_variants={"F": {"transport_aware": True}}),
+    # --------------------------------------------------------------------- #
+    "S4a_ambiguity": ScenarioSpec(
+        name="S4a_ambiguity",
+        description="HARD model discrimination: pitzer vs dilute vs "
+                    "irreversible (may honestly end undecided)",
         observation_mode="nmr", nmr_mode="realistic",
         family=("rev-pitzer", "rev-dilute", "irreversible"),
-        strategies=("D", "F"), track_correct_model="rev-pitzer"),
+        strategies=("D", "F"), track_correct_model="rev-pitzer",
+        budget_override=10),
+    "S4b_identifiable": ScenarioSpec(
+        name="S4b_identifiable",
+        description="IDENTIFIABLE discrimination: reversible vs irreversible "
+                    "under documented strongly reversible truth "
+                    "(K1=0.15, K2=0.002); the discriminating hot/slow region "
+                    "exists and the learner must find it",
+        observation_mode="nmr", nmr_mode="realistic",
+        family=("rev-pitzer", "irreversible"),
+        strategies=("D", "F"), track_correct_model="rev-pitzer",
+        truth_override={"K1_ref": 0.15, "K2_ref": 0.002},
+        budget_override=8),
     "S5_inadequacy": ScenarioSpec(
         name="S5_inadequacy",
-        description="correct model removed from the candidate family "
-                    "(truth: documented hypothetical strongly reversible "
-                    "ester, K1=0.30, K2=0.02)",
+        description="correct model REMOVED from the family (truth: "
+                    "documented strongly reversible ester, K1=0.30, K2=0.02)",
         observation_mode="nmr", nmr_mode="realistic",
         family=("irreversible",),
         strategies=("D", "F-noGovernor", "F"),
         baseline_bridge_kwargs={"reversible": False},
         f_variants={"F-noGovernor": {"use_governor": False}, "F": {}},
-        truth_override={"K1_ref": 0.30, "K2_ref": 0.02}),
+        truth_override={"K1_ref": 0.15, "K2_ref": 0.002}),
     "S6_resources": ScenarioSpec(
         name="S6_resources",
-        description="resource-aware vs pure-information design",
+        description="resource-aware design: lambda sweep -> Pareto frontier",
         observation_mode="nmr", nmr_mode="realistic",
-        strategies=("D", "F", "F-resource"),
-        resource_costs=ResourceCosts(),
+        strategies=("D", "F", "F-res-0.5x", "F-res-1x", "F-res-2x",
+                    "F-res-4x"),
         f_variants={"F": {},
-                    "F-resource": {"costs": ResourceCosts(
-                        lambda_time_per_s=2e-3, lambda_material_per_mol=50.0,
-                        lambda_waste_per_mL=5e-3, lambda_energy_per_kJ=0.05,
-                        lambda_switch=1.0, lambda_motion_per_m=2.0)}}),
+                    "F-res-0.5x": {"costs": _resource_lambdas(0.5)},
+                    "F-res-1x": {"costs": _resource_lambdas(1.0)},
+                    "F-res-2x": {"costs": _resource_lambdas(2.0)},
+                    "F-res-4x": {"costs": _resource_lambdas(4.0)}}),
+    "S7_spatial_modes": ScenarioSpec(
+        name="S7_spatial_modes",
+        description="spatial policy comparison under identical physics: "
+                    "fixed_equal vs optimized_batch vs adaptive_sequential",
+        observation_mode="nmr", nmr_mode="realistic",
+        strategies=("F-zfixed", "F-zbatch", "F-zadaptive"),
+        f_variants={"F-zfixed": {"spatial_mode": "fixed_equal"},
+                    "F-zbatch": {"spatial_mode": "optimized"},
+                    "F-zadaptive": {"spatial_mode": "adaptive_sequential"}}),
 }
 
 
@@ -211,7 +292,9 @@ class BaselineLabAdapter:
 
 # ------------------------------------------------------------------------- #
 def make_lab(spec: ScenarioSpec, seed: int,
-             store_spectra: bool = False) -> AdvancedVirtualLaboratory:
+             store_spectra: bool = False,
+             costs: Optional[ResourceCosts] = None
+             ) -> AdvancedVirtualLaboratory:
     truth_bridge = Layer1Bridge(GEOMETRY, T_REF_C + 273.15,
                                 activity_model="pitzer")
     return AdvancedVirtualLaboratory(
@@ -219,7 +302,8 @@ def make_lab(spec: ScenarioSpec, seed: int,
         InstrumentConfig(observation_mode=spec.observation_mode,
                          nmr_mode=spec.nmr_mode,
                          store_spectra=store_spectra),
-        ACQ, NMR_NUISANCE_TRUE, spec.transfer, spec.resource_costs,
+        ACQ, NMR_NUISANCE_TRUE, spec.transfer,
+        costs if costs is not None else spec.resource_costs,
         seed=seed, noise_direct=NOISE_DIRECT)
 
 
@@ -227,9 +311,9 @@ _SCREEN_CACHE: Dict[int, Tuple[str, ...]] = {}
 
 
 def screened_dropped_keys(budget: int) -> Tuple[str, ...]:
-    """Pre-campaign identifiability screen (same philosophy and code as
+    """Pre-campaign identifiability screen (same code as
     run_sdl_campaign.py), computed once per budget and applied identically
-    to every strategy so the comparison stays like-for-like."""
+    to every strategy."""
     if budget not in _SCREEN_CACHE:
         t_ref_K = T_REF_C + 273.15
         bridge = Layer1Bridge(GEOMETRY, t_ref_K, activity_model="pitzer")
@@ -249,21 +333,36 @@ def _spatial_cfg(mode: str) -> SpatialDesignConfig:
     return SpatialDesignConfig(
         mode=mode, n_positions=N_PORTS, candidate_grid_size=41,
         z_min_fraction=0.02, z_max_fraction=1.0, min_spacing_fraction=0.02,
-        continuous_refinement=False)
+        continuous_refinement=False,
+        allow_profile_early_stop=(mode == "adaptive_sequential"))
+
+
+def _assumed_transfer_from(cfg: TransferConfig,
+                           length_m: float) -> AssumedTransfer:
+    """INFERENCE-side transfer correction from COMMANDED quantities only
+    (nominal volume/flow/geometry; never the truth's RTD or carryover)."""
+    if not cfg.enabled:
+        return AssumedTransfer(enabled=False)
+    return AssumedTransfer(enabled=True,
+                           Q_sample_mL_min=cfg.Q_sample_mL_min,
+                           V_fixed_mL=cfg.V_fixed_mL,
+                           geometry=cfg.geometry,
+                           v_per_m_mL=cfg.v_per_m_mL, length_m=length_m)
 
 
 def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
                      budget: int, verbose: bool = False,
                      store_spectra: bool = False):
-    """One (scenario, strategy, seed) campaign.  Returns (result, lab)."""
+    """One (scenario, strategy, seed) campaign.  Returns (result, lab,
+    extra)."""
     t_ref_K = T_REF_C + 273.15
-    lab = make_lab(spec, seed, store_spectra=store_spectra)
+    variant = spec.f_variants.get(strategy, {})
+    lab = make_lab(spec, seed, store_spectra=store_spectra,
+                   costs=variant.get("costs"))
     ports = fixed_equal_positions(lab.length_m, N_PORTS)
     candidates = build_candidates(DESIGN)
     fixed = build_fixed_design(DESIGN, budget=budget)
     guess = literature_guess(t_ref_K, "H2SO4")
-    variant = spec.f_variants.get(strategy, {})
-
     dropped = screened_dropped_keys(budget)
 
     if strategy in ("A", "B", "C", "D"):
@@ -299,25 +398,36 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
         return res, lab, None
 
     # F and its variants -------------------------------------------------- #
-    assumed_tau = variant.get("assumed_tau", 0.0)
-    if assumed_tau is None:            # transport-aware: commanded V/Q delay
-        assumed_tau = spec.transfer.mean_tau_s(lab.length_m / 2.0,
-                                               lab.length_m)
-    costs = variant.get("costs", spec.resource_costs)
-    if costs is not spec.resource_costs:
-        lab.meter.costs = costs        # design-side lambdas; same accounting
+    transport_aware = variant.get("transport_aware",
+                                  spec.transfer.enabled)
+    assumed = (_assumed_transfer_from(spec.transfer, lab.length_m)
+               if transport_aware else AssumedTransfer(enabled=False))
     family = build_egda_family(GEOMETRY, t_ref_K, include=spec.family,
                                noise_assumed=NOISE_DIRECT,
                                fixed={k: guess[k] for k in dropped},
-                               assumed_extra_tau_s=float(assumed_tau))
+                               assumed_transfer=assumed)
     ensemble = ModelEnsemble(family)
-    governor = AdequacyGovernor(GovernorConfig())
+    # kappa: NMR scenarios declare floor-level quantification systematics in
+    # Sigma_y; the governor's nulls are widened by exactly that allowance
+    # (0 for direct observation -> exact nulls)
+    governor = AdequacyGovernor(GovernorConfig(
+        n_rounds_planned=budget,
+        systematic_allowance=(0.5 if spec.observation_mode == "nmr"
+                              else 0.0)))
+    cov_model = None
+    if spec.observation_mode == "nmr" \
+            and variant.get("expected_cov", "spectral") == "spectral":
+        cov_model = SpectralCovarianceModel(SpectralFitter(ACQ))
+    spatial_mode = variant.get("spatial_mode", "optimized")
+    design_cfg = AdvancedDesignConfig(
+        top_k=3, n_particles=16, n_outer=24,
+        objective=variant.get("objective", "parameter"))
     res = run_strategy_f(
-        lab, ensemble, candidates, fixed[0], _spatial_cfg("optimized"),
-        budget,
-        design_cfg=AdvancedDesignConfig(top_k=3, n_particles=16, n_outer=24),
-        governor=governor,
+        lab, ensemble, candidates, fixed[0], _spatial_cfg(spatial_mode),
+        budget, design_cfg=design_cfg, governor=governor,
         use_governor=variant.get("use_governor", True),
+        cov_model=cov_model,
+        qc=QCGateConfig(enabled=spec.observation_mode == "nmr"),
         bounds=DESIGN["continuous_bounds"], seed=seed, verbose=verbose,
         key=strategy)
     return res, lab, governor
@@ -333,17 +443,63 @@ def _truth_prediction(truth: Dict[str, float],
 
 def blind_rmse(bridge, space, theta_vec, z_val: np.ndarray,
                y_true: np.ndarray) -> float:
+    """Blind predictive RMSE of the REACTOR state (transport correction is
+    an observation artifact and deliberately excluded here: the question is
+    'how well does the learned kinetic model predict the chemistry')."""
     nat = space.to_natural(theta_vec)
     y = np.concatenate([bridge.concentrations_at(nat, u, z_val, SPECIES)
                         for u in VALIDATION_CONDS])
     return float(np.sqrt(np.mean((y - y_true) ** 2)))
 
 
-def _round_metrics(spec: ScenarioSpec, strategy: str, res, lab, extra,
-                   z_val: np.ndarray, y_true: np.ndarray) -> List[Dict]:
-    """Per-round metric rows for one campaign (truth used HERE only)."""
-    truth = spec.truth
+def _entropy(probs: Dict[str, float]) -> float:
+    p = np.array([v for v in probs.values() if v > 0.0])
+    return float(-np.sum(p * np.log(p))) if len(p) else 0.0
+
+
+def _param_rows(spec, strategy, seed, rnd, space, theta_nat, sigma_scaled,
+                bound_active, truth) -> List[Dict]:
+    """Per-parameter posterior reporting (#identifiability): estimate,
+    scaled sigma, 95% interval, relative width, bound flag, and - post-
+    campaign evaluation ONLY - the true value and relative error."""
     rows = []
+    vec = space.to_vector(theta_nat)
+    for q, k in enumerate(space.param_keys):
+        sig = float(sigma_scaled[q]) if sigma_scaled is not None else np.nan
+        est = theta_nat[k]
+        if space.is_log(q):
+            # a rank-deficient FIM gives astronomically large sigma: report
+            # the interval as unbounded instead of overflowing exp()
+            arg = 1.96 * sig
+            if not np.isfinite(arg) or arg > 500.0:
+                lo, hi, rel_w = 0.0, float("inf"), float("inf")
+            else:
+                lo, hi = est * math.exp(-arg), est * math.exp(arg)
+                rel_w = (math.exp(arg) - math.exp(-arg)) * 100.0
+        else:
+            lo, hi = est - 1.96 * sig * 1e3, est + 1.96 * sig * 1e3
+            rel_w = 2 * 1.96 * sig * 1e3 / max(abs(est), 1e-12) * 100.0
+        t = truth.get(k)
+        rows.append(dict(
+            scenario=spec.name, strategy=strategy, seed=seed, round=rnd,
+            param=k, estimate=est, sigma_scaled=sig, ci_lo=lo, ci_hi=hi,
+            rel_width_pct=rel_w,
+            bound_active=int(k in (bound_active or ())),
+            true_value=t if t is not None else np.nan,
+            rel_error_pct=(abs(est / t - 1.0) * 100.0
+                           if t not in (None, 0) else np.nan),
+            covered95=(int(lo <= t <= hi) if t is not None
+                       and np.isfinite(rel_w) else np.nan)))
+    return rows
+
+
+def _round_metrics(spec: ScenarioSpec, strategy: str, res, lab, extra,
+                   z_val: np.ndarray, y_true: np.ndarray
+                   ) -> Tuple[List[Dict], List[Dict]]:
+    """Per-round metric rows + per-parameter rows for one campaign (hidden
+    truth used HERE only, post-campaign)."""
+    truth = spec.truth
+    rows, prows = [], []
     if isinstance(res, StrategyResult):      # baselines A-D
         inf = res.inference
         adapter = extra
@@ -357,22 +513,23 @@ def _round_metrics(spec: ScenarioSpec, strategy: str, res, lab, extra,
                 scenario=spec.name, strategy=strategy, round=rec.round,
                 param_err_pct=err,
                 max_rel_ci_pct=min(float(rec.report.max_rel_ci_pct), 1e4),
-                p_correct=float("nan"),
+                p_correct=float("nan"), model_entropy=float("nan"),
                 gov_state="", gov_score=float("nan"),
+                gov_p=float("nan"), stop_reason="",
                 blind_rmse_M=blind_rmse(inf.bridge, inf.space,
                                         inf.space.to_vector(rec.theta_nat),
                                         z_val, y_true),
                 **{k: tot.get(k, 0.0) for k in ResourceMeter.TOTAL_KEYS}))
-        return rows
+            prows.extend(_param_rows(spec, strategy, None, rec.round,
+                                     inf.space, rec.theta_nat,
+                                     rec.report.sigma,
+                                     rec.report.active_bounds, truth))
+        return rows, prows
     # E and F variants ---------------------------------------------------- #
     for rec in res.history:
-        if res.ensemble is not None:
+        if res.ensemble is not None and rec.best_model != "wls":
             cm = res.ensemble.models[[c.name for c in res.ensemble.models]
-                                     .index(rec.best_model)] \
-                if rec.best_model != "wls" else None
-        else:
-            cm = None
-        if cm is not None:
+                                     .index(rec.best_model)]
             space, bridge = cm.space, cm.bridge
         else:
             space, bridge = res.inference.space, res.inference.bridge
@@ -388,32 +545,145 @@ def _round_metrics(spec: ScenarioSpec, strategy: str, res, lab, extra,
         rows.append(dict(
             scenario=spec.name, strategy=strategy, round=rec.round,
             param_err_pct=err, max_rel_ci_pct=min(max_ci, 1e4),
-            p_correct=p_corr,
+            p_correct=p_corr, model_entropy=_entropy(rec.model_probs),
             gov_state=(rec.governor.state if rec.governor else ""),
             gov_score=(rec.governor.score if rec.governor else float("nan")),
+            gov_p=(rec.governor.p_value if rec.governor else float("nan")),
+            stop_reason=res.stop_reason,
             blind_rmse_M=blind_rmse(bridge, space,
                                     space.to_vector(rec.theta_nat),
                                     z_val, y_true),
             **{k: rec.resources.get(k, 0.0)
                for k in ResourceMeter.TOTAL_KEYS}))
-    return rows
+        prows.extend(_param_rows(spec, strategy, None, rec.round, space,
+                                 rec.theta_nat, sig, rec.bound_active,
+                                 truth))
+    return rows, prows
 
 
 # ------------------------------------------------------------------------- #
 def run_scenario(spec: ScenarioSpec, seeds: Sequence[int], budget: int,
-                 verbose: bool = False) -> List[Dict]:
+                 verbose: bool = False) -> Tuple[List[Dict], List[Dict]]:
+    budget = spec.budget_override or budget
     z_val = np.array([GEOMETRY["length_m"] / 3.0, GEOMETRY["length_m"]])
     y_true = _truth_prediction(spec.truth, z_val)
-    rows: List[Dict] = []
+    rows, prows = [], []
     for strategy in spec.strategies:
         for seed in seeds:
             t0 = time.time()
             res, lab, extra = run_one_campaign(spec, strategy, seed, budget,
                                                verbose=verbose)
-            rows.extend([dict(r, seed=seed)
-                         for r in _round_metrics(spec, strategy, res, lab,
-                                                 extra, z_val, y_true)])
+            r, p = _round_metrics(spec, strategy, res, lab, extra, z_val,
+                                  y_true)
+            rows.extend([dict(x, seed=seed) for x in r])
+            prows.extend([dict(x, seed=seed) for x in p])
             if verbose:
                 print(f"    {spec.name}/{strategy}/seed{seed}: "
                       f"{time.time() - t0:.1f} s")
-    return rows
+    return rows, prows
+
+
+# ------------------------------------------------------------------------- #
+# distributional statistics (#no-cherry-picking)
+# ------------------------------------------------------------------------- #
+def _boot_ci(x: np.ndarray, stat=np.median, B: int = 2000,
+             seed: int = 0) -> Tuple[float, float]:
+    rng = np.random.default_rng(seed)
+    if len(x) < 2:
+        return float("nan"), float("nan")
+    s = np.array([stat(rng.choice(x, len(x))) for _ in range(B)])
+    return float(np.quantile(s, 0.025)), float(np.quantile(s, 0.975))
+
+
+def summarize_final(rows: List[Dict], scenario: str,
+                    metrics: Sequence[str] = ("param_err_pct",
+                                              "blind_rmse_M")) -> List[Dict]:
+    """Final-round distributional summary per strategy: median, IQR, mean,
+    bootstrap 95% CI of the median."""
+    sc = [r for r in rows if r["scenario"] == scenario]
+    out = []
+    for strat in sorted({r["strategy"] for r in sc}):
+        s_rows = [r for r in sc if r["strategy"] == strat]
+        last = max(r["round"] for r in s_rows)
+        fr = [r for r in s_rows if r["round"] == last]
+        rec = {"scenario": scenario, "strategy": strat, "n_seeds": len(fr)}
+        for m in metrics:
+            x = np.array([r[m] for r in fr if np.isfinite(r.get(m, np.nan))])
+            if len(x) == 0:
+                continue
+            lo, hi = _boot_ci(x)
+            rec.update({f"{m}_median": float(np.median(x)),
+                        f"{m}_iqr_lo": float(np.quantile(x, 0.25)),
+                        f"{m}_iqr_hi": float(np.quantile(x, 0.75)),
+                        f"{m}_mean": float(np.mean(x)),
+                        f"{m}_bootci_lo": lo, f"{m}_bootci_hi": hi})
+        out.append(rec)
+    return out
+
+
+def paired_comparison(rows: List[Dict], scenario: str, strat_a: str,
+                      strat_b: str, metric: str = "blind_rmse_M") -> Dict:
+    """Common-random-number PAIRED comparison of two strategies at the
+    final round: per-seed differences, bootstrap CI of the median
+    difference, and P(a better than b)."""
+    sc = [r for r in rows if r["scenario"] == scenario]
+    per_seed = {}
+    for r in sc:
+        last = max(x["round"] for x in sc if x["strategy"] == r["strategy"])
+        if r["round"] != last:
+            continue
+        per_seed.setdefault(r["seed"], {})[r["strategy"]] = r.get(metric)
+    diffs = [v[strat_a] - v[strat_b] for v in per_seed.values()
+             if strat_a in v and strat_b in v
+             and np.isfinite(v[strat_a]) and np.isfinite(v[strat_b])]
+    if not diffs:
+        return {}
+    d = np.array(diffs)
+    lo, hi = _boot_ci(d)
+    return {"scenario": scenario, "a": strat_a, "b": strat_b,
+            "metric": metric, "n_pairs": len(d),
+            "median_diff": float(np.median(d)),
+            "bootci_lo": lo, "bootci_hi": hi,
+            "p_a_better": float(np.mean(d < 0.0))}
+
+
+# ------------------------------------------------------------------------- #
+def governor_mc_validation(seeds: Sequence[int], budget: int = 6,
+                           verbose: bool = False) -> Dict:
+    """Monte Carlo validation of the governor (#calibration honesty):
+
+      * correct-family scenario (S2-style)  -> realized campaign-level
+        false-inadequacy rate;
+      * wrong-family scenario (S5)          -> detection probability and
+        the distribution of first-detection rounds.
+
+    The rates REPORTED here are the empirically measured ones; no exact
+    false-positive control is claimed beyond them."""
+    fp = 0
+    det_rounds = []
+    for seed in seeds:
+        res, _, gov = run_one_campaign(SCENARIOS["S2_nmr"], "F", seed,
+                                       budget, verbose=False)
+        if any(r.governor and r.governor.state
+               == GovernorState.MODEL_INADEQUATE for r in res.history):
+            fp += 1
+        if verbose:
+            print(f"    governor-MC correct-family seed {seed}: "
+                  f"{'FP' if fp else 'ok'}")
+    detected = 0
+    for seed in seeds:
+        res, _, gov = run_one_campaign(SCENARIOS["S5_inadequacy"], "F",
+                                       seed, budget, verbose=False)
+        rd = next((r.round for r in res.history
+                   if r.governor and r.governor.state
+                   == GovernorState.MODEL_INADEQUATE), None)
+        if rd is not None:
+            detected += 1
+            det_rounds.append(rd)
+    n = len(list(seeds))
+    return {"n_seeds": n,
+            "false_inadequacy_campaign_rate": fp / n,
+            "detection_probability": detected / n,
+            "detection_rounds": det_rounds,
+            "median_detection_round": (float(np.median(det_rounds))
+                                       if det_rounds else None)}

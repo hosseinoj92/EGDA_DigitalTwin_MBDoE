@@ -28,14 +28,18 @@ __version__ = "0.1.0"
 
 from .spectral import (AcquisitionSettings, SpectralNuisance, NMRSimulator,
                        LAYER1_TO_NMR, NMR_TO_LAYER1, water_shift)
-from .spectral_fit import SpectralFitter, QuantificationResult
+from .spectral_fit import (SpectralFitter, QuantificationResult,
+                           SpectralCovarianceModel, calibrate_responses)
 from .transfer import TransferConfig, TransferLine
 from .spatial_design import (SpatialDesignConfig, fixed_equal_positions,
                              SpatialDesigner)
 from .resources import ResourceCosts, ResourceMeter
 from .instrument import AdvancedVirtualLaboratory, InstrumentConfig
 from .posterior import GaussianPrior, LaplacePosterior
-from .model_ensemble import CandidateModel, ModelEnsemble, build_egda_family
+from .model_ensemble import (CandidateModel, ModelEnsemble,
+                             build_egda_family, AssumedTransfer,
+                             TransportAwareInference)
 from .adequacy import AdequacyGovernor, AdequacyReport, GovernorState
 from .bayes_design import AdvancedSelector, expected_information_gain
-from .controller import run_advanced_strategy, AdvancedStrategyResult
+from .controller import (run_advanced_strategy, AdvancedStrategyResult,
+                         QCGateConfig, measure_with_qc)

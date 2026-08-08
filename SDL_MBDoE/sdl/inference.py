@@ -86,9 +86,21 @@ class InferenceModel:
         self._chols.append(np.linalg.cholesky(cov))
 
     # ------------------------------------------------------------------ #
-    def predict(self, theta_vec: np.ndarray, m: Measurement) -> np.ndarray:
+    def predict_at(self, theta_vec: np.ndarray, u: OperatingConditions,
+                   z_m: np.ndarray, species) -> np.ndarray:
+        """THE expected-observation operator: what a measurement at (u, z)
+        is predicted to read, given theta.  Every controller-side prediction
+        (estimation residuals, sensitivities, FIM, spatial design, EIG,
+        model discrimination) must route through this single method, so a
+        subclass that models observation effects (e.g. the assumed transfer
+        delay in sdl_advanced) corrects ALL of them consistently.  The base
+        implementation is exactly the Layer-1 reactor composition."""
         nat = self.space.to_natural(theta_vec)
-        return self.bridge.concentrations_at(nat, m.u, m.z_m, m.species)
+        return self.bridge.concentrations_at(nat, u, np.asarray(z_m, float),
+                                             tuple(species))
+
+    def predict(self, theta_vec: np.ndarray, m: Measurement) -> np.ndarray:
+        return self.predict_at(theta_vec, m.u, m.z_m, m.species)
 
     def _whitened_residuals(self, theta_vec: np.ndarray) -> np.ndarray:
         parts = []

@@ -73,7 +73,9 @@ class SpatialDesignConfig:
     marginal_information_threshold: float = 0.05   # nats per acquisition
 
     def __post_init__(self):
-        if self.mode not in ("fixed_equal", "optimized",
+        if self.mode == "optimized_batch":       # explicit new name; the
+            object.__setattr__(self, "mode", "optimized")   # legacy name
+        if self.mode not in ("fixed_equal", "optimized",     # stays valid
                              "adaptive_sequential"):
             raise ValueError(f"Unknown sampling mode '{self.mode}'.")
         if not (0.0 <= self.z_min_fraction < self.z_max_fraction <= 1.0):
