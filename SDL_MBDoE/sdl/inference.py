@@ -77,7 +77,11 @@ class InferenceModel:
         return sum(m.size for m in self.measurements)
 
     def add_measurement(self, m: Measurement) -> None:
-        cov = self.noise.covariance(m.y, m.species, m.n_z)
+        # A measurement that carries its own covariance (e.g. from spectral
+        # deconvolution in sdl_advanced) is whitened with it; otherwise the
+        # assumed NoiseModel reconstructs one - the legacy behaviour.
+        cov = (np.asarray(m.cov_y, dtype=float) if m.cov_y is not None
+               else self.noise.covariance(m.y, m.species, m.n_z))
         self.measurements.append(m)
         self._chols.append(np.linalg.cholesky(cov))
 

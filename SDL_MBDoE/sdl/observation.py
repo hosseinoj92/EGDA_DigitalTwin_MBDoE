@@ -18,7 +18,7 @@ configured differently to study model-mismatch robustness.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Sequence, Tuple
+from typing import Any, Dict, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -51,11 +51,21 @@ class NoiseModel:
 @dataclass
 class Measurement:
     """One experiment's data as returned by the virtual laboratory.
-    Contains NO information about the true parameters or the noise draw."""
+    Contains NO information about the true parameters or the noise draw.
+
+    cov_y: optional measurement covariance CARRIED BY the measurement itself
+    (species-major, same ordering as y).  Advanced instruments (e.g. the NMR
+    deconvolution pathway in sdl_advanced) supply it from the actual spectral
+    fit; when None, InferenceModel falls back to its assumed NoiseModel -
+    exactly the legacy behaviour.
+    meta: optional instrument metadata/QC permitted through the firewall
+    (fit residual RMS, condition numbers, flags).  Never contains truth."""
     u: OperatingConditions
     z_m: np.ndarray                   # axial sampling positions, m
     species: Tuple[str, ...]
     y: np.ndarray                     # measured concentrations, species-major
+    cov_y: Optional[np.ndarray] = None
+    meta: Optional[Dict[str, Any]] = None
 
     @property
     def n_z(self) -> int:

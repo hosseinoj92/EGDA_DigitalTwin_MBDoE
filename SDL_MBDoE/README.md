@@ -978,3 +978,51 @@ for the final study.
 `SDL_MBDoE` is a virtual closed-loop study of how to learn two-step hydrolysis/saponification kinetics efficiently. It couples a mechanistic PFR model to noisy synthetic CPR-NMR observations, cumulative weighted parameter estimation, local uncertainty analysis, and information-based experiment selection. The four-strategy comparison distinguishes the value of spatial profiles from the value of autonomous design.
 
 In the included H2SO4 example, spatial data are strongly beneficial, and spatial MBDoE gives the best final recovery and smallest local uncertainty. The outlet-only MBDoE result also demonstrates an essential scientific caution: improving a D-optimal information metric does not guarantee that every parameter estimate becomes more accurate in one noisy campaign. The correct use of this package is therefore not simply to declare a winner, but to understand **where kinetic information comes from, which parameters remain confounded, and how experimental choices reshape what can be learned**.
+
+---
+
+## Advanced layer: `sdl_advanced` (CPR + Fourier 80 virtual instrument)
+
+The package `sdl_advanced/` adds a realistic simulation of the eventual
+**Reacnostics CPR + Bruker Fourier 80** autonomous platform ON TOP of the
+baseline above.  The baseline `sdl` package and the A/B/C/D study are
+preserved unchanged as the regression-compatible reference.
+
+Physical picture: the CPR has **one axially moving sampling capillary**
+(a continuous position `z`, no fixed ports, no selector valve) connected by
+one transfer line to the NMR flow cell.  The advanced measurement pathway is
+
+```
+Layer 1 concentrations at z  (sdl.layer1_bridge, unchanged)
+  -> sdl_advanced/transfer.py       delay, RTD dispersion, in-line reaction,
+                                    flushing/carryover after capillary moves
+  -> sdl_advanced/spectral.py       80 MHz forward model (analytic or FID),
+                                    refactored from EGDA_NMR_sim/sim_nmr(2).py
+  -> sdl_advanced/spectral_fit.py   variable-projection deconvolution
+                                    -> concentrations + covariance Sigma_y
+  -> inference                      baseline WLS/FIM  or  Bayesian Laplace
+                                    model ensemble (model_ensemble.py)
+  -> design                         greedy D-optimal spatial positions
+                                    (spatial_design.py) + resource-aware
+                                    Bayesian EIG (bayes_design.py), guarded
+                                    by the model-inadequacy governor
+                                    (adequacy.py)
+```
+
+New strategies: **E** = optimized spatial positions + baseline FIM MBDoE;
+**F** = adaptive/optimized positions + Bayesian multi-model, resource-aware
+EIG + realistic NMR/transport observation (ablations: F-noNMR,
+F-noTransport/F-uncorr, F-noGovernor).
+
+Entry points:
+
+- `run_advanced_campaign.py`  - single-seed demonstration + Figures A-D
+- `run_advanced_benchmark.py` - Monte Carlo scenarios S1-S6, Figures E-H,
+  strategy table, per-round metrics CSV
+- `tests/test_*.py`           - spectral, deconvolution, transfer, spatial,
+  firewall, posterior, adequacy, resource tests (all standalone-runnable)
+
+All spectral/transport nuisance values are **simulation assumptions**
+(marked `CAL:` in the code) to be replaced by pure-component calibrations on
+the physical Fourier 80; swapping simulated for real spectra only requires
+replacing the instrument side of `sdl_advanced/instrument.py`.

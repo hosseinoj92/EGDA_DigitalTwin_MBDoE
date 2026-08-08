@@ -1,0 +1,204 @@
+==========================================================================
+Virtual self-driving laboratory - campaign comparison [catalyst: H2SO4]
+  budget 10 experiments/strategy | 2800 MBDoE candidates | 10 ports x 4 species | 6 parameters
+  autonomous design: coarse grid + bounded continuous refinement
+  initial guess (literature): k1_ref=2.381e-03, Ea1=55.0 kJ, k2_ref=1.156e-03, Ea2=57.0 kJ, K1_ref=0.618, K2_ref=0.155
+==========================================================================
+Identifiability screen: best achievable 95% CI under the D-optimal 10-experiment
+  design drawn from 2817 candidates (drop threshold 200 %)
+    k1_ref  :        1.883 %
+    Ea1_J   :       0.5577 %
+    k2_ref  :        3.757 %
+    Ea2_J   :       0.9215 %
+    K1_ref  :        82.44 %
+    K2_ref  :        7.097 %
+  all parameters identifiable - theta unchanged.
+  (22.1 s)
+==========================================================================
+
+Strategy A (outlet + fixed design):
+  [A] round 1/10  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.896e-04  Ea1= 62.3  maxCI=    inf%  logdetF=-inf
+  [A] round 2/10  T=55.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.656e-03  Ea1= 96.2  maxCI=    inf%  logdetF=-inf
+  [A] round 3/10  T=65.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.008e-03  Ea1= 46.0  maxCI=    inf%  logdetF=-inf
+  [A] round 4/10  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.767e-04  Ea1= 39.2  maxCI=    inf%  logdetF=-inf
+  [A] round 5/10  T=95.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.529e-04  Ea1= 37.9  maxCI=    inf%  logdetF=-inf
+  [A] round 6/10  T=105.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.556e-04  Ea1= 43.7  maxCI=    inf%  logdetF=-inf
+  [A] round 7/10  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.172e-04  Ea1= 41.1  maxCI=    inf%  logdetF=-inf
+  [A] round 8/10  T=135.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.327e-04  Ea1= 40.8  maxCI=    inf%  logdetF=-inf
+  [A] round 9/10  T=145.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.499e-04  Ea1= 40.4  maxCI=    inf%  logdetF=-inf
+  [A] round 10/10  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.071e-04  Ea1= 41.2  maxCI=    inf%  logdetF=-inf
+
+Strategy B (spatial + fixed design):
+  [B] round 1/10  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.232e-03  Ea1= 62.4  maxCI=    inf%  logdetF=-inf
+  [B] round 2/10  T=55.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.593e-03  Ea1= 73.6  maxCI=    inf%  logdetF=-inf
+  [B] round 3/10  T=65.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.890e-04  Ea1= 34.7  maxCI=    inf%  logdetF=-inf
+  [B] round 4/10  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.012e-03  Ea1= 40.8  maxCI=    inf%  logdetF=-inf
+  [B] round 5/10  T=95.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.031e-03  Ea1= 38.3  maxCI=    inf%  logdetF=-inf
+  [B] round 6/10  T=105.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.021e-03  Ea1= 38.8  maxCI=    inf%  logdetF=-inf
+  [B] round 7/10  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.932e-04  Ea1= 39.8  maxCI=    inf%  logdetF=-inf
+  [B] round 8/10  T=135.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.025e-03  Ea1= 38.9  maxCI=    inf%  logdetF=-inf
+  [B] round 9/10  T=145.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.472e-04  Ea1= 40.6  maxCI=    inf%  logdetF=-22.2
+  [B] round 10/10  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.076e-04  Ea1= 41.3  maxCI=    inf%  logdetF=-inf
+
+Strategy C (outlet + MBDoE):
+  [C] round 1/10  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=3.862e-03  Ea1= 72.2  maxCI=    inf%  logdetF=-inf
+  [C] round 2/10  T=160.0C Q=8.0mL/min EGDA=1.000M cat=0.443M k1_ref=1.589e-03  Ea1= 33.7  maxCI=    inf%  logdetF=-inf
+  [C] round 3/10  T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M k1_ref=1.603e-03  Ea1= 34.1  maxCI=    inf%  logdetF=-inf
+  [C] round 4/10  T=112.9C Q=0.2mL/min EGDA=1.000M cat=1.000M k1_ref=1.166e-03  Ea1= 37.9  maxCI=    inf%  logdetF= 0.7
+  [C] round 5/10  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.750M k1_ref=1.058e-03  Ea1= 40.0  maxCI=  335.5%  logdetF= 15.7
+  [C] round 6/10  T=160.0C Q=0.4mL/min EGDA=1.000M cat=0.747M k1_ref=1.077e-03  Ea1= 39.6  maxCI=  384.0%  logdetF= 17.9
+  [C] round 7/10  T=104.2C Q=0.2mL/min EGDA=1.000M cat=1.000M k1_ref=9.870e-04  Ea1= 40.7  maxCI=  415.3%  logdetF= 19.3
+  [C] round 8/10  T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M k1_ref=9.884e-04  Ea1= 40.7  maxCI=  145.9%  logdetF= 21.1
+  [C] round 9/10  T=160.0C Q=0.4mL/min EGDA=1.000M cat=0.747M k1_ref=9.974e-04  Ea1= 40.5  maxCI=  158.1%  logdetF= 22.0
+  [C] round 10/10  T=106.2C Q=0.2mL/min EGDA=1.000M cat=1.000M k1_ref=9.891e-04  Ea1= 40.6  maxCI=  158.2%  logdetF= 22.8
+
+Strategy D (spatial + MBDoE):
+  [D] round 1/10  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.302e-03  Ea1= 67.0  maxCI=    inf%  logdetF=-inf
+  [D] round 2/10  T=160.0C Q=0.8mL/min EGDA=1.000M cat=1.000M k1_ref=7.003e-04  Ea1= 44.0  maxCI=    inf%  logdetF=-19.8
+  [D] round 3/10  T=141.1C Q=0.2mL/min EGDA=1.000M cat=1.000M k1_ref=1.148e-03  Ea1= 38.1  maxCI=    inf%  logdetF= 11.8
+  [D] round 4/10  T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M k1_ref=1.151e-03  Ea1= 38.1  maxCI=    inf%  logdetF= 17.9
+  [D] round 5/10  T=108.2C Q=0.2mL/min EGDA=1.000M cat=1.000M k1_ref=1.007e-03  Ea1= 39.8  maxCI=    inf%  logdetF= 21.3
+  [D] round 6/10  T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M k1_ref=1.002e-03  Ea1= 39.8  maxCI=    inf%  logdetF= 23.2
+  [D] round 7/10  T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M k1_ref=9.982e-04  Ea1= 39.9  maxCI=    inf%  logdetF= 24.5
+  [D] round 8/10  T=111.3C Q=0.2mL/min EGDA=1.000M cat=1.000M k1_ref=1.022e-03  Ea1= 39.6  maxCI=    inf%  logdetF= 25.7
+  [D] round 9/10  T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M k1_ref=1.020e-03  Ea1= 39.7  maxCI=    inf%  logdetF= 26.5
+  [D] round 10/10  T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M k1_ref=1.021e-03  Ea1= 39.6  maxCI=    inf%  logdetF= 27.2
+
+All campaigns finished in 197.4 s.
+
+==========================================================================
+Virtual self-driving laboratory - final campaign report
+==========================================================================
+
+Identifiability screen: best achievable 95% CI under the D-optimal 10-experiment
+  design drawn from 2817 candidates (drop threshold 200 %)
+    k1_ref  :        1.883 %
+    Ea1_J   :       0.5577 %
+    k2_ref  :        3.757 %
+    Ea2_J   :       0.9215 %
+    K1_ref  :        82.44 %
+    K2_ref  :        7.097 %
+  all parameters identifiable - theta unchanged.
+
+Hidden truth (revealed post-campaign for benchmarking only):
+  k1_ref   = 0.001 L/(mol s)
+  Ea1_J    = 40 kJ/mol
+  k2_ref   = 0.00065 L/(mol s)
+  Ea2_J    = 48 kJ/mol
+  K1_ref   = 0.9 -
+  K2_ref   = 0.07 -
+
+Ranking metric: geometric-mean parameter error over the identifiable, unpinned
+components (exp(mean|ln est/true|) - 1).  The arithmetic mean is also shown but
+is not used to rank: it is unbounded above and one bad component swamps the rest.
+
+--------------------------------------------------------------------------
+Strategy A: outlet + fixed design
+  experiments run      : 10 (40 concentration observations)
+  stopping             : budget exhausted
+  SCORE geo-mean err   : 71.29 %   (over 4/6 unpinned)
+  mean |rel err|       : 133.10 %
+  max 95% rel CI       : inf %
+  log det F            : -inf   [RANK-DEFICIENT]
+  !! AT BOX BOUND      : K1_ref, K2_ref  - these are the CONSTRAINT, not estimates;
+                         their intervals are void and they are excluded from the score.
+  estimates (95% CI) vs truth:
+    k1_ref  :   0.0009071  [ 0.0006506,   0.001265]   true       0.001
+    Ea1_J   :       41.21  [     35.01,      47.41]   true          40
+    k2_ref  :   0.0001202  [  1.82e-11,      793.7]   true     0.00065
+    Ea2_J   :       67.27  [    -170.3,      304.8]   true          48
+    K1_ref  :        6.18  [AT BOUND - no valid CI]   true         0.9
+    K2_ref  :     0.01545  [AT BOUND - no valid CI]   true        0.07
+  parameter correlation matrix (ln k1, Ea1, ln k2, Ea2, ln K1, ln K2):
+     1.000  -0.970   0.025  -0.025   0.742   0.041
+    -0.970   1.000  -0.017   0.016  -0.869  -0.037
+     0.025  -0.017   1.000  -0.998  -0.002   0.953
+    -0.025   0.016  -0.998   1.000   0.003  -0.969
+     0.742  -0.869  -0.002   0.003   1.000   0.021
+     0.041  -0.037   0.953  -0.969   0.021   1.000
+  FIM eigenvalues (ascending): 6.509e-08, 2.184e-05, 1.628e-03, 4.067e-01, 4.276e+01, 2.082e+03
+  experiments chosen: T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=55.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=65.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=95.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=105.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=135.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=145.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M
+
+--------------------------------------------------------------------------
+Strategy B: spatial + fixed design
+  experiments run      : 10 (400 concentration observations)
+  stopping             : budget exhausted
+  SCORE geo-mean err   : 50.06 %   (over 4/6 unpinned)
+  mean |rel err|       : 129.62 %
+  max 95% rel CI       : inf %
+  log det F            : -inf   [RANK-DEFICIENT]
+  !! AT BOX BOUND      : K1_ref, K2_ref  - these are the CONSTRAINT, not estimates;
+                         their intervals are void and they are excluded from the score.
+  estimates (95% CI) vs truth:
+    k1_ref  :   0.0009076  [ 0.0008048,   0.001023]   true       0.001
+    Ea1_J   :       41.34  [     39.48,      43.21]   true          40
+    k2_ref  :   0.0001893  [ 8.851e-06,   0.004048]   true     0.00065
+    Ea2_J   :       62.23  [     21.09,      103.4]   true          48
+    K1_ref  :        6.18  [AT BOUND - no valid CI]   true         0.9
+    K2_ref  :     0.01545  [AT BOUND - no valid CI]   true        0.07
+  parameter correlation matrix (ln k1, Ea1, ln k2, Ea2, ln K1, ln K2):
+     1.000  -0.967   0.018  -0.017   0.445   0.027
+    -0.967   1.000  -0.013   0.012  -0.618  -0.032
+     0.018  -0.013   1.000  -0.992  -0.002   0.555
+    -0.017   0.012  -0.992   1.000   0.005  -0.644
+     0.445  -0.618  -0.002   0.005   1.000   0.030
+     0.027  -0.032   0.555  -0.644   0.030   1.000
+  FIM eigenvalues (ascending): 5.473e-07, 9.605e-04, 5.040e-03, 1.784e+00, 1.384e+02, 1.001e+04
+  experiments chosen: T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=55.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=65.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=95.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=105.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=135.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=145.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M
+
+--------------------------------------------------------------------------
+Strategy C: outlet + MBDoE
+  experiments run      : 10 (40 concentration observations)
+  stopping             : budget exhausted
+  SCORE geo-mean err   : 36.28 %
+  mean |rel err|       : 15.73 %
+  max 95% rel CI       : 158.23 %
+  log det F            : 22.82
+  estimates (95% CI) vs truth:
+    k1_ref  :   0.0009891  [ 0.0009171,   0.001067]   true       0.001
+    Ea1_J   :       40.62  [     39.46,      41.78]   true          40
+    k2_ref  :   0.0006489  [  0.000528,  0.0007975]   true     0.00065
+    Ea2_J   :       47.54  [     44.66,      50.43]   true          48
+    K1_ref  :      0.1577  [   0.06109,     0.4073]   true         0.9
+    K2_ref  :     0.07571  [   0.05975,    0.09594]   true        0.07
+  parameter correlation matrix (ln k1, Ea1, ln k2, Ea2, ln K1, ln K2):
+     1.000  -0.943  -0.093   0.093   0.135   0.031
+    -0.943   1.000   0.082  -0.094  -0.331  -0.072
+    -0.093   0.082   1.000  -0.965   0.001   0.193
+     0.093  -0.094  -0.965   1.000   0.021  -0.320
+     0.135  -0.331   0.001   0.021   1.000   0.197
+     0.031  -0.072   0.193  -0.320   0.197   1.000
+  FIM eigenvalues (ascending): 4.590e-01, 2.502e+00, 5.523e+00, 7.912e+01, 1.801e+03, 9.044e+03
+  experiments chosen: T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=160.0C Q=8.0mL/min EGDA=1.000M cat=0.443M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=112.9C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.750M; T=160.0C Q=0.4mL/min EGDA=1.000M cat=0.747M; T=104.2C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.4mL/min EGDA=1.000M cat=0.747M; T=106.2C Q=0.2mL/min EGDA=1.000M cat=1.000M
+
+--------------------------------------------------------------------------
+Strategy D: spatial + MBDoE
+  experiments run      : 10 (400 concentration observations)
+  stopping             : budget exhausted
+  SCORE geo-mean err   : 3.45 %   (over 5/6 unpinned)
+  mean |rel err|       : 100.58 %
+  max 95% rel CI       : inf %
+  log det F            : 27.22
+  !! AT BOX BOUND      : K1_ref  - these are the CONSTRAINT, not estimates;
+                         their intervals are void and they are excluded from the score.
+  estimates (95% CI) vs truth:
+    k1_ref  :    0.001021  [ 0.0009861,   0.001057]   true       0.001
+    Ea1_J   :       39.65  [     39.16,      40.13]   true          40
+    k2_ref  :    0.000601  [ 0.0005367,  0.0006731]   true     0.00065
+    Ea2_J   :       48.89  [     47.42,      50.36]   true          48
+    K1_ref  :        6.18  [AT BOUND - no valid CI]   true         0.9
+    K2_ref  :     0.07308  [   0.06636,    0.08049]   true        0.07
+  parameter correlation matrix (ln k1, Ea1, ln k2, Ea2, ln K1, ln K2):
+     1.000  -0.968  -0.060   0.063   0.201   0.036
+    -0.968   1.000   0.057  -0.066  -0.373  -0.068
+    -0.060   0.057   1.000  -0.986  -0.010   0.191
+     0.063  -0.066  -0.986   1.000   0.029  -0.294
+     0.201  -0.373  -0.010   0.029   1.000   0.202
+     0.036  -0.068   0.191  -0.294   0.202   1.000
+  FIM eigenvalues (ascending): 2.184e-02, 1.768e+00, 1.913e+01, 4.659e+02, 1.994e+04, 9.649e+04
+  experiments chosen: T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M; T=160.0C Q=0.8mL/min EGDA=1.000M cat=1.000M; T=141.1C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=108.2C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=111.3C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M; T=160.0C Q=0.2mL/min EGDA=1.000M cat=1.000M
+
+--------------------------------------------------------------------------
+Virtual lab usage: 40 experiments run, truth revealed 1 time(s), all after the campaigns ended.
+
+Outputs written to: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results
