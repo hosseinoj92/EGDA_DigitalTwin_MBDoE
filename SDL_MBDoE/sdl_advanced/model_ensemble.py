@@ -168,7 +168,54 @@ class ModelEnsemble:
         le = self.log_evidence - np.max(self.log_evidence)
         w = np.exp(le)
         self.probs = w / np.sum(w)
+        self._assess_evidence_reliability()
         return stats
+
+    # ------------------------------------------------------------------ #
+    def _assess_evidence_reliability(self,
+                                     bound_mass_limit: float = 0.05,
+                                     margin_limit: float = 0.25) -> None:
+        """Minimal boundary diagnostic for the Laplace evidence.
+
+        The Laplace approximation integrates an UNCONSTRAINED Gaussian; when
+        the MAP sits on (or the posterior mass presses against) a hard box
+        bound, that integral is not the evidence of the truncated posterior
+        and the resulting model probabilities - including a flat
+        P(model) = 1.000 - must NOT be read as strong evidence.  Sets
+        `evidence_reliable` (per model) and `evidence_warnings`."""
+        self.evidence_reliable = {}
+        self.evidence_warnings = []
+        for cm in self.models:
+            if cm.posterior.theta_map is None:
+                self.evidence_reliable[cm.name] = False
+                continue
+            pinned = cm.space.active_bounds(cm.posterior.theta_map)
+            try:
+                mass = cm.posterior.bound_interaction()
+            except Exception:
+                mass = {}
+            heavy = [k for k, v in mass.items() if v > bound_mass_limit]
+            lo, hi = cm.space.bounds()
+            tight = []
+            for q, k in enumerate(cm.space.param_keys):
+                v = cm.posterior.theta_map[q]
+                span = max(hi[q] - lo[q], 1e-12)
+                if min(v - lo[q], hi[q] - v) / span < margin_limit * 0.1:
+                    tight.append(k)
+            ok = not pinned and not heavy
+            self.evidence_reliable[cm.name] = bool(ok)
+            if not ok:
+                self.evidence_warnings.append(
+                    f"{cm.name}: Laplace evidence is boundary-affected "
+                    f"(pinned={pinned or '()'}, "
+                    f"bound-mass>{bound_mass_limit:g}: {heavy or '[]'}); "
+                    f"model probability is NOT reliable evidence.")
+
+    @property
+    def probs_reliable(self) -> bool:
+        """True only if EVERY candidate's evidence is boundary-clean."""
+        return all(getattr(self, "evidence_reliable", {}).get(cm.name, False)
+                   for cm in self.models)
 
     # ------------------------------------------------------------------ #
     @property

@@ -174,7 +174,8 @@ class Layer1Bridge:
         model = KineticModel(kin)
         inlet = self._inlet(u, kin)
         T_K = u.T_C + 273.15
-        u_vel = inlet.Q_total_m3_s / self.geometry.area_m2
+        # interstitial velocity (= superficial for an unpacked tube)
+        u_vel = inlet.Q_total_m3_s / self.geometry.flow_area_m2
         kappa1, kappa2 = model.effective_constants(T_K, inlet.c_cat0)
 
         z_m = np.asarray(z_m, dtype=float)

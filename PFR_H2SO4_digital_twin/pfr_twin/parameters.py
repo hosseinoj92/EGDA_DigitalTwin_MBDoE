@@ -297,21 +297,71 @@ def default_kinetics(catalyst: str = "H2SO4", *, reversible: bool = True,
 # ----------------------------------------------------------------------------
 @dataclass(frozen=True)
 class ReactorGeometry:
-    """Straight cylindrical tube; defaults match the 200 mm x 18 mm ID lab PFR."""
+    """Straight cylindrical tube, optionally filled with INERT packing.
+
+    Defaults match the 200 mm x 18 mm ID lab PFR and an OPEN (unpacked)
+    tube.  Packing is an optional physical configuration of one reactor,
+    never a global assumption of the framework:
+
+        packing_enabled = False  ->  epsilon = 1,  tau = A L / Q
+        packing_enabled = True   ->  tau = epsilon_b A L / Q
+
+    `bed_void_fraction` (epsilon_b) is the fraction of reactor volume
+    occupied by FLOWING interstitial liquid.  It is deliberately NOT
+    identified with particle/internal porosity: stagnant liquid inside
+    porous inert particles only joins the residence time through a
+    mass-transfer/holdup model that this twin does not claim to have.
+    `particle_porosity` is therefore carried as metadata only and does not
+    enter any calculation."""
     length_m: float = 0.200
     diameter_m: float = 0.018
+    packing_enabled: bool = False
+    bed_void_fraction: float = 1.0
+    particle_porosity: float = 0.0        # metadata only; see docstring
+
+    def __post_init__(self):
+        if self.packing_enabled and not (0.0 < self.bed_void_fraction <= 1.0):
+            raise ValueError(
+                "bed_void_fraction must lie in (0, 1] when packing is "
+                f"enabled; got {self.bed_void_fraction}.")
+
+    @property
+    def void_fraction(self) -> float:
+        """epsilon actually used by the hydrodynamics (1 when unpacked)."""
+        return float(self.bed_void_fraction) if self.packing_enabled else 1.0
 
     @property
     def area_m2(self) -> float:
+        """Empty-tube cross-section (geometric)."""
         return math.pi * self.diameter_m ** 2 / 4.0
 
     @property
+    def flow_area_m2(self) -> float:
+        """Cross-section carrying flowing liquid; sets the INTERSTITIAL
+        velocity u = Q / flow_area, hence the residence time."""
+        return self.area_m2 * self.void_fraction
+
+    @property
     def volume_m3(self) -> float:
+        """Total (empty-tube) reactor volume."""
         return self.area_m2 * self.length_m
+
+    @property
+    def liquid_volume_m3(self) -> float:
+        """Flowing-liquid holdup: epsilon * V_tube."""
+        return self.volume_m3 * self.void_fraction
 
     @property
     def volume_mL(self) -> float:
         return self.volume_m3 * 1.0e6
+
+    @property
+    def liquid_volume_mL(self) -> float:
+        return self.liquid_volume_m3 * 1.0e6
+
+    def residence_time_s(self, Q_total_m3_s: float) -> float:
+        """tau = epsilon A L / Q  (= A L / Q for an unpacked tube)."""
+        return self.liquid_volume_m3 / max(Q_total_m3_s, 1e-30)
 
 
 # ----------------------------------------------------------------------------

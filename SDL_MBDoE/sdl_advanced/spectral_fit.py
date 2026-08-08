@@ -126,6 +126,14 @@ class SpectralFitter:
         #: calibrate_responses() - the simulation analogue of real
         #: Fourier-80 response calibration.  1.0 = uncalibrated/nominal.
         self.response_correction: Dict[str, float] = {}
+        #: empirical error model measured on CALIBRATION standards
+        #: (calibrate_empirical): additive bias and residual covariance that
+        #: the single-spectrum Jacobian cannot see.  None = uncalibrated.
+        self.empirical_bias: Optional[np.ndarray] = None
+        self.empirical_cov: Optional[np.ndarray] = None
+        self.empirical_corr: Optional[np.ndarray] = None
+        self.empirical_var_const: Optional[np.ndarray] = None
+        self.empirical_rel: Optional[np.ndarray] = None
         self._ppm = acq.ppm_grid()
         x = (2.0 * (self._ppm - acq.ppm_min)
              / (acq.ppm_max - acq.ppm_min) - 1.0)
@@ -220,16 +228,23 @@ class SpectralFitter:
             corr = np.where(denom > 0, cov_raw / denom, 0.0)
         cov = cov_raw.copy()
         cov[np.diag_indices(n_s)] = np.maximum(np.diag(cov), _VAR_FLOOR)
-        # reproducibility floor (see __init__), in quadrature on the diagonal
-        floor = (self.sigma_floor_abs_M
-                 + self.sigma_floor_rel * np.maximum(a[:n_s], 0.0)) ** 2
-        cov[np.diag_indices(n_s)] = np.diag(cov) + floor
-        # coherent gain-drift term: rank-one, correlated across species
-        c_pos = np.maximum(a[:n_s], 0.0)
-        cov = cov + self.gain_drift_rel ** 2 * np.outer(c_pos, c_pos)
+        # Two mutually exclusive ways to describe the error the single-
+        # spectrum Jacobian cannot see (never both - that double-counts):
+        #   calibrated:   Sigma_eff = Sigma_fit + Sigma_empirical
+        #                 (measured on standards, added in _package below)
+        #   uncalibrated: the ASSUMED surrogate terms here (floor, coherent
+        #                 gain, shift jitter)
+        calibrated = self.empirical_cov is not None
+        if not calibrated:
+            floor = (self.sigma_floor_abs_M
+                     + self.sigma_floor_rel * np.maximum(a[:n_s], 0.0)) ** 2
+            cov[np.diag_indices(n_s)] = np.diag(cov) + floor
+            # coherent gain-drift term: rank-one, correlated across species
+            c_pos = np.maximum(a[:n_s], 0.0)
+            cov = cov + self.gain_drift_rel ** 2 * np.outer(c_pos, c_pos)
         # per-group shift-jitter propagation: linearized effect of each
         # group's center moving by sigma_jitter on the fitted amplitudes
-        if self.shift_jitter_ppm > 0.0:
+        if self.shift_jitter_ppm > 0.0 and not calibrated:
             eta_ = eta
             lw = float(np.exp(eta_[1]))
             hj = 5e-4
@@ -270,6 +285,19 @@ class SpectralFitter:
                            for sp in self.species])
             conc = conc / rf
             cov = cov / np.outer(rf, rf)
+        # empirical calibration (calibrate_empirical): remove the measured
+        # systematic bias and ADD the measured residual covariance, which
+        # carries the composition-dependent overlap error the single-
+        # spectrum Jacobian cannot see (inter-species terms preserved)
+        if self.empirical_bias is not None:
+            conc = conc - self.empirical_bias
+        if self.empirical_corr is not None:
+            s_emp = np.sqrt(self.empirical_var_const
+                            + (self.empirical_rel
+                               * np.maximum(conc, 0.0)) ** 2)
+            cov = cov + self.empirical_corr * np.outer(s_emp, s_emp)
+        elif self.empirical_cov is not None:
+            cov = cov + self.empirical_cov
 
         return QuantificationResult(
             species=self.species, conc_M=conc, cov=cov,
@@ -386,6 +414,101 @@ class SpectralCovarianceModel:
 
 
 # --------------------------------------------------------------------------- #
+def calibrate_empirical(fitter: SpectralFitter, acquire, rng,
+                        standards: Optional[List[Dict[str, float]]] = None,
+                        n_rep: int = 4) -> Dict:
+    """Standard-mixture calibration of the FULL error model - the simulation
+    analogue of calibrating a real Fourier 80 against prepared standards.
+
+    Runs AFTER calibrate_responses() (which removes the multiplicative
+    response bias).  From the residuals on the CALIBRATION standards
+
+        e = c_fitted - c_true
+
+    it estimates the part of the error the single-spectrum fit Jacobian
+    cannot see: a systematic bias vector and an inter-species residual
+    COVARIANCE.  The fitter then reports
+
+        c_corrected = c_fitted - bias
+        Sigma_eff   = Sigma_spectral_fit + Sigma_empirical
+
+    which is the simplest model that can fix an under-covering species
+    (bias-dominated AcOH in the acetyl cluster) without inflating anything
+    by hand.  Sigma_empirical is symmetrized and PSD-projected.
+
+    Calibration standards are PREPARED compositions and therefore public
+    knowledge - using them does not breach the truth firewall.  The
+    VALIDATION compositions and their seeds must be independent (see
+    validation.py)."""
+    if standards is None:
+        standards = _default_standards()
+    n_s = len(fitter.species)
+    res_rows, conc_rows = [], []
+    for std in standards:
+        truth = np.array([std.get(sp, 0.0) for sp in fitter.species])
+        for _ in range(n_rep):
+            ppm, y = acquire(std, rng)
+            res = fitter.fit(ppm, y)
+            res_rows.append(res.conc_M - truth)
+            conc_rows.append(truth)
+    E = np.asarray(res_rows)                       # (n_obs, n_species)
+    C = np.asarray(conc_rows)                      # (n_obs, n_species)
+    bias = E.mean(axis=0)
+    dev = E - bias[None, :]
+    cov = (dev.T @ dev) / max(len(E) - 1, 1)
+    cov = 0.5 * (cov + cov.T)
+    w, V = np.linalg.eigh(cov)                     # PSD projection
+    cov = V @ np.diag(np.maximum(w, 0.0)) @ V.T
+
+    # Composition dependence: a CONSTANT empirical covariance under-covers on
+    # held-out reaction compositions (measured in validation.py suite B), so
+    # the residual scale is split into a constant and a concentration-
+    # proportional part, both REGRESSED from the calibration residuals -
+    # sigma_i(c)^2 = v_const_i + (rel_i * c_i)^2 - and the inter-species
+    # CORRELATION measured on the standards is preserved.  This is the
+    # simplest model that held-out validation shows to be sufficient.
+    sd = np.sqrt(np.maximum(np.diag(cov), 1e-300))
+    corr = cov / np.outer(sd, sd)
+    corr = np.clip(corr, -0.99, 0.99)
+    np.fill_diagonal(corr, 1.0)
+    rel = np.zeros(n_s)
+    v_const = np.zeros(n_s)
+    for i in range(n_s):
+        e2 = dev[:, i] ** 2
+        c2 = np.maximum(C[:, i], 0.0) ** 2
+        # non-negative least squares on [1, c^2] -> v_const + rel^2 c^2
+        A = np.stack([np.ones_like(c2), c2], axis=1)
+        try:
+            sol, *_ = np.linalg.lstsq(A, e2, rcond=None)
+        except np.linalg.LinAlgError:
+            sol = np.array([float(np.mean(e2)), 0.0])
+        v_const[i] = max(float(sol[0]), 0.25 * float(np.mean(e2)))
+        rel[i] = float(np.sqrt(max(float(sol[1]), 0.0)))
+    fitter.empirical_bias = bias
+    fitter.empirical_cov = cov              # constant part (back-compat)
+    fitter.empirical_corr = corr
+    fitter.empirical_var_const = v_const
+    fitter.empirical_rel = rel
+    return {"bias_M": bias, "cov_M2": cov, "corr": corr,
+            "var_const_M2": v_const, "rel": rel, "n_obs": len(E),
+            "species": fitter.species}
+
+
+def _default_standards() -> List[Dict[str, float]]:
+    """Prepared calibration mixtures: four single-species standards plus
+    mixtures spanning the overlap-relevant composition range."""
+    return [
+        {"EGDA": 0.40, "EGMA": 0.0, "EG": 0.0, "AcOH": 0.0, "H2O": 53.0},
+        {"EGDA": 0.0, "EGMA": 0.30, "EG": 0.0, "AcOH": 0.0, "H2O": 53.0},
+        {"EGDA": 0.0, "EGMA": 0.0, "EG": 0.30, "AcOH": 0.0, "H2O": 53.0},
+        {"EGDA": 0.0, "EGMA": 0.0, "EG": 0.0, "AcOH": 0.40, "H2O": 53.0},
+        {"EGDA": 0.20, "EGMA": 0.10, "EG": 0.05, "AcOH": 0.15, "H2O": 52.0},
+        {"EGDA": 0.35, "EGMA": 0.06, "EG": 0.02, "AcOH": 0.10, "H2O": 52.5},
+        {"EGDA": 0.10, "EGMA": 0.18, "EG": 0.14, "AcOH": 0.45, "H2O": 51.0},
+        {"EGDA": 0.02, "EGMA": 0.06, "EG": 0.30, "AcOH": 0.70, "H2O": 50.0},
+    ]
+
+
 def calibrate_responses(fitter: SpectralFitter, acquire, rng,
                         standards: Optional[List[Dict[str, float]]] = None,
                         n_rep: int = 3) -> Dict[str, float]:
@@ -403,15 +526,13 @@ def calibrate_responses(fitter: SpectralFitter, acquire, rng,
     COMPOSITION-DEPENDENT effects (overlap!) remain uncorrected and must be
     covered by the claimed covariance."""
     if standards is None:
-        standards = [
-            {"EGDA": 0.40, "EGMA": 0.0, "EG": 0.0, "AcOH": 0.0, "H2O": 53.0},
-            {"EGDA": 0.0, "EGMA": 0.30, "EG": 0.0, "AcOH": 0.0, "H2O": 53.0},
-            {"EGDA": 0.0, "EGMA": 0.0, "EG": 0.30, "AcOH": 0.0, "H2O": 53.0},
-            {"EGDA": 0.0, "EGMA": 0.0, "EG": 0.0, "AcOH": 0.40, "H2O": 53.0},
-            {"EGDA": 0.20, "EGMA": 0.10, "EG": 0.05, "AcOH": 0.15,
-             "H2O": 52.0},
-        ]
+        standards = _default_standards()
     fitter.response_correction = {}          # fit standards uncorrected
+    fitter.empirical_bias = None             # and un-bias-corrected
+    fitter.empirical_cov = None
+    fitter.empirical_corr = None
+    fitter.empirical_var_const = None
+    fitter.empirical_rel = None
     num = {sp: 0.0 for sp in fitter.species}
     den = {sp: 0.0 for sp in fitter.species}
     for std in standards:

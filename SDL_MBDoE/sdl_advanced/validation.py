@@ -37,7 +37,8 @@ import numpy as np
 from sdl import Layer1Bridge, OperatingConditions
 
 from .spectral import AcquisitionSettings, NMRSimulator, SpectralNuisance
-from .spectral_fit import SpectralFitter, calibrate_responses
+from .spectral_fit import (SpectralFitter, calibrate_empirical,
+                           calibrate_responses)
 
 
 def _suite(fitter: SpectralFitter, sim: NMRSimulator,
@@ -135,13 +136,18 @@ def run_validation(acq: AcquisitionSettings, nuisance: SpectralNuisance,
     results: Dict[str, Dict] = {}
 
     def _make(engine: str):
+        """Fitter calibrated on CALIBRATION spectra (own RNG stream) and
+        returned with an INDEPENDENT validation RNG - calibration data and
+        validation data never share a seed."""
         acq_e = dataclasses.replace(acq, engine=engine)
-        rng = np.random.default_rng(seed)
         sim = NMRSimulator(acq_e, nuisance)
         fitter = SpectralFitter(acq_e)
-        calibrate_responses(fitter,
-                            lambda s, r: sim.simulate(s, r)[:2], rng)
-        return sim, fitter, rng
+        cal_rng = np.random.default_rng(seed + 900_001)     # calibration
+        acquire = lambda s, r: sim.simulate(s, r)[:2]
+        calibrate_responses(fitter, acquire, cal_rng)
+        calibrate_empirical(fitter, acquire, cal_rng)
+        val_rng = np.random.default_rng(seed + 12_345)      # validation
+        return sim, fitter, val_rng
 
     # A. stress suite (analytic truth engine, fast)
     sim, fitter, rng = _make("analytic")

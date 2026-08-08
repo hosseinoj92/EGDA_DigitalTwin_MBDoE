@@ -227,22 +227,39 @@ class AdequacyGovernor:
         _w, p5 = self._worst_cell(cm, rws)
         comps = {"chi2": p1, "z_autocorr": p2, "species_bias": p3,
                  "T_trend": p4, "worst_cell": p5}
-        # MEASURED LIMITATION (documented): under NMR observation the
-        # composition-dependent quantification bias varies SMOOTHLY with z,
-        # producing rho ~ 0.3-0.7 even for a correct kinetic model - the
-        # z-autocorrelation cannot separate that from kinetic misfit there.
-        # With a nonzero systematic allowance it is therefore EXCLUDED from
-        # the decision combination (still computed and reported); in
-        # direct-observation mode (kappa = 0) it remains a decision
-        # component, where it is the most sensitive test.
+        p_comb = self.combine(comps, n_pairs)
+        return comps, p_comb, bias, score, rho
+
+    # ------------------------------------------------------------------ #
+    def decision_components(self, comps: Dict[str, float],
+                            n_pairs: int) -> Dict[str, float]:
+        """THE single definition of which diagnostics enter the decision.
+
+        Used identically by assess(), the analytical combined p-value, the
+        bootstrap OBSERVED statistic and every bootstrap REPLICATE, so the
+        null distribution always refers to the statistic actually used.
+
+        MEASURED LIMITATION (documented): under NMR observation the
+        composition-dependent quantification bias varies SMOOTHLY with z,
+        producing rho ~ 0.3-0.7 even for a correct kinetic model - the
+        z-autocorrelation cannot separate that from kinetic misfit there.
+        With a nonzero systematic allowance it is therefore excluded from
+        the DECISION (still computed and reported); with kappa = 0
+        (direct observation) it is a decision component, where it is the
+        most sensitive test."""
         excluded = {"z_autocorr"} if self.cfg.systematic_allowance > 0.0 \
             else set()
-        evaluated = [p for k, p in comps.items()
-                     if k not in excluded
-                     and not (k == "z_autocorr" and n_pairs < 8)]
-        p_min = min(evaluated) if evaluated else 1.0
-        p_comb = float(1.0 - (1.0 - p_min) ** max(len(evaluated), 1))
-        return comps, p_comb, bias, score, rho
+        if n_pairs < 8:
+            excluded = excluded | {"z_autocorr"}
+        return {k: v for k, v in comps.items() if k not in excluded}
+
+    def combine(self, comps: Dict[str, float], n_pairs: int) -> float:
+        """Sidak-combined min-p over the DECISION components."""
+        used = self.decision_components(comps, n_pairs)
+        if not used:
+            return 1.0
+        p_min = min(used.values())
+        return float(1.0 - (1.0 - p_min) ** len(used))
 
     # ------------------------------------------------------------------ #
     def assess(self, ensemble: ModelEnsemble, round_no: int
@@ -321,21 +338,50 @@ class AdequacyGovernor:
             round_detected=self.round_first_inadequate)
 
     # ------------------------------------------------------------------ #
+    def min_replicates_for(self, alpha: float) -> int:
+        """B must satisfy  1/(B+1) <= alpha  or the bootstrap p-value can
+        never reach the threshold: the smallest attainable value is
+        1/(B+1).  Returns the minimum admissible B."""
+        return int(np.ceil(1.0 / max(alpha, 1e-12))) - 1
+
     def bootstrap_pvalue(self, ensemble: ModelEnsemble,
-                         rng: np.random.Generator, B: int = 64) -> float:
-        """Parametric-bootstrap empirical p-value of the composite (min-p)
-        statistic for the BEST model, WITH refit per replicate:
+                         rng: np.random.Generator, B: Optional[int] = None,
+                         alpha: Optional[float] = None) -> float:
+        """Parametric-bootstrap empirical p-value of the DECISION statistic
+        (same components as assess(), via decision_components) for the BEST
+        model, WITH refit per replicate:
 
             p_boot = (1 + #{ minp*_b <= minp_obs }) / (B + 1)
 
-        This is the rigorous alternative to the analytic approximations in
-        assess(); it is expensive (B refits) and intended for validation
-        studies and post-hoc confirmation, not for every 10-second decision."""
+        B defaults to the smallest value that can actually resolve the
+        per-round threshold (>= ceil(1/alpha_round) - 1); passing a smaller
+        B raises, because a bootstrap that cannot reach the threshold can
+        never reject.  Expensive (B refits): for validation studies and
+        post-hoc confirmation, not for every decision."""
+        alpha_round = (alpha if alpha is not None
+                       else self.cfg.alpha_campaign
+                       / max(self.cfg.n_rounds_planned, 1))
+        b_min = self.min_replicates_for(alpha_round)
+        if B is None:
+            B = b_min
+        elif B < b_min:
+            raise ValueError(
+                f"B={B} cannot resolve alpha_round={alpha_round:.4g}: the "
+                f"smallest attainable p-value is 1/(B+1)={1.0/(B+1):.4g}. "
+                f"Use B >= {b_min}.")
         best = ensemble.best
         inf = best.inference
         theta0 = best.posterior.theta_map.copy()
-        comps_obs, _, _, _, _ = self._model_components(best)
-        minp_obs = min(comps_obs.values()) if comps_obs else 1.0
+
+        def _decision_minp() -> float:
+            comps, _, _, _, _ = self._model_components(best)
+            _rho, _p, n_pairs = self._autocorr(
+                best, self._whitened_by_measurement(
+                    best, best.posterior.theta_map))
+            used = self.decision_components(comps, n_pairs)
+            return min(used.values()) if used else 1.0
+
+        minp_obs = _decision_minp()
         y_backup = [m.y.copy() for m in inf.measurements]
         count = 0
         try:
@@ -344,9 +390,7 @@ class AdequacyGovernor:
                     clean = inf.predict(theta0, m)
                     m.y = clean + L @ rng.standard_normal(m.size)
                 best.posterior.fit_map()
-                comps_b, _, _, _, _ = self._model_components(best)
-                minp_b = min(comps_b.values()) if comps_b else 1.0
-                if minp_b <= minp_obs:
+                if _decision_minp() <= minp_obs:
                     count += 1
         finally:
             for m, y in zip(inf.measurements, y_backup):

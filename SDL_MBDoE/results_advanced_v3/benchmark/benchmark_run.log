@@ -1,0 +1,1642 @@
+=== advanced benchmark v2 | mode=demo | 6 seeds | budget 6 ===
+saved: results_advanced_v2/benchmark/equilibrium_observability.csv
+
+Equilibrium observability over the admissible domain (geometry 20 cm x 7 mm ID, V_liq=7.70 mL):
+  max phi1=1  max phi2=1  |dC/dlnK1|=5.3 mM (1.06 sigma)  |dC/dlnK2|=38.0 mM (7.61 sigma)
+saved: results_advanced_v2/benchmark/figure_equilibrium_observability.png
+  domain check S4b_identifiable: ok=True  k1_ref:in/margin=2.53, Ea1_J:in/margin=20.00, k2_ref:in/margin=2.83, Ea2_J:in/margin=28.00, K1_ref:in/margin=1.93, K2_ref:in/margin=1.51
+
+=== S1_ideal: correct model, ideal direct observation, no transport
+  [A] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.557e-03  Ea1= 61.2  maxCI=    inf%  logdetF=-inf
+  [A] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.028e-03  Ea1= 43.2  maxCI=    inf%  logdetF=-inf
+  [A] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.008e-03  Ea1= 40.8  maxCI=    inf%  logdetF=-inf
+  [A] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.008e-03  Ea1= 40.8  maxCI=    inf%  logdetF= 1.8
+  [A] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.010e-03  Ea1= 40.5  maxCI=  904.3%  logdetF= 12.2
+  [A] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.017e-03  Ea1= 39.7  maxCI=    inf%  logdetF= 9.1
+    S1_ideal/A/seed1: 2.0 s
+  [A] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.163e-03  Ea1= 59.2  maxCI=    inf%  logdetF=-inf
+  [A] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.053e-03  Ea1= 54.9  maxCI=    inf%  logdetF=-inf
+  [A] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.583e-04  Ea1= 42.0  maxCI=    inf%  logdetF=-inf
+  [A] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.646e-04  Ea1= 41.3  maxCI=    inf%  logdetF= 2.3
+  [A] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.642e-04  Ea1= 41.2  maxCI= 1107.1%  logdetF= 12.3
+  [A] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.713e-04  Ea1= 40.5  maxCI= 1304.6%  logdetF= 16.0
+    S1_ideal/A/seed2: 1.0 s
+  [A] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.085e-03  Ea1= 59.7  maxCI=    inf%  logdetF=-inf
+  [A] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.841e-04  Ea1= 56.4  maxCI=    inf%  logdetF=-inf
+  [A] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.365e-04  Ea1= 48.0  maxCI=    inf%  logdetF=-inf
+  [A] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.979e-04  Ea1= 40.7  maxCI=    inf%  logdetF=-1.6
+  [A] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.893e-04  Ea1= 41.2  maxCI=    inf%  logdetF= 13.3
+  [A] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.989e-04  Ea1= 40.1  maxCI=76504.8%  logdetF= 14.6
+    S1_ideal/A/seed3: 1.7 s
+  [A] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.574e-03  Ea1= 56.8  maxCI=    inf%  logdetF=-inf
+  [A] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.032e-03  Ea1= 38.9  maxCI=    inf%  logdetF=-inf
+  [A] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.047e-03  Ea1= 40.8  maxCI=    inf%  logdetF=-inf
+  [A] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.055e-03  Ea1= 40.1  maxCI=    inf%  logdetF=-2.5
+  [A] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.053e-03  Ea1= 39.6  maxCI=    inf%  logdetF=-2.0
+  [A] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.054e-03  Ea1= 39.6  maxCI=    inf%  logdetF= 8.8
+    S1_ideal/A/seed4: 1.3 s
+  [A] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.394e-03  Ea1= 57.2  maxCI=    inf%  logdetF=-inf
+  [A] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.546e-04  Ea1= 41.2  maxCI=    inf%  logdetF=-inf
+  [A] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.600e-04  Ea1= 42.0  maxCI=    inf%  logdetF=-inf
+  [A] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.656e-04  Ea1= 41.7  maxCI=    inf%  logdetF=-0.7
+  [A] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.672e-04  Ea1= 41.6  maxCI=    inf%  logdetF= 12.8
+  [A] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.785e-04  Ea1= 40.5  maxCI= 8420.3%  logdetF= 15.3
+    S1_ideal/A/seed5: 1.3 s
+  [A] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.782e-03  Ea1= 60.3  maxCI=    inf%  logdetF=-inf
+  [A] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.108e-03  Ea1= 39.7  maxCI=    inf%  logdetF=-inf
+  [A] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.073e-03  Ea1= 36.3  maxCI=    inf%  logdetF=-26.3
+  [A] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.042e-03  Ea1= 39.6  maxCI=    inf%  logdetF=-8.1
+  [A] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.044e-03  Ea1= 39.5  maxCI=    inf%  logdetF= 4.4
+  [A] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.041e-03  Ea1= 39.6  maxCI=    inf%  logdetF= 9.2
+    S1_ideal/A/seed6: 1.5 s
+  [B] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.480e-03  Ea1= 57.1  maxCI=    inf%  logdetF=-inf
+  [B] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.852e-04  Ea1= 39.6  maxCI=    inf%  logdetF=-inf
+  [B] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.914e-04  Ea1= 40.5  maxCI=    inf%  logdetF=-inf
+  [B] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.949e-04  Ea1= 40.0  maxCI=    inf%  logdetF= 6.1
+  [B] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.921e-04  Ea1= 40.2  maxCI=  256.8%  logdetF= 22.8
+  [B] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.890e-04  Ea1= 40.2  maxCI= 1184.5%  logdetF= 26.4
+    S1_ideal/B/seed1: 0.9 s
+  [B] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.527e-03  Ea1= 59.7  maxCI=    inf%  logdetF=-inf
+  [B] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.000e-03  Ea1= 42.2  maxCI=    inf%  logdetF=-inf
+  [B] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.877e-04  Ea1= 40.1  maxCI=    inf%  logdetF=-inf
+  [B] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.853e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 5.7
+  [B] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.910e-04  Ea1= 40.1  maxCI=146316353.2%  logdetF= 16.2
+  [B] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.969e-04  Ea1= 40.0  maxCI= 1386.4%  logdetF= 26.2
+    S1_ideal/B/seed2: 0.8 s
+  [B] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.778e-03  Ea1= 62.6  maxCI=    inf%  logdetF=-inf
+  [B] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.530e-04  Ea1= 35.5  maxCI=    inf%  logdetF=-34.0
+  [B] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.954e-04  Ea1= 41.4  maxCI=    inf%  logdetF=-inf
+  [B] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.011e-03  Ea1= 39.8  maxCI=    inf%  logdetF= 15.8
+  [B] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.002e-03  Ea1= 40.1  maxCI= 3579.9%  logdetF= 21.0
+  [B] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.003e-03  Ea1= 40.1  maxCI=  241.9%  logdetF= 27.9
+    S1_ideal/B/seed3: 0.9 s
+  [B] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.183e-03  Ea1= 48.7  maxCI=    inf%  logdetF=-inf
+  [B] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.025e-03  Ea1= 42.6  maxCI=    inf%  logdetF=-inf
+  [B] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.007e-03  Ea1= 40.3  maxCI=    inf%  logdetF=-11.9
+  [B] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.009e-03  Ea1= 40.0  maxCI=  840.1%  logdetF= 15.6
+  [B] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.009e-03  Ea1= 39.8  maxCI=    inf%  logdetF= 15.2
+  [B] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.008e-03  Ea1= 39.9  maxCI=81194.7%  logdetF= 24.5
+    S1_ideal/B/seed4: 1.0 s
+  [B] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.630e-03  Ea1= 64.3  maxCI=    inf%  logdetF=-inf
+  [B] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.503e-04  Ea1= 40.9  maxCI=    inf%  logdetF=-inf
+  [B] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.561e-04  Ea1= 41.9  maxCI=    inf%  logdetF=-inf
+  [B] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.658e-04  Ea1= 40.9  maxCI=  946.1%  logdetF= 16.0
+  [B] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.670e-04  Ea1= 40.7  maxCI=182444.5%  logdetF= 15.6
+  [B] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.808e-04  Ea1= 40.5  maxCI=  163.3%  logdetF= 28.3
+    S1_ideal/B/seed5: 1.3 s
+  [B] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.530e-03  Ea1= 58.7  maxCI=    inf%  logdetF=-inf
+  [B] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.036e-03  Ea1= 41.9  maxCI=    inf%  logdetF=-inf
+  [B] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.013e-03  Ea1= 39.1  maxCI=    inf%  logdetF=-inf
+  [B] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.005e-03  Ea1= 39.8  maxCI=10696.4%  logdetF= 12.5
+  [B] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.995e-04  Ea1= 40.0  maxCI= 2382.9%  logdetF= 20.6
+  [B] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.949e-04  Ea1= 40.1  maxCI=  788.7%  logdetF= 26.9
+    S1_ideal/B/seed6: 0.9 s
+  [C] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.557e-03  Ea1= 61.2  maxCI=    inf%  logdetF=-inf
+  [C] round 2/6  T=140.0C Q=8.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.691e-04  Ea1= 40.7  maxCI=    inf%  logdetF=-inf
+  [C] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.691e-04  Ea1= 40.7  maxCI=    inf%  logdetF=-9.7
+  [C] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.610e-04  Ea1= 40.7  maxCI=4864251.1%  logdetF= 6.1
+  [C] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.730e-04  Ea1= 40.6  maxCI=1505646.5%  logdetF= 13.6
+  [C] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.733e-04  Ea1= 40.5  maxCI=6488273.7%  logdetF= 17.8
+    S1_ideal/C/seed1: 2.4 s
+  [C] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.163e-03  Ea1= 59.2  maxCI=    inf%  logdetF=-inf
+  [C] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=0.500M k1_ref=7.991e-04  Ea1= 42.9  maxCI=    inf%  logdetF=-inf
+  [C] round 3/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=7.992e-04  Ea1= 42.9  maxCI=    inf%  logdetF=-inf
+  [C] round 4/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.233e-04  Ea1= 41.3  maxCI=    inf%  logdetF= 11.2
+  [C] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.426e-04  Ea1= 40.6  maxCI=    inf%  logdetF= 14.1
+  [C] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.825e-04  Ea1= 40.2  maxCI=10062.3%  logdetF= 20.3
+    S1_ideal/C/seed2: 2.3 s
+  [C] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.085e-03  Ea1= 59.7  maxCI=    inf%  logdetF=-inf
+  [C] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=0.500M k1_ref=7.458e-04  Ea1= 43.4  maxCI=    inf%  logdetF=-inf
+  [C] round 3/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=7.493e-04  Ea1= 43.3  maxCI=    inf%  logdetF= 5.3
+  [C] round 4/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.588e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 11.4
+  [C] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.587e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 14.3
+  [C] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.853e-04  Ea1= 40.1  maxCI=    inf%  logdetF= 16.6
+    S1_ideal/C/seed3: 2.2 s
+  [C] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.574e-03  Ea1= 56.8  maxCI=    inf%  logdetF=-inf
+  [C] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.073e-03  Ea1= 40.1  maxCI=    inf%  logdetF=-inf
+  [C] round 3/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=1.066e-03  Ea1= 39.9  maxCI= 3985.4%  logdetF= 14.3
+  [C] round 4/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.040e-03  Ea1= 40.1  maxCI= 5029.6%  logdetF= 15.1
+  [C] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.034e-03  Ea1= 40.1  maxCI=    inf%  logdetF= 15.7
+  [C] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.036e-03  Ea1= 39.9  maxCI=    inf%  logdetF= 17.1
+    S1_ideal/C/seed4: 2.4 s
+  [C] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.394e-03  Ea1= 57.2  maxCI=    inf%  logdetF=-inf
+  [C] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.944e-04  Ea1= 42.5  maxCI=    inf%  logdetF=-inf
+  [C] round 3/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=9.516e-04  Ea1= 40.6  maxCI=23834.4%  logdetF= 12.2
+  [C] round 4/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.010e-03  Ea1= 39.9  maxCI=364240699.9%  logdetF= 12.6
+  [C] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.005e-03  Ea1= 40.0  maxCI=  221.2%  logdetF= 21.7
+  [C] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.003e-03  Ea1= 40.1  maxCI=  227.6%  logdetF= 23.2
+    S1_ideal/C/seed5: 2.5 s
+  [C] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.782e-03  Ea1= 60.3  maxCI=    inf%  logdetF=-inf
+  [C] round 2/6  T=140.0C Q=8.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.104e-03  Ea1= 39.5  maxCI=    inf%  logdetF=-inf
+  [C] round 3/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.104e-03  Ea1= 39.5  maxCI=    inf%  logdetF=-2.6
+  [C] round 4/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.082e-03  Ea1= 39.7  maxCI=  376.9%  logdetF= 14.7
+  [C] round 5/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=1.094e-03  Ea1= 39.4  maxCI=  400.9%  logdetF= 19.5
+  [C] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.018e-03  Ea1= 40.3  maxCI= 1471.6%  logdetF= 20.7
+    S1_ideal/C/seed6: 2.5 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.480e-03  Ea1= 57.1  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.963e-04  Ea1= 40.0  maxCI=1985592130871541944145413387845632.0%  logdetF= 5.9
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.786e-04  Ea1= 40.2  maxCI= 1792.7%  logdetF= 24.9
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.940e-04  Ea1= 40.0  maxCI=  944.8%  logdetF= 28.8
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.943e-04  Ea1= 40.0  maxCI=  367.5%  logdetF= 31.7
+  [D] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.924e-04  Ea1= 40.0  maxCI= 1015.1%  logdetF= 31.7
+    S1_ideal/D/seed1: 2.4 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.527e-03  Ea1= 59.7  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=140.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.764e-04  Ea1= 40.3  maxCI=70954256150590890540242019103646129788673726895709326946067663398086195714365750286755814886073662617914679945810935808.0%  logdetF=-inf
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.697e-04  Ea1= 40.4  maxCI= 7539.8%  logdetF= 21.2
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.004e-03  Ea1= 39.9  maxCI= 1530.7%  logdetF= 26.8
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.006e-03  Ea1= 39.8  maxCI=  568.4%  logdetF= 30.1
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=1.007e-03  Ea1= 39.8  maxCI=  489.9%  logdetF= 31.9
+    S1_ideal/D/seed2: 2.2 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.778e-03  Ea1= 62.6  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=140.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.044e-03  Ea1= 39.5  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.027e-03  Ea1= 39.5  maxCI=    inf%  logdetF= 18.8
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.952e-04  Ea1= 39.9  maxCI=    inf%  logdetF= 23.7
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.953e-04  Ea1= 39.9  maxCI=    inf%  logdetF= 26.7
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=9.935e-04  Ea1= 40.0  maxCI=    inf%  logdetF= 28.5
+    S1_ideal/D/seed3: 2.2 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.183e-03  Ea1= 48.7  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.768e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 8.0
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.005e-03  Ea1= 40.1  maxCI= 1141.0%  logdetF= 25.3
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.961e-04  Ea1= 40.2  maxCI= 1054.3%  logdetF= 28.8
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.001e-03  Ea1= 40.1  maxCI=  185.8%  logdetF= 32.5
+  [D] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.001e-03  Ea1= 40.1  maxCI=  164.5%  logdetF= 33.6
+    S1_ideal/D/seed4: 2.3 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.630e-03  Ea1= 64.3  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=140.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.436e-04  Ea1= 40.6  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.729e-04  Ea1= 40.2  maxCI= 1504.4%  logdetF= 22.2
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.007e-03  Ea1= 39.7  maxCI=  500.8%  logdetF= 28.0
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.999e-04  Ea1= 39.9  maxCI=    inf%  logdetF= 26.8
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.001e-03  Ea1= 39.8  maxCI=475705.4%  logdetF= 28.9
+    S1_ideal/D/seed5: 2.5 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.530e-03  Ea1= 58.7  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.971e-04  Ea1= 40.1  maxCI=16525926.8%  logdetF= 11.0
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.028e-03  Ea1= 39.8  maxCI= 1019.6%  logdetF= 25.3
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.913e-04  Ea1= 40.2  maxCI=11632.3%  logdetF= 27.3
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.962e-04  Ea1= 40.1  maxCI=  327.0%  logdetF= 31.8
+  [D] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.947e-04  Ea1= 40.2  maxCI=  240.9%  logdetF= 33.1
+    S1_ideal/D/seed6: 2.3 s
+  [E] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M z/L=[0.241 0.265 0.608 0.632 0.657 0.706 0.73  0.951 0.975 1.   ] maxCI=    inf%
+  [E] round 2/6  T=140.0C Q=2.0mL/min EGDA=1.000M cat=0.500M z/L=[0.192 0.216 0.241 0.289 0.534 0.583 0.926 0.951 0.975 1.   ] maxCI=    inf%
+  [E] round 3/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.094 0.167 0.192 0.216 0.241 0.265 0.363 0.951 0.975 1.   ] maxCI=  394.0%
+  [E] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.78  0.804 0.828 0.853 0.878 0.902 0.926 0.951 0.975 1.   ] maxCI=  416.5%
+  [E] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.167 0.192 0.828 0.853 0.878 0.902 0.926 0.951 0.975 1.   ] maxCI=  203.2%
+  [E] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M z/L=[0.682 0.706 0.73  0.755 0.78  0.804 0.828 0.853 0.878 0.902] maxCI=  186.5%
+    S1_ideal/E/seed1: 2.6 s
+  [E] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M z/L=[0.241 0.265 0.608 0.632 0.657 0.706 0.73  0.951 0.975 1.   ] maxCI=    inf%
+  [E] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M z/L=[0.167 0.192 0.216 0.241 0.265 0.461 0.926 0.951 0.975 1.   ] maxCI=    inf%
+  [E] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.289 0.314 0.387 0.486 0.51  0.902 0.926 0.951 0.975 1.   ] maxCI=13387.4%
+  [E] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.78  0.804 0.828 0.853 0.878 0.902 0.926 0.951 0.975 1.   ] maxCI=  926.6%
+  [E] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.167 0.192 0.216 0.853 0.878 0.902 0.926 0.951 0.975 1.   ] maxCI=  612.2%
+  [E] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M z/L=[0.142 0.167 0.192 0.216 0.241 0.265 0.289 0.951 0.975 1.   ] maxCI=  372.7%
+    S1_ideal/E/seed2: 2.4 s
+  [E] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M z/L=[0.241 0.265 0.608 0.632 0.657 0.706 0.73  0.951 0.975 1.   ] maxCI=    inf%
+  [E] round 2/6  T=140.0C Q=8.0mL/min EGDA=1.000M cat=1.000M z/L=[0.167 0.192 0.216 0.412 0.436 0.608 0.926 0.951 0.975 1.   ] maxCI=    inf%
+  [E] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.289 0.314 0.338 0.363 0.632 0.902 0.926 0.951 0.975 1.   ] maxCI=    inf%
+  [E] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.78  0.804 0.828 0.853 0.878 0.902 0.926 0.951 0.975 1.   ] maxCI=    inf%
+  [E] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M z/L=[0.682 0.706 0.73  0.755 0.78  0.804 0.828 0.853 0.878 0.902] maxCI=    inf%
+  [E] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.78  0.804 0.828 0.853 0.878 0.902 0.926 0.951 0.975 1.   ] maxCI=    inf%
+    S1_ideal/E/seed3: 2.2 s
+  [E] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M z/L=[0.241 0.265 0.608 0.632 0.657 0.706 0.73  0.951 0.975 1.   ] maxCI=    inf%
+  [E] round 2/6  T=140.0C Q=8.0mL/min EGDA=1.000M cat=0.500M z/L=[0.167 0.192 0.216 0.241 0.265 0.902 0.926 0.951 0.975 1.   ] maxCI=    inf%
+  [E] round 3/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M z/L=[0.142 0.167 0.192 0.216 0.878 0.902 0.926 0.951 0.975 1.   ] maxCI=11368.9%
+  [E] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.78  0.804 0.828 0.853 0.878 0.902 0.926 0.951 0.975 1.   ] maxCI= 7283.9%
+  [E] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M z/L=[0.73  0.755 0.78  0.804 0.828 0.853 0.878 0.902 0.926 0.951] maxCI= 7163.9%
+  [E] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.78  0.804 0.828 0.853 0.878 0.902 0.926 0.951 0.975 1.   ] maxCI=  702.3%
+    S1_ideal/E/seed4: 2.5 s
+  [E] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M z/L=[0.241 0.265 0.608 0.632 0.657 0.706 0.73  0.951 0.975 1.   ] maxCI=    inf%
+  [E] round 2/6  T=140.0C Q=8.0mL/min EGDA=1.000M cat=1.000M z/L=[0.167 0.192 0.216 0.241 0.436 0.632 0.682 0.951 0.975 1.   ] maxCI=    inf%
+  [E] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.387 0.412 0.436 0.461 0.486 0.878 0.926 0.951 0.975 1.   ] maxCI= 1930.2%
+  [E] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.78  0.804 0.828 0.853 0.878 0.902 0.926 0.951 0.975 1.   ] maxCI=  828.3%
+  [E] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M z/L=[0.657 0.682 0.706 0.73  0.755 0.78  0.804 0.828 0.853 0.878] maxCI=  386.3%
+  [E] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.78  0.804 0.828 0.853 0.878 0.902 0.926 0.951 0.975 1.   ] maxCI=  124.6%
+    S1_ideal/E/seed5: 2.4 s
+  [E] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M z/L=[0.241 0.265 0.608 0.632 0.657 0.706 0.73  0.951 0.975 1.   ] maxCI=    inf%
+  [E] round 2/6  T=140.0C Q=2.0mL/min EGDA=1.000M cat=0.500M z/L=[0.142 0.167 0.192 0.241 0.486 0.51  0.534 0.951 0.975 1.   ] maxCI=    inf%
+  [E] round 3/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.094 0.167 0.192 0.216 0.241 0.265 0.363 0.951 0.975 1.   ] maxCI=    inf%
+  [E] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.78  0.804 0.828 0.853 0.878 0.902 0.926 0.951 0.975 1.   ] maxCI=    inf%
+  [E] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M z/L=[0.167 0.192 0.216 0.853 0.878 0.902 0.926 0.951 0.975 1.   ] maxCI=  374.6%
+  [E] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M z/L=[0.142 0.167 0.192 0.216 0.241 0.265 0.289 0.951 0.975 1.   ] maxCI=  336.4%
+    S1_ideal/E/seed6: 2.8 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S1_ideal/F/seed1: 3.8 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S1_ideal/F/seed2: 3.4 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S1_ideal/F/seed3: 4.0 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S1_ideal/F/seed4: 3.6 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S1_ideal/F/seed5: 3.7 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S1_ideal/F/seed6: 3.6 s
+    S1_ideal done in 80 s
+
+=== S2_nmr: synthetic 80 MHz spectra (truth-model mismatch active) + deconvolution covariance
+  [B] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.314e-03  Ea1= 79.9  maxCI=    inf%  logdetF=-inf
+  [B] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=7.410e-04  Ea1= 55.0  maxCI=    inf%  logdetF=-inf
+  [B] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=7.169e-04  Ea1= 48.9  maxCI=    inf%  logdetF=-inf
+  [B] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=7.549e-04  Ea1= 44.5  maxCI=    inf%  logdetF= 7.4
+  [B] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=7.781e-04  Ea1= 43.4  maxCI=    inf%  logdetF= 14.2
+  [B] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.032e-04  Ea1= 42.7  maxCI=    inf%  logdetF= 21.4
+    S2_nmr/B/seed1: 2.8 s
+  [B] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.412e-03  Ea1= 64.6  maxCI=    inf%  logdetF=-inf
+  [B] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=7.523e-04  Ea1= 37.4  maxCI=    inf%  logdetF=-inf
+  [B] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.003e-04  Ea1= 48.3  maxCI=    inf%  logdetF=-inf
+  [B] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.510e-04  Ea1= 42.8  maxCI=    inf%  logdetF= 6.7
+  [B] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.589e-04  Ea1= 42.5  maxCI=36568677967049504.0%  logdetF= 16.5
+  [B] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.741e-04  Ea1= 42.1  maxCI=  189.0%  logdetF= 27.7
+    S2_nmr/B/seed2: 2.8 s
+  [B] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.333e-03  Ea1= 57.6  maxCI=    inf%  logdetF=-inf
+  [B] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.001e-04  Ea1= 35.5  maxCI=    inf%  logdetF=-inf
+  [B] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.442e-04  Ea1= 43.8  maxCI=    inf%  logdetF=-inf
+  [B] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.608e-04  Ea1= 42.0  maxCI=    inf%  logdetF= 7.6
+  [B] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.630e-04  Ea1= 41.9  maxCI=    inf%  logdetF= 15.7
+  [B] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.726e-04  Ea1= 41.6  maxCI=    inf%  logdetF= 21.7
+    S2_nmr/B/seed3: 3.0 s
+  [B] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.129e-03  Ea1= 69.2  maxCI=    inf%  logdetF=-inf
+  [B] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=6.451e-04  Ea1= 44.9  maxCI=    inf%  logdetF=-inf
+  [B] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=6.593e-04  Ea1= 48.6  maxCI=    inf%  logdetF=-inf
+  [B] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=6.800e-04  Ea1= 46.1  maxCI=    inf%  logdetF= 5.2
+  [B] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=7.090e-04  Ea1= 44.7  maxCI=    inf%  logdetF= 16.1
+  [B] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=7.462e-04  Ea1= 43.5  maxCI=    inf%  logdetF= 21.5
+    S2_nmr/B/seed4: 3.1 s
+  [B] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=2.227e-03  Ea1= 74.4  maxCI=    inf%  logdetF=-inf
+  [B] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.062e-03  Ea1= 42.3  maxCI=    inf%  logdetF=-inf
+  [B] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.026e-03  Ea1= 38.0  maxCI=    inf%  logdetF=-25.2
+  [B] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.003e-03  Ea1= 40.5  maxCI=    inf%  logdetF= 7.8
+  [B] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.009e-03  Ea1= 40.2  maxCI=  391.7%  logdetF= 22.1
+  [B] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.024e-03  Ea1= 39.6  maxCI=    inf%  logdetF= 21.6
+    S2_nmr/B/seed5: 3.2 s
+  [B] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.025e-03  Ea1= 71.2  maxCI=    inf%  logdetF=-inf
+  [B] round 2/6  T=60.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=7.821e-04  Ea1= 59.9  maxCI=    inf%  logdetF=-inf
+  [B] round 3/6  T=80.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=7.279e-04  Ea1= 46.9  maxCI=    inf%  logdetF=-inf
+  [B] round 4/6  T=120.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=7.517e-04  Ea1= 44.1  maxCI=    inf%  logdetF= 6.0
+  [B] round 5/6  T=140.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=7.748e-04  Ea1= 43.1  maxCI=55573.9%  logdetF= 18.6
+  [B] round 6/6  T=160.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.005e-04  Ea1= 42.3  maxCI=    inf%  logdetF= 21.4
+    S2_nmr/B/seed6: 3.1 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.314e-03  Ea1= 79.9  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=0.500M k1_ref=5.888e-04  Ea1= 45.1  maxCI=    inf%  logdetF=-8.7
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.225e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 18.2
+  [D] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.159e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 22.7
+  [D] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.442e-04  Ea1= 40.1  maxCI=    inf%  logdetF= 26.1
+  [D] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.410e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 27.8
+    S2_nmr/D/seed1: 4.4 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.412e-03  Ea1= 64.6  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=8.587e-04  Ea1= 43.1  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.246e-04  Ea1= 41.4  maxCI=  726.0%  logdetF= 25.8
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.685e-04  Ea1= 40.7  maxCI= 3398.9%  logdetF= 28.0
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.702e-04  Ea1= 40.6  maxCI= 1340.1%  logdetF= 30.2
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.778e-04  Ea1= 40.3  maxCI=1427763.6%  logdetF= 29.1
+    S2_nmr/D/seed2: 4.4 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.333e-03  Ea1= 57.6  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.152e-04  Ea1= 41.3  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.602e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 21.5
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.484e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 24.7
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.490e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 27.0
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.493e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 28.6
+    S2_nmr/D/seed3: 4.2 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.129e-03  Ea1= 69.2  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=6.403e-04  Ea1= 44.6  maxCI=    inf%  logdetF= 2.2
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.011e-04  Ea1= 40.8  maxCI=    inf%  logdetF= 20.1
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.400e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 24.2
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.367e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 27.0
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=9.375e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 28.5
+    S2_nmr/D/seed4: 4.2 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=2.227e-03  Ea1= 74.4  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.012e-03  Ea1= 40.2  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.679e-04  Ea1= 40.5  maxCI=  114.9%  logdetF= 23.2
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.026e-03  Ea1= 39.8  maxCI=   59.8%  logdetF= 30.8
+  [D] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=1.023e-03  Ea1= 39.9  maxCI=   55.4%  logdetF= 33.1
+  [D] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.023e-03  Ea1= 39.8  maxCI=   49.0%  logdetF= 34.5
+    S2_nmr/D/seed5: 4.6 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.025e-03  Ea1= 71.2  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=5.714e-04  Ea1= 45.8  maxCI=    inf%  logdetF= 1.6
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.477e-04  Ea1= 41.4  maxCI=    inf%  logdetF= 20.0
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.269e-04  Ea1= 40.2  maxCI=    inf%  logdetF= 24.1
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.247e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 26.9
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=9.244e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 28.3
+    S2_nmr/D/seed6: 4.3 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S2_nmr/F/seed1: 16.0 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S2_nmr/F/seed2: 15.8 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S2_nmr/F/seed3: 15.9 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S2_nmr/F/seed4: 15.4 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S2_nmr/F/seed5: 15.9 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S2_nmr/F/seed6: 15.3 s
+    S2_nmr done in 138 s
+
+=== S3_transport: NMR + transport: delay, RTD, in-line reaction, carryover
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.211e-03  Ea1= 74.3  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=6.847e-04  Ea1= 49.6  maxCI=    inf%  logdetF= 16.2
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=5.870e-04  Ea1= 51.2  maxCI=   63.6%  logdetF= 27.9
+  [D] round 4/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=7.338e-04  Ea1= 48.4  maxCI=   37.3%  logdetF= 32.3
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=7.478e-04  Ea1= 47.8  maxCI=   30.9%  logdetF= 34.3
+  [D] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.316e-04  Ea1= 46.4  maxCI=   23.1%  logdetF= 36.2
+    S3_transport/D/seed1: 4.5 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.493e-03  Ea1= 65.1  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.043e-04  Ea1= 43.3  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=7.557e-04  Ea1= 47.1  maxCI=    inf%  logdetF= 29.8
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.323e-04  Ea1= 44.1  maxCI=    inf%  logdetF= 33.1
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.329e-04  Ea1= 43.5  maxCI=   28.7%  logdetF= 34.9
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.485e-04  Ea1= 43.0  maxCI=   26.3%  logdetF= 36.4
+    S3_transport/D/seed2: 4.7 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.497e-03  Ea1= 60.8  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.555e-04  Ea1= 41.3  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.463e-04  Ea1= 41.5  maxCI=  306.6%  logdetF= 26.6
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.606e-04  Ea1= 41.3  maxCI=  413.1%  logdetF= 29.6
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.591e-04  Ea1= 41.4  maxCI=  139.8%  logdetF= 32.4
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.412e-04  Ea1= 42.2  maxCI=   46.9%  logdetF= 35.4
+    S3_transport/D/seed3: 4.4 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.561e-03  Ea1= 81.4  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=7.391e-04  Ea1= 49.0  maxCI=    inf%  logdetF= 3.4
+  [D] round 3/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.352e-04  Ea1= 42.2  maxCI=   71.1%  logdetF= 27.5
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.449e-04  Ea1= 42.0  maxCI=   70.0%  logdetF= 30.8
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.483e-04  Ea1= 41.8  maxCI=   58.5%  logdetF= 33.1
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.462e-04  Ea1= 42.0  maxCI=   42.4%  logdetF= 35.3
+    S3_transport/D/seed4: 5.2 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=6.819e-04  Ea1= 21.1  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.071e-03  Ea1= 40.7  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.080e-03  Ea1= 40.8  maxCI=   34.4%  logdetF= 29.4
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.038e-03  Ea1= 41.3  maxCI=   31.7%  logdetF= 33.1
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.032e-03  Ea1= 41.3  maxCI=   30.7%  logdetF= 35.0
+  [D] round 6/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.016e-03  Ea1= 41.4  maxCI=   33.6%  logdetF= 35.9
+    S3_transport/D/seed5: 4.5 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.453e-04  Ea1= 60.8  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=6.175e-04  Ea1= 47.2  maxCI=    inf%  logdetF= 19.0
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.095e-04  Ea1= 43.7  maxCI=  142.4%  logdetF= 27.5
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.233e-04  Ea1= 42.1  maxCI=   58.9%  logdetF= 32.5
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.188e-04  Ea1= 42.1  maxCI=   56.4%  logdetF= 34.2
+  [D] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.162e-04  Ea1= 42.2  maxCI=   50.6%  logdetF= 35.2
+    S3_transport/D/seed6: 4.5 s
+  [F-uncorr] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-uncorr] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=8  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 5/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+    S3_transport/F-uncorr/seed1: 15.4 s
+  [F-uncorr] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-uncorr] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 4/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+    S3_transport/F-uncorr/seed2: 16.0 s
+  [F-uncorr] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-uncorr] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-uncorr] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 6/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+    S3_transport/F-uncorr/seed3: 15.7 s
+  [F-uncorr] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-uncorr] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 4/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+    S3_transport/F-uncorr/seed4: 15.4 s
+  [F-uncorr] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-uncorr] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+    S3_transport/F-uncorr/seed5: 16.0 s
+  [F-uncorr] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-uncorr] round 2/6  T=140.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 3/6  T=40.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F-uncorr] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+    S3_transport/F-uncorr/seed6: 15.6 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3_transport/F/seed1: 27.8 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3_transport/F/seed2: 26.8 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3_transport/F/seed3: 27.3 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3_transport/F/seed4: 26.6 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F] round 3/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3_transport/F/seed5: 26.9 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3_transport/F/seed6: 26.6 s
+    S3_transport done in 284 s
+
+=== S3ab_delay: transport ablation: mean delay + in-line reaction only (plug RTD, no carryover)
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.062e-03  Ea1= 68.3  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=6.927e-04  Ea1= 49.7  maxCI=    inf%  logdetF= 16.4
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=5.980e-04  Ea1= 51.2  maxCI=   54.2%  logdetF= 28.2
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.601e-04  Ea1= 46.7  maxCI=   21.7%  logdetF= 33.8
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.614e-04  Ea1= 46.3  maxCI=   22.5%  logdetF= 35.2
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.061e-04  Ea1= 44.5  maxCI=   21.6%  logdetF= 36.6
+    S3ab_delay/D/seed1: 4.6 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.450e-03  Ea1= 63.5  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.144e-04  Ea1= 43.5  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=7.516e-04  Ea1= 47.5  maxCI=    inf%  logdetF= 29.9
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.380e-04  Ea1= 44.3  maxCI=    inf%  logdetF= 33.2
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.387e-04  Ea1= 43.7  maxCI=   26.9%  logdetF= 35.0
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.563e-04  Ea1= 43.1  maxCI=   24.7%  logdetF= 36.5
+    S3ab_delay/D/seed2: 4.6 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.605e-03  Ea1= 63.5  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=120.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=9.937e-04  Ea1= 42.7  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=8.828e-04  Ea1= 45.1  maxCI=    inf%  logdetF= 29.2
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.253e-04  Ea1= 44.4  maxCI=   26.3%  logdetF= 32.8
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.322e-04  Ea1= 43.7  maxCI=   36.2%  logdetF= 34.3
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.503e-04  Ea1= 43.1  maxCI=   35.3%  logdetF= 35.7
+    S3ab_delay/D/seed3: 4.6 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.637e-04  Ea1= 60.1  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=7.456e-04  Ea1= 49.0  maxCI=    inf%  logdetF= 17.1
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=5.937e-04  Ea1= 51.5  maxCI=   41.0%  logdetF= 28.6
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.507e-04  Ea1= 47.0  maxCI=   18.9%  logdetF= 34.1
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.494e-04  Ea1= 46.7  maxCI=   20.1%  logdetF= 35.4
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.987e-04  Ea1= 44.5  maxCI=   20.6%  logdetF= 36.7
+    S3ab_delay/D/seed4: 4.6 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.667e-03  Ea1= 59.5  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=1.071e-03  Ea1= 40.4  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=8.938e-04  Ea1= 44.4  maxCI=    inf%  logdetF= 29.8
+  [D] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.938e-04  Ea1= 44.0  maxCI=   23.9%  logdetF= 32.1
+  [D] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.692e-04  Ea1= 42.9  maxCI=   23.4%  logdetF= 35.1
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.766e-04  Ea1= 42.7  maxCI=   21.5%  logdetF= 36.6
+    S3ab_delay/D/seed5: 4.7 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.065e-03  Ea1= 70.4  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=6.630e-04  Ea1= 49.9  maxCI=    inf%  logdetF= 16.7
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=5.663e-04  Ea1= 51.6  maxCI=   46.3%  logdetF= 28.5
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.488e-04  Ea1= 46.6  maxCI=   18.7%  logdetF= 34.2
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.484e-04  Ea1= 46.2  maxCI=   19.1%  logdetF= 35.5
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.907e-04  Ea1= 44.3  maxCI=   19.0%  logdetF= 36.8
+    S3ab_delay/D/seed6: 4.7 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3ab_delay/F/seed1: 27.3 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3ab_delay/F/seed2: 26.6 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3ab_delay/F/seed3: 27.5 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3ab_delay/F/seed4: 27.0 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3ab_delay/F/seed5: 27.0 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3ab_delay/F/seed6: 27.3 s
+    S3ab_delay done in 190 s
+
+=== S3ab_rtd: transport ablation: delay + gamma RTD dispersion (no carryover)
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.108e-03  Ea1= 70.1  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=6.896e-04  Ea1= 49.6  maxCI=    inf%  logdetF= 16.3
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=6.080e-04  Ea1= 50.8  maxCI=   58.8%  logdetF= 28.0
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.635e-04  Ea1= 46.5  maxCI=   22.9%  logdetF= 33.7
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.650e-04  Ea1= 46.1  maxCI=   23.7%  logdetF= 35.1
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.080e-04  Ea1= 44.3  maxCI=   22.8%  logdetF= 36.5
+    S3ab_rtd/D/seed1: 4.6 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.478e-03  Ea1= 64.3  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.132e-04  Ea1= 43.5  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=7.625e-04  Ea1= 47.2  maxCI=    inf%  logdetF= 29.9
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.406e-04  Ea1= 44.2  maxCI=    inf%  logdetF= 33.2
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.411e-04  Ea1= 43.6  maxCI=   28.0%  logdetF= 35.0
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.579e-04  Ea1= 43.0  maxCI=   25.6%  logdetF= 36.4
+    S3ab_rtd/D/seed2: 4.6 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.587e-03  Ea1= 63.1  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=140.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.794e-04  Ea1= 42.1  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.552e-04  Ea1= 42.2  maxCI=  157.6%  logdetF= 24.6
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.531e-04  Ea1= 42.3  maxCI=  155.8%  logdetF= 29.6
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.637e-04  Ea1= 42.0  maxCI=   83.7%  logdetF= 32.6
+  [D] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.680e-04  Ea1= 41.8  maxCI=   65.4%  logdetF= 34.2
+    S3ab_rtd/D/seed3: 4.2 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.128e-03  Ea1= 67.0  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=7.421e-04  Ea1= 48.8  maxCI=    inf%  logdetF= 17.0
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=6.043e-04  Ea1= 51.1  maxCI=   43.7%  logdetF= 28.5
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.542e-04  Ea1= 46.8  maxCI=   19.8%  logdetF= 34.0
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.531e-04  Ea1= 46.4  maxCI=   21.1%  logdetF= 35.4
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.007e-04  Ea1= 44.3  maxCI=   21.7%  logdetF= 36.6
+    S3ab_rtd/D/seed4: 4.7 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=3.448e-03  Ea1= 91.1  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=140.0C Q=8.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.159e-03  Ea1= 43.8  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=7.591e-04  Ea1= 48.6  maxCI=  129.9%  logdetF= 23.4
+  [D] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=9.374e-04  Ea1= 45.0  maxCI=    inf%  logdetF= 30.9
+  [D] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.502e-04  Ea1= 44.8  maxCI=    inf%  logdetF= 34.6
+  [D] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.562e-04  Ea1= 44.4  maxCI=   12.9%  logdetF= 36.2
+    S3ab_rtd/D/seed5: 5.1 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.362e-03  Ea1= 81.1  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=120.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=6.562e-04  Ea1= 49.4  maxCI=    inf%  logdetF= 13.9
+  [D] round 3/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.059e-04  Ea1= 42.8  maxCI=   48.5%  logdetF= 28.3
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.432e-04  Ea1= 42.1  maxCI=   53.2%  logdetF= 31.9
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.471e-04  Ea1= 42.0  maxCI=   39.5%  logdetF= 34.1
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.462e-04  Ea1= 42.1  maxCI=   30.7%  logdetF= 35.9
+    S3ab_rtd/D/seed6: 4.7 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3ab_rtd/F/seed1: 27.5 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3ab_rtd/F/seed2: 27.3 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3ab_rtd/F/seed3: 28.0 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3ab_rtd/F/seed4: 27.1 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3ab_rtd/F/seed5: 27.0 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S3ab_rtd/F/seed6: 27.2 s
+    S3ab_rtd done in 192 s
+
+=== S4a_ambiguity: HARD model discrimination: pitzer vs dilute vs irreversible (may honestly end undecided)
+  [D] round 1/10  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.314e-03  Ea1= 79.9  maxCI=    inf%  logdetF=-inf
+  [D] round 2/10  T=160.0C Q=8.0mL/min EGDA=1.000M cat=0.500M k1_ref=5.888e-04  Ea1= 45.1  maxCI=    inf%  logdetF=-8.7
+  [D] round 3/10  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.225e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 18.2
+  [D] round 4/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.159e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 22.7
+  [D] round 5/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.442e-04  Ea1= 40.1  maxCI=    inf%  logdetF= 26.1
+  [D] round 6/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.410e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 27.8
+  [D] round 7/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.419e-04  Ea1= 40.2  maxCI=    inf%  logdetF= 29.2
+  [D] round 8/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.452e-04  Ea1= 40.2  maxCI=    inf%  logdetF= 30.4
+  [D] round 9/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.428e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 31.3
+  [D] round 10/10  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.535e-04  Ea1= 40.2  maxCI=    inf%  logdetF= 32.0
+    S4a_ambiguity/D/seed1: 8.1 s
+  [D] round 1/10  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.412e-03  Ea1= 64.6  maxCI=    inf%  logdetF=-inf
+  [D] round 2/10  T=120.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=8.587e-04  Ea1= 43.1  maxCI=    inf%  logdetF=-inf
+  [D] round 3/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.246e-04  Ea1= 41.4  maxCI=  726.0%  logdetF= 25.8
+  [D] round 4/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.685e-04  Ea1= 40.7  maxCI= 3398.9%  logdetF= 28.0
+  [D] round 5/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.702e-04  Ea1= 40.6  maxCI= 1340.1%  logdetF= 30.2
+  [D] round 6/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.778e-04  Ea1= 40.3  maxCI=1427763.6%  logdetF= 29.1
+  [D] round 7/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.744e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 29.9
+  [D] round 8/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.743e-04  Ea1= 40.4  maxCI= 2760.6%  logdetF= 33.0
+  [D] round 9/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.754e-04  Ea1= 40.3  maxCI=  844.3%  logdetF= 34.3
+  [D] round 10/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.755e-04  Ea1= 40.3  maxCI= 2049.4%  logdetF= 34.4
+    S4a_ambiguity/D/seed2: 7.9 s
+  [D] round 1/10  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.333e-03  Ea1= 57.6  maxCI=    inf%  logdetF=-inf
+  [D] round 2/10  T=120.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.152e-04  Ea1= 41.3  maxCI=    inf%  logdetF=-inf
+  [D] round 3/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.602e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 21.5
+  [D] round 4/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.484e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 24.7
+  [D] round 5/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.490e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 27.0
+  [D] round 6/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.493e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 28.6
+  [D] round 7/10  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.565e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 29.7
+  [D] round 8/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.553e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 30.8
+  [D] round 9/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=9.514e-04  Ea1= 40.6  maxCI=    inf%  logdetF= 31.6
+  [D] round 10/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.588e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 32.4
+    S4a_ambiguity/D/seed3: 7.3 s
+  [D] round 1/10  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.129e-03  Ea1= 69.2  maxCI=    inf%  logdetF=-inf
+  [D] round 2/10  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=6.403e-04  Ea1= 44.6  maxCI=    inf%  logdetF= 2.2
+  [D] round 3/10  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.011e-04  Ea1= 40.8  maxCI=    inf%  logdetF= 20.1
+  [D] round 4/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.400e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 24.2
+  [D] round 5/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.367e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 27.0
+  [D] round 6/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=9.375e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 28.5
+  [D] round 7/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.451e-04  Ea1= 40.2  maxCI=    inf%  logdetF= 29.7
+  [D] round 8/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.443e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 30.8
+  [D] round 9/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.435e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 31.6
+  [D] round 10/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.435e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 32.3
+    S4a_ambiguity/D/seed4: 7.4 s
+  [D] round 1/10  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=2.227e-03  Ea1= 74.4  maxCI=    inf%  logdetF=-inf
+  [D] round 2/10  T=160.0C Q=8.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.012e-03  Ea1= 40.2  maxCI=    inf%  logdetF=-inf
+  [D] round 3/10  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.679e-04  Ea1= 40.5  maxCI=  114.9%  logdetF= 23.2
+  [D] round 4/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.026e-03  Ea1= 39.8  maxCI=   59.8%  logdetF= 30.8
+  [D] round 5/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=1.023e-03  Ea1= 39.9  maxCI=   55.4%  logdetF= 33.1
+  [D] round 6/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.023e-03  Ea1= 39.8  maxCI=   49.0%  logdetF= 34.5
+  [D] round 7/10  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.015e-03  Ea1= 39.9  maxCI=   43.8%  logdetF= 35.9
+  [D] round 8/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.015e-03  Ea1= 39.9  maxCI=   44.2%  logdetF= 36.8
+  [D] round 9/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.015e-03  Ea1= 39.9  maxCI=   39.3%  logdetF= 37.6
+  [D] round 10/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.909e-04  Ea1= 40.2  maxCI=   43.6%  logdetF= 38.3
+    S4a_ambiguity/D/seed5: 7.7 s
+  [D] round 1/10  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.025e-03  Ea1= 71.2  maxCI=    inf%  logdetF=-inf
+  [D] round 2/10  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=5.714e-04  Ea1= 45.8  maxCI=    inf%  logdetF= 1.6
+  [D] round 3/10  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.477e-04  Ea1= 41.4  maxCI=    inf%  logdetF= 20.0
+  [D] round 4/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.269e-04  Ea1= 40.2  maxCI=    inf%  logdetF= 24.1
+  [D] round 5/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.247e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 26.9
+  [D] round 6/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=9.244e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 28.3
+  [D] round 7/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.325e-04  Ea1= 40.2  maxCI=    inf%  logdetF= 29.5
+  [D] round 8/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.320e-04  Ea1= 40.2  maxCI=    inf%  logdetF= 30.7
+  [D] round 9/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.326e-04  Ea1= 40.2  maxCI=    inf%  logdetF= 31.5
+  [D] round 10/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.346e-04  Ea1= 40.1  maxCI=    inf%  logdetF= 32.2
+    S4a_ambiguity/D/seed6: 7.4 s
+  [F] round 1/10  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.33 rev-dilute=0.33 irreversible=0.33
+  [F] round 2/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.52 rev-dilute=0.48 irreversible=0.00
+  [F] round 3/10  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.27 rev-dilute=0.73 irreversible=0.00
+  [F] round 4/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  MODEL_DISCRIMINATION rev-pitzer=0.27 rev-dilute=0.73 irreversible=0.00
+  [F] round 5/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  MODEL_DISCRIMINATION rev-pitzer=0.27 rev-dilute=0.73 irreversible=0.00
+  [F] round 6/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.42 rev-dilute=0.58 irreversible=0.00
+  [F] round 7/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.41 rev-dilute=0.59 irreversible=0.00
+  [F] round 8/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.34 rev-dilute=0.66 irreversible=0.00
+  [F] round 9/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.35 rev-dilute=0.65 irreversible=0.00
+  [F] round 10/10  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=0.05 rev-dilute=0.95 irreversible=0.00
+    S4a_ambiguity/F/seed1: 35.0 s
+  [F] round 1/10  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.33 rev-dilute=0.34 irreversible=0.33
+  [F] round 2/10  T=140.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.50 rev-dilute=0.50 irreversible=0.00
+  [F] round 3/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.01 rev-dilute=0.99 irreversible=0.00
+  [F] round 4/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.01 rev-dilute=0.99 irreversible=0.00
+  [F] round 5/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.02 rev-dilute=0.98 irreversible=0.00
+  [F] round 6/10  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.02 rev-dilute=0.98 irreversible=0.00
+  [F] round 7/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.01 rev-dilute=0.99 irreversible=0.00
+  [F] round 8/10  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.02 rev-dilute=0.98 irreversible=0.00
+  [F] round 9/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.03 rev-dilute=0.97 irreversible=0.00
+  [F] round 10/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.02 rev-dilute=0.98 irreversible=0.00
+    S4a_ambiguity/F/seed2: 35.1 s
+  [F] round 1/10  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.33 rev-dilute=0.34 irreversible=0.33
+  [F] round 2/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.49 rev-dilute=0.51 irreversible=0.00
+  [F] round 3/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.07 rev-dilute=0.93 irreversible=0.00
+  [F] round 4/10  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.07 rev-dilute=0.93 irreversible=0.00
+  [F] round 5/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=0.06 rev-dilute=0.94 irreversible=0.00
+  [F] round 6/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.06 rev-dilute=0.94 irreversible=0.00
+  [F] round 7/10  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.06 rev-dilute=0.94 irreversible=0.00
+  [F] round 8/10  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.06 rev-dilute=0.94 irreversible=0.00
+  [F] round 9/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.13 rev-dilute=0.87 irreversible=0.00
+  [F] round 10/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.13 rev-dilute=0.87 irreversible=0.00
+    S4a_ambiguity/F/seed3: 36.1 s
+  [F] round 1/10  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.33 rev-dilute=0.33 irreversible=0.33
+  [F] round 2/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.48 rev-dilute=0.48 irreversible=0.03
+  [F] round 3/10  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.16 rev-dilute=0.84 irreversible=0.00
+  [F] round 4/10  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.01 rev-dilute=0.99 irreversible=0.00
+  [F] round 5/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.01 rev-dilute=0.99 irreversible=0.00
+  [F] round 6/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.01 rev-dilute=0.99 irreversible=0.00
+  [F] round 7/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.03 rev-dilute=0.97 irreversible=0.00
+  [F] round 8/10  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.02 rev-dilute=0.98 irreversible=0.00
+  [F] round 9/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=0.04 rev-dilute=0.96 irreversible=0.00
+  [F] round 10/10  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.05 rev-dilute=0.95 irreversible=0.00
+    S4a_ambiguity/F/seed4: 32.0 s
+  [F] round 1/10  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  MODEL_DISCRIMINATION rev-pitzer=0.34 rev-dilute=0.33 irreversible=0.33
+  [F] round 2/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.52 rev-dilute=0.48 irreversible=0.00
+  [F] round 3/10  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  MODEL_DISCRIMINATION rev-pitzer=0.37 rev-dilute=0.63 irreversible=0.00
+  [F] round 4/10  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.23 rev-dilute=0.77 irreversible=0.00
+  [F] round 5/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.08 rev-dilute=0.92 irreversible=0.00
+  [F] round 6/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.62 rev-dilute=0.38 irreversible=0.00
+  [F] round 7/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.45 rev-dilute=0.55 irreversible=0.00
+  [F] round 8/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.49 rev-dilute=0.51 irreversible=0.00
+  [F] round 9/10  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.50 rev-dilute=0.50 irreversible=0.00
+  [F] round 10/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.54 rev-dilute=0.46 irreversible=0.00
+    S4a_ambiguity/F/seed5: 36.5 s
+  [F] round 1/10  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.34 rev-dilute=0.33 irreversible=0.33
+  [F] round 2/10  T=140.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.53 rev-dilute=0.47 irreversible=0.00
+  [F] round 3/10  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.33 rev-dilute=0.67 irreversible=0.00
+  [F] round 4/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.84 rev-dilute=0.16 irreversible=0.00
+  [F] round 5/10  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.85 rev-dilute=0.15 irreversible=0.00
+  [F] round 6/10  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.95 rev-dilute=0.05 irreversible=0.00
+  [F] round 7/10  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=0.94 rev-dilute=0.06 irreversible=0.00
+  [F] round 8/10  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.95 rev-dilute=0.05 irreversible=0.00
+  [F] round 9/10  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.94 rev-dilute=0.06 irreversible=0.00
+  [F] round 10/10  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.45 rev-dilute=0.55 irreversible=0.00
+    S4a_ambiguity/F/seed6: 34.3 s
+    S4a_ambiguity done in 255 s
+
+=== S4b_identifiable: WELL-SPECIFIED correct-model recovery: reversible (rev-pitzer) vs irreversible under the STANDARD benchmark truth - no per-scenario truth override, so nothing was tuned; the 20 cm CPR reaches phi ~ 1 at the hot/slow corner, so reverse kinetics are observable and the learner must find that region
+  [D] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.314e-03  Ea1= 79.9  maxCI=    inf%  logdetF=-inf
+  [D] round 2/8  T=160.0C Q=8.0mL/min EGDA=1.000M cat=0.500M k1_ref=5.888e-04  Ea1= 45.1  maxCI=    inf%  logdetF=-8.7
+  [D] round 3/8  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.225e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 18.2
+  [D] round 4/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.159e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 22.7
+  [D] round 5/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.442e-04  Ea1= 40.1  maxCI=    inf%  logdetF= 26.1
+  [D] round 6/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.410e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 27.8
+  [D] round 7/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.419e-04  Ea1= 40.2  maxCI=    inf%  logdetF= 29.2
+  [D] round 8/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.452e-04  Ea1= 40.2  maxCI=    inf%  logdetF= 30.4
+    S4b_identifiable/D/seed1: 6.4 s
+  [D] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.412e-03  Ea1= 64.6  maxCI=    inf%  logdetF=-inf
+  [D] round 2/8  T=120.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=8.587e-04  Ea1= 43.1  maxCI=    inf%  logdetF=-inf
+  [D] round 3/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.246e-04  Ea1= 41.4  maxCI=  726.0%  logdetF= 25.8
+  [D] round 4/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.685e-04  Ea1= 40.7  maxCI= 3398.9%  logdetF= 28.0
+  [D] round 5/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.702e-04  Ea1= 40.6  maxCI= 1340.1%  logdetF= 30.2
+  [D] round 6/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.778e-04  Ea1= 40.3  maxCI=1427763.6%  logdetF= 29.1
+  [D] round 7/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.744e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 29.9
+  [D] round 8/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.743e-04  Ea1= 40.4  maxCI= 2760.6%  logdetF= 33.0
+    S4b_identifiable/D/seed2: 6.0 s
+  [D] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.333e-03  Ea1= 57.6  maxCI=    inf%  logdetF=-inf
+  [D] round 2/8  T=120.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.152e-04  Ea1= 41.3  maxCI=    inf%  logdetF=-inf
+  [D] round 3/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.602e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 21.5
+  [D] round 4/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.484e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 24.7
+  [D] round 5/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.490e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 27.0
+  [D] round 6/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.493e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 28.6
+  [D] round 7/8  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.565e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 29.7
+  [D] round 8/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.553e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 30.8
+    S4b_identifiable/D/seed3: 5.6 s
+  [D] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.129e-03  Ea1= 69.2  maxCI=    inf%  logdetF=-inf
+  [D] round 2/8  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=6.403e-04  Ea1= 44.6  maxCI=    inf%  logdetF= 2.2
+  [D] round 3/8  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.011e-04  Ea1= 40.8  maxCI=    inf%  logdetF= 20.1
+  [D] round 4/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.400e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 24.2
+  [D] round 5/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.367e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 27.0
+  [D] round 6/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=9.375e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 28.5
+  [D] round 7/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.451e-04  Ea1= 40.2  maxCI=    inf%  logdetF= 29.7
+  [D] round 8/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.443e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 30.8
+    S4b_identifiable/D/seed4: 5.6 s
+  [D] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=2.227e-03  Ea1= 74.4  maxCI=    inf%  logdetF=-inf
+  [D] round 2/8  T=160.0C Q=8.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.012e-03  Ea1= 40.2  maxCI=    inf%  logdetF=-inf
+  [D] round 3/8  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.679e-04  Ea1= 40.5  maxCI=  114.9%  logdetF= 23.2
+  [D] round 4/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.026e-03  Ea1= 39.8  maxCI=   59.8%  logdetF= 30.8
+  [D] round 5/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=1.023e-03  Ea1= 39.9  maxCI=   55.4%  logdetF= 33.1
+  [D] round 6/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.023e-03  Ea1= 39.8  maxCI=   49.0%  logdetF= 34.5
+  [D] round 7/8  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.015e-03  Ea1= 39.9  maxCI=   43.8%  logdetF= 35.9
+  [D] round 8/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.015e-03  Ea1= 39.9  maxCI=   44.2%  logdetF= 36.8
+    S4b_identifiable/D/seed5: 6.0 s
+  [D] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.025e-03  Ea1= 71.2  maxCI=    inf%  logdetF=-inf
+  [D] round 2/8  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=5.714e-04  Ea1= 45.8  maxCI=    inf%  logdetF= 1.6
+  [D] round 3/8  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.477e-04  Ea1= 41.4  maxCI=    inf%  logdetF= 20.0
+  [D] round 4/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.269e-04  Ea1= 40.2  maxCI=    inf%  logdetF= 24.1
+  [D] round 5/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.247e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 26.9
+  [D] round 6/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=9.244e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 28.3
+  [D] round 7/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.325e-04  Ea1= 40.2  maxCI=    inf%  logdetF= 29.5
+  [D] round 8/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.320e-04  Ea1= 40.2  maxCI=    inf%  logdetF= 30.7
+    S4b_identifiable/D/seed6: 5.7 s
+  [F] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.50 irreversible=0.50
+  [F] round 2/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 3/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 4/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 5/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 6/8  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 7/8  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 8/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+    S4b_identifiable/F/seed1: 24.1 s
+  [F] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.50 irreversible=0.50
+  [F] round 2/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.48 irreversible=0.52
+  [F] round 3/8  T=100.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=0.00 irreversible=1.00
+  [F] round 4/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 5/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 6/8  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 7/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 8/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+    S4b_identifiable/F/seed2: 22.3 s
+  [F] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.50 irreversible=0.50
+  [F] round 2/8  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.49 irreversible=0.51
+  [F] round 3/8  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.11 irreversible=0.89
+  [F] round 4/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 5/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 6/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 7/8  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 8/8  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+    S4b_identifiable/F/seed3: 22.4 s
+  [F] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.50 irreversible=0.50
+  [F] round 2/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.48 irreversible=0.52
+  [F] round 3/8  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=0.00 irreversible=1.00
+  [F] round 4/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 5/8  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 6/8  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 7/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 8/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+    S4b_identifiable/F/seed4: 22.0 s
+  [F] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  MODEL_DISCRIMINATION rev-pitzer=0.50 irreversible=0.50
+  [F] round 2/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 3/8  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 4/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 5/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 6/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 7/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 8/8  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+    S4b_identifiable/F/seed5: 24.1 s
+  [F] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.50 irreversible=0.50
+  [F] round 2/8  T=140.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 3/8  T=40.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 4/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 5/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 6/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 7/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+  [F] round 8/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00 irreversible=0.00
+    S4b_identifiable/F/seed6: 22.5 s
+    S4b_identifiable done in 173 s
+
+=== S4c_out_of_domain: OUT-OF-DOMAIN / MODEL-MISSPECIFICATION (NOT a correct-model-recovery test): truth K2=0.002 lies BELOW the candidate parameter bound (0.0155), so the reversible candidate cannot represent it and K2 pins to its bound by construction
+  [F] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.50 irreversible=0.50
+  [F] round 2/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 3/8  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 4/8  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 5/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 6/8  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 7/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 8/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+    S4c_out_of_domain/F/seed1: 23.1 s
+  [F] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.50 irreversible=0.50
+  [F] round 2/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.73 irreversible=0.27
+  [F] round 3/8  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 4/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 5/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 6/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 7/8  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 8/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+    S4c_out_of_domain/F/seed2: 23.2 s
+  [F] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.50 irreversible=0.50
+  [F] round 2/8  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.51 irreversible=0.49
+  [F] round 3/8  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 4/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 5/8  T=40.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 6/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 7/8  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 8/8  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+    S4c_out_of_domain/F/seed3: 22.2 s
+  [F] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.50 irreversible=0.50
+  [F] round 2/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.56 irreversible=0.44
+  [F] round 3/8  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 4/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 5/8  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 6/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 7/8  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 8/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+    S4c_out_of_domain/F/seed4: 22.6 s
+  [F] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  MODEL_DISCRIMINATION rev-pitzer=0.50 irreversible=0.50
+  [F] round 2/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 3/8  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 4/8  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 5/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 6/8  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 7/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 8/8  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+    S4c_out_of_domain/F/seed5: 23.3 s
+  [F] round 1/8  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_DISCRIMINATION rev-pitzer=0.50 irreversible=0.50
+  [F] round 2/8  T=140.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 3/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 4/8  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 5/8  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 6/8  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 7/8  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+  [F] round 8/8  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     rev-pitzer=1.00 irreversible=0.00
+    S4c_out_of_domain/F/seed6: 23.0 s
+    S4c_out_of_domain done in 137 s
+
+=== S5_inadequacy: correct model REMOVED from the family; truth is an explicitly OUT-OF-DOMAIN strongly reversible ester (K1=0.15, K2=0.002) that NO candidate can represent - the irreversible-only family has no K parameters at all
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.054e-03  Ea1= 73.8  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=140.0C Q=8.0mL/min EGDA=1.000M cat=0.500M k1_ref=5.436e-04  Ea1= 45.1  maxCI=  226.5%  logdetF= 7.2
+  [D] round 3/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.591e-04  Ea1= 39.2  maxCI=   15.7%  logdetF= 16.0
+  [D] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.382e-04  Ea1= 40.3  maxCI=   10.3%  logdetF= 21.8
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=8.498e-04  Ea1= 39.5  maxCI=    inf%  logdetF= 22.2
+  [D] round 6/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.600e-04  Ea1= 39.4  maxCI=    inf%  logdetF= 23.8
+    S5_inadequacy/D/seed1: 3.3 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.342e-03  Ea1= 65.9  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=140.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=7.672e-04  Ea1= 41.7  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.979e-04  Ea1= 39.7  maxCI=    inf%  logdetF= 17.3
+  [D] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.784e-04  Ea1= 40.2  maxCI=   11.4%  logdetF= 21.5
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.052e-04  Ea1= 39.4  maxCI=    inf%  logdetF= 22.3
+  [D] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.046e-04  Ea1= 39.4  maxCI=    inf%  logdetF= 23.9
+    S5_inadequacy/D/seed2: 3.3 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.432e-03  Ea1= 64.2  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=140.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=8.293e-04  Ea1= 40.5  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.661e-04  Ea1= 40.0  maxCI=    inf%  logdetF= 17.3
+  [D] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.652e-04  Ea1= 40.0  maxCI=   11.2%  logdetF= 21.6
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.059e-04  Ea1= 38.8  maxCI=   11.6%  logdetF= 22.4
+  [D] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.992e-04  Ea1= 38.9  maxCI=    inf%  logdetF= 23.9
+    S5_inadequacy/D/seed3: 3.2 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.068e-03  Ea1= 70.3  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=0.500M k1_ref=5.822e-04  Ea1= 44.0  maxCI=  162.9%  logdetF= 10.5
+  [D] round 3/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.449e-04  Ea1= 39.7  maxCI=   11.0%  logdetF= 18.9
+  [D] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=8.438e-04  Ea1= 39.8  maxCI=   10.2%  logdetF= 22.2
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.283e-04  Ea1= 39.6  maxCI=    inf%  logdetF= 20.8
+  [D] round 6/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.424e-04  Ea1= 39.4  maxCI=    inf%  logdetF= 22.7
+    S5_inadequacy/D/seed4: 3.5 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.590e-03  Ea1= 63.3  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=140.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=9.294e-04  Ea1= 40.0  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=7.841e-04  Ea1= 42.2  maxCI=   22.7%  logdetF= 17.2
+  [D] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=8.064e-04  Ea1= 41.5  maxCI=   11.1%  logdetF= 21.5
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=8.573e-04  Ea1= 40.0  maxCI=   11.5%  logdetF= 22.4
+  [D] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.983e-04  Ea1= 39.4  maxCI=    inf%  logdetF= 23.9
+    S5_inadequacy/D/seed5: 3.3 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.683e-04  Ea1= 72.2  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=0.500M k1_ref=5.244e-04  Ea1= 45.6  maxCI=  187.6%  logdetF= 9.8
+  [D] round 3/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.402e-04  Ea1= 40.1  maxCI=   11.3%  logdetF= 18.7
+  [D] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=8.467e-04  Ea1= 39.7  maxCI=   10.2%  logdetF= 22.2
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.346e-04  Ea1= 39.3  maxCI=    inf%  logdetF= 20.9
+  [D] round 6/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.426e-04  Ea1= 39.2  maxCI=    inf%  logdetF= 22.8
+    S5_inadequacy/D/seed6: 3.4 s
+  [F-noGovernor] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F-noGovernor] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F-noGovernor] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+    S5_inadequacy/F-noGovernor/seed1: 13.9 s
+  [F-noGovernor] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F-noGovernor] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F-noGovernor] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+    S5_inadequacy/F-noGovernor/seed2: 14.0 s
+  [F-noGovernor] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F-noGovernor] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F-noGovernor] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+    S5_inadequacy/F-noGovernor/seed3: 13.9 s
+  [F-noGovernor] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 3/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F-noGovernor] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F-noGovernor] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+    S5_inadequacy/F-noGovernor/seed4: 14.1 s
+  [F-noGovernor] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F-noGovernor] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F-noGovernor] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+    S5_inadequacy/F-noGovernor/seed5: 14.0 s
+  [F-noGovernor] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F-noGovernor] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F-noGovernor] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F-noGovernor] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+    S5_inadequacy/F-noGovernor/seed6: 13.9 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+    S5_inadequacy/F/seed1: 13.9 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+    S5_inadequacy/F/seed2: 13.7 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F] round 5/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+    S5_inadequacy/F/seed3: 13.7 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F] round 3/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F] round 6/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+    S5_inadequacy/F/seed4: 13.9 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      irreversible=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      irreversible=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F] round 5/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+    S5_inadequacy/F/seed5: 14.1 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      irreversible=1.00
+  [F] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  MODEL_INADEQUATE     irreversible=1.00
+    S5_inadequacy/F/seed6: 13.9 s
+    S5_inadequacy done in 187 s
+
+=== S6_resources: resource-aware design: lambda sweep -> Pareto frontier
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.314e-03  Ea1= 79.9  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=0.500M k1_ref=5.888e-04  Ea1= 45.1  maxCI=    inf%  logdetF=-8.7
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.225e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 18.2
+  [D] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.159e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 22.7
+  [D] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.442e-04  Ea1= 40.1  maxCI=    inf%  logdetF= 26.1
+  [D] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.410e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 27.8
+    S6_resources/D/seed1: 4.2 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.412e-03  Ea1= 64.6  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=8.587e-04  Ea1= 43.1  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.246e-04  Ea1= 41.4  maxCI=  726.0%  logdetF= 25.8
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.685e-04  Ea1= 40.7  maxCI= 3398.9%  logdetF= 28.0
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.702e-04  Ea1= 40.6  maxCI= 1340.1%  logdetF= 30.2
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.778e-04  Ea1= 40.3  maxCI=1427763.6%  logdetF= 29.1
+    S6_resources/D/seed2: 4.4 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.333e-03  Ea1= 57.6  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.152e-04  Ea1= 41.3  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M k1_ref=9.602e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 21.5
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.484e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 24.7
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.490e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 27.0
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M k1_ref=9.493e-04  Ea1= 40.5  maxCI=    inf%  logdetF= 28.6
+    S6_resources/D/seed3: 4.1 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.129e-03  Ea1= 69.2  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=6.403e-04  Ea1= 44.6  maxCI=    inf%  logdetF= 2.2
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.011e-04  Ea1= 40.8  maxCI=    inf%  logdetF= 20.1
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.400e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 24.2
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.367e-04  Ea1= 40.4  maxCI=    inf%  logdetF= 27.0
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=9.375e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 28.5
+    S6_resources/D/seed4: 4.2 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=2.227e-03  Ea1= 74.4  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.012e-03  Ea1= 40.2  maxCI=    inf%  logdetF=-inf
+  [D] round 3/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.679e-04  Ea1= 40.5  maxCI=  114.9%  logdetF= 23.2
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.026e-03  Ea1= 39.8  maxCI=   59.8%  logdetF= 30.8
+  [D] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=1.023e-03  Ea1= 39.9  maxCI=   55.4%  logdetF= 33.1
+  [D] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=1.023e-03  Ea1= 39.8  maxCI=   49.0%  logdetF= 34.5
+    S6_resources/D/seed5: 4.5 s
+  [D] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M k1_ref=1.025e-03  Ea1= 71.2  maxCI=    inf%  logdetF=-inf
+  [D] round 2/6  T=160.0C Q=8.0mL/min EGDA=1.000M cat=1.000M k1_ref=5.714e-04  Ea1= 45.8  maxCI=    inf%  logdetF= 1.6
+  [D] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=8.477e-04  Ea1= 41.4  maxCI=    inf%  logdetF= 20.0
+  [D] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.269e-04  Ea1= 40.2  maxCI=    inf%  logdetF= 24.1
+  [D] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M k1_ref=9.247e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 26.9
+  [D] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M k1_ref=9.244e-04  Ea1= 40.3  maxCI=    inf%  logdetF= 28.3
+    S6_resources/D/seed6: 4.3 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F/seed1: 15.5 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F/seed2: 15.7 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F/seed3: 15.6 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F/seed4: 15.2 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F/seed5: 15.9 s
+  [F] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 2/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F/seed6: 15.6 s
+  [F-res-0.5x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 2/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 3/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-0.5x/seed1: 15.7 s
+  [F-res-0.5x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 2/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 3/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-0.5x/seed2: 15.2 s
+  [F-res-0.5x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 3/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-0.5x/seed3: 15.0 s
+  [F-res-0.5x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 3/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 4/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-0.5x/seed4: 15.5 s
+  [F-res-0.5x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 3/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-0.5x/seed5: 16.2 s
+  [F-res-0.5x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 3/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-0.5x] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-0.5x/seed6: 15.5 s
+  [F-res-1x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 3/6  T=120.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 4/6  T=120.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 5/6  T=120.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 6/6  T=120.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-1x/seed1: 15.4 s
+  [F-res-1x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 3/6  T=140.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 4/6  T=140.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 5/6  T=140.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 6/6  T=140.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-1x/seed2: 15.3 s
+  [F-res-1x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 3/6  T=140.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 4/6  T=140.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 5/6  T=140.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 6/6  T=140.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-1x/seed3: 15.2 s
+  [F-res-1x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 3/6  T=120.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 4/6  T=120.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 5/6  T=120.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 6/6  T=120.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-1x/seed4: 15.2 s
+  [F-res-1x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 3/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-1x/seed5: 16.3 s
+  [F-res-1x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 4/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-1x] round 6/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-1x/seed6: 15.3 s
+  [F-res-2x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 4/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 6/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-2x/seed1: 15.4 s
+  [F-res-2x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 4/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 6/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-2x/seed2: 15.0 s
+  [F-res-2x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 4/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 6/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-2x/seed3: 15.0 s
+  [F-res-2x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 4/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 6/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-2x/seed4: 15.3 s
+  [F-res-2x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 4/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 6/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-2x/seed5: 15.3 s
+  [F-res-2x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 2/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 4/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 5/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-2x] round 6/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-2x/seed6: 15.3 s
+  [F-res-4x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 2/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 3/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 4/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 5/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 6/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-4x/seed1: 14.7 s
+  [F-res-4x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 2/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 3/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-4x/seed2: 14.9 s
+  [F-res-4x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 2/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 3/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 4/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 5/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 6/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-4x/seed3: 14.9 s
+  [F-res-4x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 2/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 3/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 4/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 5/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 6/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-4x/seed4: 15.3 s
+  [F-res-4x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 2/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 3/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 4/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 5/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 6/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-4x/seed5: 15.3 s
+  [F-res-4x] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 2/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 3/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 4/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 5/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-res-4x] round 6/6  T=100.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S6_resources/F-res-4x/seed6: 15.0 s
+    S6_resources done in 486 s
+
+=== S7_spatial_modes: spatial policy comparison under identical physics: fixed_equal vs optimized_batch vs adaptive_sequential
+  [F-zfixed] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S7_spatial_modes/F-zfixed/seed1: 7.5 s
+  [F-zfixed] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S7_spatial_modes/F-zfixed/seed2: 7.4 s
+  [F-zfixed] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S7_spatial_modes/F-zfixed/seed3: 7.2 s
+  [F-zfixed] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S7_spatial_modes/F-zfixed/seed4: 7.3 s
+  [F-zfixed] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S7_spatial_modes/F-zfixed/seed5: 7.7 s
+  [F-zfixed] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 3/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 4/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zfixed] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S7_spatial_modes/F-zfixed/seed6: 6.9 s
+  [F-zbatch] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 6/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S7_spatial_modes/F-zbatch/seed1: 15.6 s
+  [F-zbatch] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 3/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 5/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S7_spatial_modes/F-zbatch/seed2: 15.8 s
+  [F-zbatch] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S7_spatial_modes/F-zbatch/seed3: 15.8 s
+  [F-zbatch] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 5/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S7_spatial_modes/F-zbatch/seed4: 15.4 s
+  [F-zbatch] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 5/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S7_spatial_modes/F-zbatch/seed5: 15.8 s
+  [F-zbatch] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 2/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zbatch] round 6/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+    S7_spatial_modes/F-zbatch/seed6: 15.4 s
+  [F-zadaptive] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 4: MEASUREMENT_FAULT: QC rejected 1 positions in round 4; campaign paused
+    S7_spatial_modes/F-zadaptive/seed1: 39.3 s  [PAUSED after 3/6 rounds]
+  [F-zadaptive] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 3/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 5: MEASUREMENT_FAULT: QC rejected 1 positions in round 5; campaign paused
+    S7_spatial_modes/F-zadaptive/seed2: 62.1 s  [PAUSED after 4/6 rounds]
+  [F-zadaptive] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 3/6  T=120.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 4/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=6  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+    S7_spatial_modes/F-zadaptive/seed3: 95.1 s
+  [F-zadaptive] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=6  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=5  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 6/6  T=100.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=1  NORMAL_LEARNING      rev-pitzer=1.00
+    S7_spatial_modes/F-zadaptive/seed4: 53.1 s
+  [F-zadaptive] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 2/6  T=160.0C Q=2.0mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 3/6  T=80.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=5  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 4/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 5/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 6/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=4  NORMAL_LEARNING      rev-pitzer=1.00
+    S7_spatial_modes/F-zadaptive/seed5: 81.1 s
+  [F-zadaptive] round 1/6  T=40.0C Q=1.0mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 2/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=0.500M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 3/6  T=60.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=8  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 4/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=10  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 5/6  T=160.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=9  NORMAL_LEARNING      rev-pitzer=1.00
+  [F-zadaptive] round 6/6  T=140.0C Q=0.5mL/min EGDA=1.000M cat=1.000M n_z=4  NORMAL_LEARNING      rev-pitzer=1.00
+    S7_spatial_modes/F-zadaptive/seed6: 73.5 s
+    S7_spatial_modes done in 542 s
+saved: results_advanced_v2/benchmark/benchmark_rounds.csv
+saved: results_advanced_v2/benchmark/benchmark_params.csv
+saved: results_advanced_v2/benchmark/campaign_status.csv
+    NOTE S7_spatial_modes/F-zadaptive: 2/6 campaigns paused on measurement fault (retained in stats via their last valid posterior)
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/strategy_table.csv
+
+scenario           strategy      n_seeds  n_faulted  median_rounds  param_err_pct_median  param_err_pct_iqr_lo  param_err_pct_iqr_hi  param_err_pct_mean  param_err_pct_bootci_lo  param_err_pct_bootci_hi  blind_rmse_M_median  blind_rmse_M_iqr_lo  blind_rmse_M_iqr_hi  blind_rmse_M_mean  blind_rmse_M_bootci_lo  blind_rmse_M_bootci_hi
+S1_ideal           A             6        0          6              41.74                 34.35                 45.46                 42.38               31.76                    53.63                    0.00514              0.003716             0.007338             0.005272           0.002782                0.007895              
+S1_ideal           B             6        0          6              12.99                 9.157                 21.13                 15.88               8.419                    26.22                    0.001284             0.0008501            0.00182              0.001461           0.000789                0.00231               
+S1_ideal           C             6        0          6              25.28                 13.82                 39.01                 25.34               7.148                    43.59                    0.002503             0.002027             0.003063             0.002492           0.001629                0.003343              
+S1_ideal           D             6        0          6              8.864                 4.489                 29.25                 16.43               2.763                    37.65                    0.0009796            0.000767             0.001169             0.0009641          0.0005965               0.001316              
+S1_ideal           E             6        0          6              7.049                 3.597                 10.46                 11.58               1.915                    25.78                    0.0007808            0.000691             0.0008773            0.0007838          0.0005306               0.00104               
+S1_ideal           F             6        0          6              3.811                 1.261                 6.326                 4.297               0.9531                   8.128                    0.0007441            0.000605             0.0009418            0.0007743          0.0005591               0.00102               
+S2_nmr             B             6        0          6              48.66                 45.31                 51.16                 46.81               37.83                    53.95                    0.00731              0.005454             0.009465             0.007209           0.003778                0.01054               
+S2_nmr             D             6        0          6              41.65                 37.13                 43.28                 39.96               34.31                    43.91                    0.003403             0.002959             0.003724             0.003356           0.002216                0.004449              
+S2_nmr             F             6        0          6              24.77                 12.38                 30.69                 22.28               8.124                    33.96                    0.001393             0.001358             0.001516             0.001415           0.001292                0.001561              
+S3_transport       D             6        0          6              39.39                 34.56                 45.31                 40.25               30.91                    50.45                    0.01067              0.009251             0.01141              0.01205            0.008486                0.01699               
+S3_transport       F             6        0          6              25.03                 14.6                  26.21                 19.59               6.994                    26.75                    0.001713             0.001354             0.00189              0.001646           0.001276                0.00195               
+S3_transport       F-uncorr      6        0          6              33.69                 22.67                 49.66                 34.71               11.29                    59.14                    0.01181              0.01045              0.01375              0.01229            0.009118                0.01595               
+S3ab_delay         D             6        0          6              51.44                 48.6                  53.24                 50.37               44.75                    54.91                    0.01537              0.01282              0.01733              0.01502            0.0123                  0.0174                
+S3ab_delay         F             6        0          6              26.76                 16.16                 28.62                 22.18               10.34                    29.43                    0.00153              0.001241             0.001702             0.001507           0.001039                0.001954              
+S3ab_rtd           D             6        0          6              48.22                 45.54                 50.43                 46.18               33.79                    56.53                    0.01457              0.01104              0.01689              0.01387            0.01014                 0.01691               
+S3ab_rtd           F             6        0          6              27.02                 15.56                 28.15                 22.26               10.22                    29.52                    0.001517             0.001343             0.001641             0.001418           0.0009622               0.001775              
+S4a_ambiguity      D             6        0          10             41.56                 32.06                 42.81                 36.35               24.25                    43.25                    0.002957             0.002714             0.003271             0.003115           0.002178                0.004209              
+S4a_ambiguity      F             6        0          10             26.2                  10.66                 38.56                 24.76               6.043                    42.05                    0.001479             0.001211             0.001536             0.001341           0.0008465               0.001698              
+S4b_identifiable   D             6        0          8              41.72                 34.49                 42.93                 36.82               25.21                    43.51                    0.003119             0.002815             0.003625             0.003219           0.002246                0.004292              
+S4b_identifiable   F             6        0          8              29.18                 19.07                 35.51                 25.32               9.672                    37.1                     0.001273             0.001122             0.001505             0.001293           0.001022                0.001585              
+S4c_out_of_domain  F             6        0          8              104.1                 103.7                 106.9                 104.5               99.93                    109.3                    0.02403              0.02305              0.02542              0.02441            0.02232                 0.02689               
+S5_inadequacy      D             6        0          6              43.93                 43.14                 64.89                 53.05               42.7                     72.52                    0.02466              0.02454              0.02479              0.02456            0.02416                 0.02487               
+S5_inadequacy      F             6        0          6              73.1                  71.46                 74.67                 72.45               62.24                    82                       0.02606              0.02521              0.02744              0.02645            0.02334                 0.02996               
+S5_inadequacy      F-noGovernor  6        0          6              48.31                 45.29                 51.04                 51.52               44.7                     61.56                    0.02993              0.02365              0.03588              0.03013            0.02253                 0.03791               
+S6_resources       D             6        0          6              41.65                 37.13                 43.28                 39.96               34.31                    43.91                    0.003403             0.002959             0.003724             0.003356           0.002216                0.004449              
+S6_resources       F             6        0          6              24.77                 12.38                 30.69                 22.28               8.124                    33.96                    0.001393             0.001358             0.001516             0.001415           0.001292                0.001561              
+S6_resources       F-res-0.5x    6        0          6              23.67                 15.5                  31.14                 23.06               12.32                    33.17                    0.001535             0.001146             0.001935             0.001729           0.001128                0.002524              
+S6_resources       F-res-1x      6        0          6              28.47                 23.88                 34.23                 32.72               20.49                    49.21                    0.002279             0.001701             0.002777             0.008005           0.001397                0.02034               
+S6_resources       F-res-2x      6        0          6              38.57                 28.14                 58.8                  43.04               26.48                    64.06                    0.01727              0.01262              0.022                0.01925            0.01016                 0.0303                
+S6_resources       F-res-4x      6        0          6              32.01                 15.48                 40.93                 30.59               10.1                     49.65                    0.01656              0.0131               0.03125              0.02188            0.01234                 0.03673               
+S7_spatial_modes   F-zadaptive   6        2          6              17.6                  12.35                 25.56                 19.06               11.56                    28.02                    0.001654             0.001543             0.001759             0.001634           0.001437                0.00181               
+S7_spatial_modes   F-zbatch      6        0          6              24.77                 12.38                 30.69                 22.28               8.124                    33.96                    0.001393             0.001358             0.001516             0.001415           0.001292                0.001561              
+S7_spatial_modes   F-zfixed      6        0          6              27.3                  15.26                 30.63                 22.73               7.846                    33.04                    0.001392             0.001136             0.001515             0.001286           0.0008839               0.001583              
+saved: results_advanced_v2/benchmark/paired_comparisons.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S1_ideal_per_round.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S1_ideal_per_round.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S1_ideal_per_acquisition.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S1_ideal_per_acquisition.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S1_ideal_per_time.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S1_ideal_per_time.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S2_nmr_per_round.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S2_nmr_per_round.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S2_nmr_per_acquisition.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S2_nmr_per_acquisition.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S2_nmr_per_time.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S2_nmr_per_time.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3_transport_per_round.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3_transport_per_round.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3_transport_per_acquisition.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3_transport_per_acquisition.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3_transport_per_time.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3_transport_per_time.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3ab_delay_per_round.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3ab_delay_per_round.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3ab_delay_per_acquisition.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3ab_delay_per_acquisition.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3ab_delay_per_time.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3ab_delay_per_time.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3ab_rtd_per_round.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3ab_rtd_per_round.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3ab_rtd_per_acquisition.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3ab_rtd_per_acquisition.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3ab_rtd_per_time.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S3ab_rtd_per_time.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4a_ambiguity_per_round.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4a_ambiguity_per_round.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4a_ambiguity_per_acquisition.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4a_ambiguity_per_acquisition.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4a_ambiguity_per_time.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4a_ambiguity_per_time.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4b_identifiable_per_round.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4b_identifiable_per_round.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4b_identifiable_per_acquisition.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4b_identifiable_per_acquisition.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4b_identifiable_per_time.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4b_identifiable_per_time.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4c_out_of_domain_per_round.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4c_out_of_domain_per_round.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4c_out_of_domain_per_acquisition.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4c_out_of_domain_per_acquisition.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4c_out_of_domain_per_time.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S4c_out_of_domain_per_time.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S5_inadequacy_per_round.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S5_inadequacy_per_round.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S5_inadequacy_per_acquisition.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S5_inadequacy_per_acquisition.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S5_inadequacy_per_time.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S5_inadequacy_per_time.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S6_resources_per_round.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S6_resources_per_round.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S6_resources_per_acquisition.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S6_resources_per_acquisition.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S6_resources_per_time.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S6_resources_per_time.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S7_spatial_modes_per_round.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S7_spatial_modes_per_round.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S7_spatial_modes_per_acquisition.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S7_spatial_modes_per_acquisition.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S7_spatial_modes_per_time.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_conv_S7_spatial_modes_per_time.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_model_probs_S4a_ambiguity.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_model_probs_S4a_ambiguity.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_model_probs_S4b_identifiable.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_model_probs_S4b_identifiable.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_model_probs_S4c_out_of_domain.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_model_probs_S4c_out_of_domain.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_params_S1_ideal_F.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_params_S1_ideal_F.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_params_S2_nmr_F.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_params_S2_nmr_F.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_params_S4b_identifiable_F.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_params_S4b_identifiable_F.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_params_S3_transport_F.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_params_S3_transport_F.csv
+
+governor MC validation (12 seeds): false-inadequacy campaign rate = 0.00, detection prob = 1.00, median detection round = 4.0
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_governor_S5.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_governor_S5.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_pareto_S6.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_pareto_S6.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_transport_ablation.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_transport_ablation.csv
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_spatial_modes_S7.png
+saved: /Users/hosseinostovar/Desktop/python/Kinetics_sim/EGDA/SDL_MBDoE/results_advanced_v2/benchmark/figure_spatial_modes_S7.csv
+saved: results_advanced_v2/benchmark/quantification_validation.csv
+quantification validation done in 7 s
+
+Benchmark finished in 50.8 min. Outputs in: results_advanced_v2/benchmark

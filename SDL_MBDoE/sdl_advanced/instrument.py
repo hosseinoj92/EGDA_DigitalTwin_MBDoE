@@ -43,7 +43,8 @@ from pfr_twin import KineticModel                                # noqa: E402
 
 from .spectral import (AcquisitionSettings, NMRSimulator,        # noqa: E402
                        SpectralNuisance, QUANTIFIED_SPECIES)
-from .spectral_fit import SpectralFitter, calibrate_responses    # noqa: E402
+from .spectral_fit import (SpectralFitter, calibrate_empirical,  # noqa: E402
+                           calibrate_responses)
 from .transfer import TransferConfig, TransferLine               # noqa: E402
 from .resources import ResourceCosts, ResourceMeter              # noqa: E402
 
@@ -91,7 +92,8 @@ class AdvancedVirtualLaboratory:
         self._transfer = TransferLine(transfer, bridge.geometry.length_m)
         self._noise_direct = noise_direct or NoiseModel()
         self.calibration_gain = calibration_gain or {}
-        self.meter = ResourceMeter(costs, bridge.geometry.volume_mL)
+        # stabilization is measured in FLOWING liquid volumes (epsilon-aware)
+        self.meter = ResourceMeter(costs, bridge.geometry.liquid_volume_mL)
         self.species = tuple(config.species_measured)
         self.n_experiments_run = 0
         self.n_acquisitions = 0
@@ -102,10 +104,13 @@ class AdvancedVirtualLaboratory:
         # fitter - standard compositions are public, so no firewall breach
         if (config.observation_mode == "nmr" and config.calibrate_responses
                 and config.nmr_mode == "realistic"):
-            calibrate_responses(
-                self._fitter,
-                lambda std, r: self._nmr.simulate(std, r)[:2],
-                self._rng)
+            # dedicated calibration RNG stream: keeps calibration spectra
+            # statistically INDEPENDENT of the campaign's measurement
+            # spectra (and leaves the measurement stream unperturbed)
+            cal_rng = np.random.default_rng(seed + 900_001)
+            acquire = lambda std, r: self._nmr.simulate(std, r)[:2]
+            calibrate_responses(self._fitter, acquire, cal_rng)
+            calibrate_empirical(self._fitter, acquire, cal_rng)
 
     # ------------------------------------------------------------------ #
     @property

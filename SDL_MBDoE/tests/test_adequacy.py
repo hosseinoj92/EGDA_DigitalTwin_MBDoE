@@ -107,14 +107,23 @@ def test_misspecified_family_is_detected():
 
 def test_bootstrap_pvalue_is_empirical_tail_probability():
     """p_boot = (1 + #extreme) / (B + 1): continuous in (0, 1], large under
-    the correct model, tiny under gross misspecification."""
+    the correct model.  A CHEAP B is only admissible with a correspondingly
+    coarse alpha - the resolution guard (B >= ceil(1/alpha) - 1) enforces
+    that a bootstrap can actually reach the threshold it is tested at."""
     rng = np.random.default_rng(0)
     ens_ok = _ensemble(("rev-dilute",), seed=7)
     gov = AdequacyGovernor()
-    p_ok = gov.bootstrap_pvalue(ens_ok, rng, B=19)
+    p_ok = gov.bootstrap_pvalue(ens_ok, rng, B=19, alpha=0.05)
     assert 0.0 < p_ok <= 1.0
     assert p_ok >= 1.0 / 20.0                 # by construction
     assert p_ok > 0.2, p_ok                   # correct model: not extreme
+    # and an under-resolved B is refused rather than silently unable to reject
+    try:
+        gov.bootstrap_pvalue(ens_ok, rng, B=19, alpha=0.005)
+    except ValueError as exc:
+        assert "cannot resolve" in str(exc)
+    else:
+        raise AssertionError("under-resolved bootstrap was accepted")
 
 
 def test_discrimination_state_when_models_tie():

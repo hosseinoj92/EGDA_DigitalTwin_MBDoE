@@ -199,8 +199,12 @@ def simulate_pfr(inlet: InletState,
                  T_K: float,
                  model: KineticModel,
                  settings: SolverSettings = SolverSettings()) -> PFRResult:
-    """Integrate the plug-flow balances from x = 0 to x = L."""
-    u = inlet.Q_total_m3_s / geometry.area_m2          # m/s
+    """Integrate the plug-flow balances from x = 0 to x = L.
+
+    u is the INTERSTITIAL velocity Q / (epsilon A); for an unpacked tube
+    (epsilon = 1, the default) this is the ordinary superficial velocity
+    and the result is unchanged."""
+    u = inlet.Q_total_m3_s / geometry.flow_area_m2     # m/s
     kappa1, kappa2 = model.effective_constants(T_K, inlet.c_cat0)
     nu = nu_matrix(model.params.catalyst)
 

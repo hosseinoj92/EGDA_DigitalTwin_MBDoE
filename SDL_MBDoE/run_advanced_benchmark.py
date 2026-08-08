@@ -32,6 +32,7 @@ import numpy as np
 from sdl_advanced import benchmark as bm
 from sdl_advanced import reporting as rep
 from sdl_advanced import validation as val
+from sdl_advanced import observability as obs
 
 CONFIG = {
     "mode": "demo",                 # "smoke" | "demo" | "publication"
@@ -92,9 +93,7 @@ def _finals(rows, scenario):
     out = {}
     sc = [r for r in rows if r["scenario"] == scenario]
     for strat in sorted({r["strategy"] for r in sc}):
-        s_rows = [r for r in sc if r["strategy"] == strat]
-        last = max(r["round"] for r in s_rows)
-        fr = [r for r in s_rows if r["round"] == last]
+        fr = bm.last_valid_rows(rows, scenario, strat)   # keeps paused seeds
         agg = {}
         for k in fr[0]:
             vals = [r[k] for r in fr
@@ -117,19 +116,82 @@ def main() -> None:
     print(f"=== advanced benchmark v2 | mode={cfg['mode']} | "
           f"{len(seeds)} seeds | budget {budget} ===")
 
-    all_rows, all_prows, runtimes = [], [], {}
+    # ---- (0B) equilibrium-observability diagnostic, BEFORE any campaign - #
+    # uses ASSUMED (literature) parameters only: firewall-clean
+    from sdl import Layer1Bridge, OperatingConditions, literature_guess
+    t_ref_K = bm.T_REF_C + 273.15
+    guess = literature_guess(t_ref_K)
+    diag_bridge = Layer1Bridge(bm.GEOMETRY, t_ref_K, activity_model="pitzer")
+    scan_conds = [OperatingConditions(T, q / 2, q / 2, 1.0, c)
+                  for T in (40.0, 100.0, 160.0)
+                  for q in (0.5, 2.0, 8.0) for c in (0.5, 1.0)]
+    scan = obs.domain_scan(diag_bridge, guess, scan_conds)
+    obs.write_scan_csv(scan, os.path.join(outdir,
+                                          "equilibrium_observability.csv"))
+    verdict = obs.verdict(scan)
+    print("\nEquilibrium observability over the admissible domain "
+          f"(geometry {bm.GEOMETRY['length_m']*100:.0f} cm x "
+          f"{bm.GEOMETRY['diameter_m']*1e3:.0f} mm ID, "
+          f"V_liq={diag_bridge.geometry.liquid_volume_mL:.2f} mL):")
+    print(f"  max phi1={verdict['max_phi1']:.3g}  max phi2="
+          f"{verdict['max_phi2']:.3g}  "
+          f"|dC/dlnK1|={verdict['max_dC_dlnK1']*1e3:.1f} mM "
+          f"({verdict['snr_K1']:.2f} sigma)  "
+          f"|dC/dlnK2|={verdict['max_dC_dlnK2']*1e3:.1f} mM "
+          f"({verdict['snr_K2']:.2f} sigma)")
+    for msg in verdict["messages"]:
+        print("  " + msg)
+    obs.plot_phi_profiles(
+        diag_bridge, guess,
+        [OperatingConditions(160.0, 0.25, 0.25, 1.0, 1.0),
+         OperatingConditions(100.0, 0.25, 0.25, 1.0, 1.0),
+         OperatingConditions(160.0, 4.0, 4.0, 1.0, 1.0)],
+        os.path.join(outdir, "figure_equilibrium_observability.png"))
+
+    # ---- well-specified scenarios: truth must lie inside the candidate box #
+    for scen in scenarios:
+        spec = bm.SCENARIOS[scen]
+        if not getattr(spec, "well_specified", False):
+            continue
+        space = __import__("sdl").ParameterSpace(
+            t_ref_K=t_ref_K, initial_guess=dict(guess))
+        dom = bm.check_truth_in_domain(space, spec.truth)
+        print(f"  domain check {scen}: ok={dom['ok']}  " +
+              ", ".join(f"{k}:{'in' if v['inside'] else 'OUT'}"
+                        f"/margin={v['margin_scaled']:.2f}"
+                        for k, v in dom["detail"].items()))
+        if not dom["ok"]:
+            raise AssertionError(
+                f"{scen} is declared well-specified but its truth is not "
+                f"inside the candidate parameter domain: {dom['detail']}")
+
+    all_rows, all_prows, all_status, runtimes = [], [], [], {}
     for scen in scenarios:
         spec = bm.SCENARIOS[scen]
         print(f"\n=== {scen}: {spec.description}")
         t_s = time.time()
-        rows, prows = bm.run_scenario(spec, seeds, budget, verbose=True)
+        rows, prows, status = bm.run_scenario(spec, seeds, budget,
+                                              verbose=True)
         runtimes[scen] = time.time() - t_s
         all_rows.extend(rows)
         all_prows.extend(prows)
+        all_status.extend(status)
         print(f"    {scen} done in {runtimes[scen]:.0f} s")
 
     _write_rows(all_rows, os.path.join(outdir, "benchmark_rounds.csv"))
     _write_rows(all_prows, os.path.join(outdir, "benchmark_params.csv"))
+    # campaign status: completion / fault / QC counts per strategy x seed,
+    # so accuracy is always read next to completion rate (no survivorship)
+    _write_rows(all_status, os.path.join(outdir, "campaign_status.csv"))
+    for scen in scenarios:
+        st = [s for s in all_status if s["scenario"] == scen]
+        for strat in sorted({s["strategy"] for s in st}):
+            ss = [s for s in st if s["strategy"] == strat]
+            n_f = sum(s["faulted"] for s in ss)
+            if n_f:
+                print(f"    NOTE {scen}/{strat}: {n_f}/{len(ss)} campaigns "
+                      f"paused on measurement fault (retained in stats via "
+                      f"their last valid posterior)")
 
     # ---- (1) strategy table: distributional, no cherry-picking ---------- #
     table = []
@@ -169,7 +231,8 @@ def main() -> None:
                 os.path.join(outdir, f"figure_conv_{scen}_{tag}.png"))
 
     # ---- (6) model probabilities / entropy vs round (S4a, S4b) ---------- #
-    for scen in ("S4a_ambiguity", "S4b_identifiable"):
+    for scen in ("S4a_ambiguity", "S4b_identifiable",
+                 "S4c_out_of_domain"):
         if scen not in scenarios:
             continue
         curves = _mean_curves(all_rows, scen)
@@ -183,7 +246,7 @@ def main() -> None:
 
     # ---- (7) parameter posterior evolution (#13) ------------------------ #
     for scen, strat in (("S1_ideal", "F"), ("S2_nmr", "F"),
-                        ("S4b_identifiable", "F")):
+                        ("S4b_identifiable", "F"), ("S3_transport", "F")):
         if scen in scenarios:
             rep.figure_param_evolution(
                 all_prows, scen, strat,

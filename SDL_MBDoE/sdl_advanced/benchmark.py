@@ -68,7 +68,12 @@ from .transfer import TransferConfig
 # ------------------------------------------------------------------------- #
 # Shared benchmark configuration
 # ------------------------------------------------------------------------- #
-GEOMETRY = {"length_m": 0.06, "diameter_m": 0.004}     # Layer-1 base case
+# PROPOSED demonstration CPR geometry (20 cm x 7 mm ID, open/unpacked).
+# This is a documented hardware proposal, NOT an optimization result; every
+# consumer reads it from here, so it stays configurable.  Set
+# packing_enabled/bed_void_fraction to model an inert-packed CPR instead.
+GEOMETRY = {"length_m": 0.20, "diameter_m": 0.007,
+            "packing_enabled": False, "bed_void_fraction": 1.0}
 T_REF_C = 60.0
 TRUTH = {"k1_ref": 1.00e-3, "Ea1_J": 40_000.0,          # hidden truth
          "k2_ref": 6.50e-4, "Ea2_J": 48_000.0,
@@ -125,13 +130,13 @@ MODES = {
              "scenarios": ["S1_ideal", "S2_nmr", "S3_transport",
                            "S3ab_delay", "S3ab_rtd",
                            "S4a_ambiguity", "S4b_identifiable",
-                           "S5_inadequacy", "S6_resources",
+                           "S4c_out_of_domain", "S5_inadequacy", "S6_resources",
                            "S7_spatial_modes"]},
     "publication": {"seeds": list(range(1, 41)), "budget": 8,
                     "scenarios": ["S1_ideal", "S2_nmr", "S3_transport",
                                   "S3ab_delay", "S3ab_rtd",
                                   "S4a_ambiguity", "S4b_identifiable",
-                                  "S5_inadequacy", "S6_resources",
+                                  "S4c_out_of_domain", "S5_inadequacy", "S6_resources",
                                   "S7_spatial_modes"]},
 }
 
@@ -151,6 +156,10 @@ class ScenarioSpec:
     track_correct_model: Optional[str] = None
     truth_override: Dict[str, float] = field(default_factory=dict)
     budget_override: Optional[int] = None
+    #: True only for scenarios that CLAIM correct-model recovery; such a
+    #: scenario must pass check_truth_in_domain() (every hidden true value
+    #: inside the candidate parameter box with margin)
+    well_specified: bool = False
 
     @property
     def truth(self) -> Dict[str, float]:
@@ -214,19 +223,34 @@ SCENARIOS: Dict[str, ScenarioSpec] = {
         budget_override=10),
     "S4b_identifiable": ScenarioSpec(
         name="S4b_identifiable",
-        description="IDENTIFIABLE discrimination: reversible vs irreversible "
-                    "under documented strongly reversible truth "
-                    "(K1=0.15, K2=0.002); the discriminating hot/slow region "
-                    "exists and the learner must find it",
+        description="WELL-SPECIFIED correct-model recovery: reversible "
+                    "(rev-pitzer) vs irreversible under the STANDARD "
+                    "benchmark truth - no per-scenario truth override, so "
+                    "nothing was tuned; the 20 cm CPR reaches phi ~ 1 at the "
+                    "hot/slow corner, so reverse kinetics are observable and "
+                    "the learner must find that region",
         observation_mode="nmr", nmr_mode="realistic",
         family=("rev-pitzer", "irreversible"),
         strategies=("D", "F"), track_correct_model="rev-pitzer",
+        budget_override=8, well_specified=True),
+    "S4c_out_of_domain": ScenarioSpec(
+        name="S4c_out_of_domain",
+        description="OUT-OF-DOMAIN / MODEL-MISSPECIFICATION (NOT a "
+                    "correct-model-recovery test): truth K2=0.002 lies BELOW "
+                    "the candidate parameter bound (0.0155), so the "
+                    "reversible candidate cannot represent it and K2 pins to "
+                    "its bound by construction",
+        observation_mode="nmr", nmr_mode="realistic",
+        family=("rev-pitzer", "irreversible"),
+        strategies=("F",), track_correct_model="rev-pitzer",
         truth_override={"K1_ref": 0.15, "K2_ref": 0.002},
         budget_override=8),
     "S5_inadequacy": ScenarioSpec(
         name="S5_inadequacy",
-        description="correct model REMOVED from the family (truth: "
-                    "documented strongly reversible ester, K1=0.30, K2=0.02)",
+        description="correct model REMOVED from the family; truth is an "
+                    "explicitly OUT-OF-DOMAIN strongly reversible ester "
+                    "(K1=0.15, K2=0.002) that NO candidate can represent - "
+                    "the irreversible-only family has no K parameters at all",
         observation_mode="nmr", nmr_mode="realistic",
         family=("irreversible",),
         strategies=("D", "F-noGovernor", "F"),
@@ -305,6 +329,33 @@ def make_lab(spec: ScenarioSpec, seed: int,
         ACQ, NMR_NUISANCE_TRUE, spec.transfer,
         costs if costs is not None else spec.resource_costs,
         seed=seed, noise_direct=NOISE_DIRECT)
+
+
+def check_truth_in_domain(space: ParameterSpace, truth: Dict[str, float],
+                          min_margin_efolds: float = 0.5) -> Dict:
+    """Is every hidden true parameter inside the candidate model's domain?
+
+    Returns a per-parameter report with the distance (in scaled units, i.e.
+    e-folds for log parameters) to the nearer bound.  `ok` is False when any
+    ESTIMATED parameter lies outside its box, or inside with less than
+    `min_margin_efolds` of margin - in which case the estimate will pin to
+    the bound and any 'correct-model recovery' claim is invalid.
+
+    POST-CAMPAIGN / BENCHMARK-CONSTRUCTION USE ONLY: it reads the hidden
+    truth and must never be called from controller-side code."""
+    lo, hi = space.bounds()
+    detail, ok = {}, True
+    for q, k in enumerate(space.param_keys):
+        if k not in truth:
+            continue
+        v = space.to_vector({**space.initial_guess, **truth})[q]
+        margin = float(min(v - lo[q], hi[q] - v))
+        inside = bool(lo[q] <= v <= hi[q])
+        detail[k] = {"inside": inside, "margin_scaled": margin,
+                     "enough_margin": bool(margin >= min_margin_efolds)}
+        if not inside or margin < min_margin_efolds:
+            ok = False
+    return {"ok": ok, "detail": detail}
 
 
 _SCREEN_CACHE: Dict[int, Tuple[str, ...]] = {}
@@ -410,9 +461,17 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
     # kappa: NMR scenarios declare floor-level quantification systematics in
     # Sigma_y; the governor's nulls are widened by exactly that allowance
     # (0 for direct observation -> exact nulls)
+    # kappa is DERIVED from the measured held-out validation coverage, not
+    # tuned: suite B (reachable reaction compositions) shows the calibrated
+    # Sigma_y is understated by a factor r (median r = 1.6 from coverages
+    # 0.73-0.89 via 2*Phi(1.96/r) - 1 = coverage), so the governor must
+    # tolerate a bounded measurement systematic of that size:
+    #     kappa = sqrt(r^2 - 1) ~ 1.25
+    # Re-derive whenever the NMR calibration changes.  kappa = 0 for direct
+    # observation, where Sigma is exact by construction.
     governor = AdequacyGovernor(GovernorConfig(
         n_rounds_planned=budget,
-        systematic_allowance=(0.5 if spec.observation_mode == "nmr"
+        systematic_allowance=(1.25 if spec.observation_mode == "nmr"
                               else 0.0)))
     cov_model = None
     if spec.observation_mode == "nmr" \
@@ -550,6 +609,7 @@ def _round_metrics(spec: ScenarioSpec, strategy: str, res, lab, extra,
             gov_score=(rec.governor.score if rec.governor else float("nan")),
             gov_p=(rec.governor.p_value if rec.governor else float("nan")),
             stop_reason=res.stop_reason,
+            n_rejected=rec.n_rejected, n_reacquired=rec.n_reacquired,
             blind_rmse_M=blind_rmse(bridge, space,
                                     space.to_vector(rec.theta_nat),
                                     z_val, y_true),
@@ -563,11 +623,20 @@ def _round_metrics(spec: ScenarioSpec, strategy: str, res, lab, extra,
 
 # ------------------------------------------------------------------------- #
 def run_scenario(spec: ScenarioSpec, seeds: Sequence[int], budget: int,
-                 verbose: bool = False) -> Tuple[List[Dict], List[Dict]]:
+                 verbose: bool = False
+                 ) -> Tuple[List[Dict], List[Dict], List[Dict]]:
+    """Returns (round rows, per-parameter rows, per-campaign status rows).
+
+    NO campaign is ever dropped: a run that PAUSES on a measurement fault
+    keeps its completed rounds (its last valid posterior is the final row
+    for that seed) and is recorded in the status table with its completion
+    flag, fault counts and stop reason - so accuracy statistics and
+    completion/fault rates are reported side by side (no survivorship
+    bias)."""
     budget = spec.budget_override or budget
     z_val = np.array([GEOMETRY["length_m"] / 3.0, GEOMETRY["length_m"]])
     y_true = _truth_prediction(spec.truth, z_val)
-    rows, prows = [], []
+    rows, prows, status = [], [], []
     for strategy in spec.strategies:
         for seed in seeds:
             t0 = time.time()
@@ -577,10 +646,30 @@ def run_scenario(spec: ScenarioSpec, seeds: Sequence[int], budget: int,
                                   y_true)
             rows.extend([dict(x, seed=seed) for x in r])
             prows.extend([dict(x, seed=seed) for x in p])
+            stop = getattr(res, "stop_reason", "budget exhausted")
+            tot = lab.meter.totals()
+            status.append({
+                "scenario": spec.name, "strategy": strategy, "seed": seed,
+                "rounds_completed": len(r),
+                "rounds_planned": budget,
+                "completed": int(len(r) >= budget),
+                "faulted": int("MEASUREMENT_FAULT" in str(stop)),
+                "stop_reason": stop,
+                "qc_rejected": tot.get("qc_rejected", 0.0),
+                "nmr_reacquisitions": tot.get("nmr_reacquisitions", 0.0),
+                "nmr_acquisitions": tot.get("nmr_acquisitions", 0.0),
+                "last_valid_blind_rmse_M": (r[-1]["blind_rmse_M"] if r
+                                            else float("nan")),
+                "last_valid_param_err_pct": (r[-1]["param_err_pct"] if r
+                                             else float("nan")),
+                "runtime_s": time.time() - t0,
+            })
             if verbose:
                 print(f"    {spec.name}/{strategy}/seed{seed}: "
-                      f"{time.time() - t0:.1f} s")
-    return rows, prows
+                      f"{time.time() - t0:.1f} s"
+                      + ("" if len(r) >= budget
+                         else f"  [PAUSED after {len(r)}/{budget} rounds]"))
+    return rows, prows, status
 
 
 # ------------------------------------------------------------------------- #
@@ -595,18 +684,37 @@ def _boot_ci(x: np.ndarray, stat=np.median, B: int = 2000,
     return float(np.quantile(s, 0.025)), float(np.quantile(s, 0.975))
 
 
+def last_valid_rows(rows: List[Dict], scenario: str,
+                    strategy: str) -> List[Dict]:
+    """One row per SEED: that seed's LAST COMPLETED round.
+
+    Using the per-seed last round (not the global maximum) is what keeps a
+    paused/faulted campaign in the statistics with its last valid posterior
+    instead of silently vanishing (survivorship bias)."""
+    s_rows = [r for r in rows if r["scenario"] == scenario
+              and r["strategy"] == strategy]
+    out = []
+    for seed in sorted({r["seed"] for r in s_rows}):
+        seed_rows = [r for r in s_rows if r["seed"] == seed]
+        out.append(max(seed_rows, key=lambda r: int(r["round"])))
+    return out
+
+
 def summarize_final(rows: List[Dict], scenario: str,
                     metrics: Sequence[str] = ("param_err_pct",
                                               "blind_rmse_M")) -> List[Dict]:
-    """Final-round distributional summary per strategy: median, IQR, mean,
-    bootstrap 95% CI of the median."""
+    """Last-valid-round distributional summary per strategy: median, IQR,
+    mean, bootstrap 95% CI of the median (paused campaigns retained)."""
     sc = [r for r in rows if r["scenario"] == scenario]
     out = []
     for strat in sorted({r["strategy"] for r in sc}):
-        s_rows = [r for r in sc if r["strategy"] == strat]
-        last = max(r["round"] for r in s_rows)
-        fr = [r for r in s_rows if r["round"] == last]
-        rec = {"scenario": scenario, "strategy": strat, "n_seeds": len(fr)}
+        fr = last_valid_rows(rows, scenario, strat)
+        n_partial = sum(1 for r in fr
+                        if "MEASUREMENT_FAULT" in str(r.get("stop_reason", "")))
+        rec = {"scenario": scenario, "strategy": strat, "n_seeds": len(fr),
+               "n_faulted": n_partial,
+               "median_rounds": float(np.median([int(r["round"])
+                                                 for r in fr])) if fr else 0.0}
         for m in metrics:
             x = np.array([r[m] for r in fr if np.isfinite(r.get(m, np.nan))])
             if len(x) == 0:
@@ -626,13 +734,11 @@ def paired_comparison(rows: List[Dict], scenario: str, strat_a: str,
     """Common-random-number PAIRED comparison of two strategies at the
     final round: per-seed differences, bootstrap CI of the median
     difference, and P(a better than b)."""
-    sc = [r for r in rows if r["scenario"] == scenario]
-    per_seed = {}
-    for r in sc:
-        last = max(x["round"] for x in sc if x["strategy"] == r["strategy"])
-        if r["round"] != last:
-            continue
-        per_seed.setdefault(r["seed"], {})[r["strategy"]] = r.get(metric)
+    per_seed: Dict = {}
+    for strat in (strat_a, strat_b):
+        for r in last_valid_rows(rows, scenario, strat):
+            per_seed.setdefault(r["seed"], {})[strat] = r.get(metric)
+    # COMMON seeds only, explicitly identified (paired CRN comparison)
     diffs = [v[strat_a] - v[strat_b] for v in per_seed.values()
              if strat_a in v and strat_b in v
              and np.isfinite(v[strat_a]) and np.isfinite(v[strat_b])]
