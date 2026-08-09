@@ -401,6 +401,31 @@ def _assumed_transfer_from(cfg: TransferConfig,
                            v_per_m_mL=cfg.v_per_m_mL, length_m=length_m)
 
 
+def design_for_budget(budget: int) -> Dict:
+    """DESIGN with a conventional temperature ladder long enough for the
+    requested budget.
+
+    The fixed/conventional baselines (A, B) walk `fixed_design_T_C` one rung
+    per round, and sdl.design.build_fixed_design only ever SUBSAMPLES that
+    declared ladder - it never extends it.  A budget larger than the ladder
+    therefore used to abort the campaign (publication mode: budget 8 vs a
+    7-rung ladder).
+
+    Rule, chosen so previously reported results stay reproducible:
+      * budget <= declared rungs -> the declared ladder is used unchanged
+        (demo mode is bit-for-bit as before);
+      * budget >  declared rungs -> the ladder is REFINED to exactly
+        `budget` evenly spaced temperatures over the SAME declared range,
+        which is what a conventional experimenter with more runs would do.
+    """
+    ladder = list(DESIGN["fixed_design_T_C"])
+    if budget <= len(ladder):
+        return DESIGN
+    lo, hi = float(min(ladder)), float(max(ladder))
+    refined = [float(x) for x in np.linspace(lo, hi, int(budget))]
+    return {**DESIGN, "fixed_design_T_C": refined}
+
+
 def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
                      budget: int, verbose: bool = False,
                      store_spectra: bool = False):
@@ -412,7 +437,8 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
                    costs=variant.get("costs"))
     ports = fixed_equal_positions(lab.length_m, N_PORTS)
     candidates = build_candidates(DESIGN)
-    fixed = build_fixed_design(DESIGN, budget=budget)
+    fixed = build_fixed_design(design_for_budget(budget),
+                               budget=budget)
     guess = literature_guess(t_ref_K, "H2SO4")
     dropped = screened_dropped_keys(budget)
 
@@ -640,8 +666,36 @@ def _round_metrics(spec: ScenarioSpec, strategy: str, res, lab, extra,
 
 
 # ------------------------------------------------------------------------- #
+#: RELATIVE cost of one campaign round per strategy, measured from the demo
+#: run (A/B/C/D ~ baseline WLS; E adds spatial optimisation; F adds the NMR
+#: pathway + Bayesian ensemble).  Used ONLY to weight the progress bar so
+#: its ETA does not swing when the mix of strategies changes; it has no
+#: effect on any scientific result.
+_STRATEGY_COST = {"A": 0.35, "B": 0.6, "C": 0.5, "D": 0.8, "E": 1.2}
+
+
+def campaign_cost_units(strategy: str, budget: int) -> float:
+    """Approximate work of one campaign, in arbitrary units ~ seconds."""
+    base = _STRATEGY_COST.get(strategy, 2.6 if strategy.startswith("F")
+                              else 1.0)
+    return float(base * budget)
+
+
+def total_cost_units(scenarios: Sequence[str], seeds: Sequence[int],
+                     budget: int, n_governor_seeds: int = 0) -> float:
+    """Total weighted work of a benchmark run (campaigns + governor MC)."""
+    total = 0.0
+    for name in scenarios:
+        spec = SCENARIOS[name]
+        b = spec.budget_override or budget
+        for strategy in spec.strategies:
+            total += len(seeds) * campaign_cost_units(strategy, b)
+    total += 2.0 * n_governor_seeds * campaign_cost_units("F", budget)
+    return total
+
+
 def run_scenario(spec: ScenarioSpec, seeds: Sequence[int], budget: int,
-                 verbose: bool = False
+                 verbose: bool = False, progress=None
                  ) -> Tuple[List[Dict], List[Dict], List[Dict]]:
     """Returns (round rows, per-parameter rows, per-campaign status rows).
 
@@ -687,6 +741,8 @@ def run_scenario(spec: ScenarioSpec, seeds: Sequence[int], budget: int,
                       f"{time.time() - t0:.1f} s"
                       + ("" if len(r) >= budget
                          else f"  [PAUSED after {len(r)}/{budget} rounds]"))
+            if progress is not None:
+                progress(spec.name, strategy, seed, budget)
     return rows, prows, status
 
 
@@ -773,7 +829,7 @@ def paired_comparison(rows: List[Dict], scenario: str, strat_a: str,
 
 # ------------------------------------------------------------------------- #
 def governor_mc_validation(seeds: Sequence[int], budget: int = 6,
-                           verbose: bool = False) -> Dict:
+                           verbose: bool = False, progress=None) -> Dict:
     """Monte Carlo validation of the governor (#calibration honesty):
 
       * correct-family scenario (S2-style)  -> realized campaign-level
@@ -794,6 +850,8 @@ def governor_mc_validation(seeds: Sequence[int], budget: int = 6,
         if verbose:
             print(f"    governor-MC correct-family seed {seed}: "
                   f"{'FP' if fp else 'ok'}")
+        if progress is not None:
+            progress("governor-MC", "well-specified", seed, budget)
     detected = 0
     for seed in seeds:
         res, _, gov = run_one_campaign(SCENARIOS["S5_inadequacy"], "F",
@@ -804,6 +862,8 @@ def governor_mc_validation(seeds: Sequence[int], budget: int = 6,
         if rd is not None:
             detected += 1
             det_rounds.append(rd)
+        if progress is not None:
+            progress("governor-MC", "misspecified", seed, budget)
     n = len(list(seeds))
     return {"n_seeds": n,
             "false_inadequacy_campaign_rate": fp / n,

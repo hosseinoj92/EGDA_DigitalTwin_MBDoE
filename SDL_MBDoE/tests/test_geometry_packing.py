@@ -169,6 +169,42 @@ def test_out_of_domain_scenario_is_detected_and_labelled():
         space, bm.SCENARIOS["S5_inadequacy"].truth)["ok"]
 
 
+
+
+def test_fixed_design_ladder_supports_every_planned_budget():
+    """REGRESSION: publication mode (budget 8) aborted because the declared
+    conventional ladder had only 7 rungs and build_fixed_design only
+    subsamples.  Every budget in MODES must now yield a fixed design with
+    one experiment per round, for A and B alike."""
+    from sdl import build_fixed_design
+    for mode, cfg in bm.MODES.items():
+        budgets = {cfg["budget"]}
+        for name in cfg["scenarios"]:
+            ov = bm.SCENARIOS[name].budget_override
+            if ov:
+                budgets.add(ov)
+        for b in budgets:
+            fx = build_fixed_design(bm.design_for_budget(b), budget=b)
+            assert len(fx) >= b, (mode, b, len(fx))
+            temps = [u.T_C for u in fx]
+            assert temps == sorted(temps)
+            assert min(temps) == min(bm.DESIGN["fixed_design_T_C"])
+            assert max(temps) == max(bm.DESIGN["fixed_design_T_C"])
+
+
+def test_declared_ladder_untouched_when_budget_fits():
+    """Budgets that fit the declared ladder must reproduce the PREVIOUS
+    behaviour exactly, so already-reported demo results stay valid."""
+    from sdl import build_fixed_design
+    assert bm.design_for_budget(6) is bm.DESIGN
+    assert bm.design_for_budget(7) is bm.DESIGN
+    assert [u.T_C for u in build_fixed_design(bm.DESIGN, budget=6)] == \
+           [40.0, 60.0, 80.0, 120.0, 140.0, 160.0]
+    # and a larger budget refines the SAME range rather than extrapolating
+    d8 = bm.design_for_budget(8)
+    assert d8 is not bm.DESIGN and len(d8["fixed_design_T_C"]) == 8
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:

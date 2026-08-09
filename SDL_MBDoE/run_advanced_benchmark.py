@@ -29,20 +29,27 @@ import time
 
 import numpy as np
 
+try:                                    # progress bar (optional dependency)
+    from tqdm.auto import tqdm
+except ImportError:                     # pragma: no cover - fallback
+    tqdm = None
+
 from sdl_advanced import benchmark as bm
 from sdl_advanced import reporting as rep
 from sdl_advanced import validation as val
 from sdl_advanced import observability as obs
 
 CONFIG = {
-    "mode": "demo",                 # "smoke" | "demo" | "publication"
-    "outdir": "results_advanced_v3/benchmark",
+    "mode": "publication",                 # "smoke" | "demo" | "publication"
+    "outdir": "results_advanced_v3/publication",
     # optional overrides of the mode defaults (None -> use MODES[mode]):
     "seeds": None,
     "budget": None,
     "scenarios": None,
     "governor_mc_seeds": None,      # default: seeds of the mode, min 12
     "run_quant_validation": True,
+    "progress": True,          # overall tqdm bar with % done + ETA
+    "verbose_rounds": False,   # per-round campaign lines (noisy under the bar)
 }
 
 
@@ -113,8 +120,28 @@ def main() -> None:
     scenarios = cfg["scenarios"] or mode["scenarios"]
     outdir = resolve_outdir(cfg["outdir"])
     t0 = time.time()
-    print(f"=== advanced benchmark v3 | mode={cfg['mode']} | "
-          f"{len(seeds)} seeds | budget {budget} ===")
+
+    # ---- overall progress bar ------------------------------------------- #
+    gov_seeds_planned = cfg["governor_mc_seeds"] or list(seeds)
+    if len(gov_seeds_planned) < 12:
+        gov_seeds_planned = list(range(1, 13))
+    total_units = bm.total_cost_units(scenarios, seeds, budget,
+                                      len(gov_seeds_planned))
+    use_bar = bool(cfg.get("progress", True)) and tqdm is not None
+    bar = (tqdm(total=round(total_units), unit="wu", dynamic_ncols=True,
+                smoothing=0.05,
+                bar_format="{l_bar}{bar}| {percentage:3.0f}% "
+                           "[elapsed {elapsed} | remaining {remaining}]")
+           if use_bar else None)
+    say = (lambda msg: (tqdm.write(msg) if bar is not None else print(msg)))
+
+    def _tick(scenario, strategy, seed, b):
+        if bar is not None:
+            bar.update(bm.campaign_cost_units(strategy, b))
+            bar.set_description(f"{scenario}/{strategy} seed{seed}")
+
+    say(f"=== advanced benchmark v3 | mode={cfg['mode']} | "
+        f"{len(seeds)} seeds | budget {budget} ===")
 
     # ---- (0B) equilibrium-observability diagnostic, BEFORE any campaign - #
     # uses ASSUMED (literature) parameters only: firewall-clean
@@ -168,15 +195,16 @@ def main() -> None:
     all_rows, all_prows, all_status, runtimes = [], [], [], {}
     for scen in scenarios:
         spec = bm.SCENARIOS[scen]
-        print(f"\n=== {scen}: {spec.description}")
+        say(f"\n=== {scen}: {spec.description}")
         t_s = time.time()
-        rows, prows, status = bm.run_scenario(spec, seeds, budget,
-                                              verbose=True)
+        rows, prows, status = bm.run_scenario(
+            spec, seeds, budget,
+            verbose=bool(cfg.get("verbose_rounds", False)), progress=_tick)
         runtimes[scen] = time.time() - t_s
         all_rows.extend(rows)
         all_prows.extend(prows)
         all_status.extend(status)
-        print(f"    {scen} done in {runtimes[scen]:.0f} s")
+        say(f"    {scen} done in {runtimes[scen]:.0f} s")
 
     _write_rows(all_rows, os.path.join(outdir, "benchmark_rounds.csv"))
     _write_rows(all_prows, os.path.join(outdir, "benchmark_params.csv"))
@@ -257,7 +285,8 @@ def main() -> None:
     if len(gov_seeds) < 12:
         gov_seeds = list(range(1, 13))
     t_g = time.time()
-    gov = bm.governor_mc_validation(gov_seeds, budget=budget)
+    gov = bm.governor_mc_validation(gov_seeds, budget=budget,
+                                    progress=_tick)
     gov["runtime_s"] = time.time() - t_g
     with open(os.path.join(outdir, "governor_validation.json"), "w") as fh:
         json.dump(gov, fh, indent=2)
@@ -351,6 +380,10 @@ def main() -> None:
             "acquisition": dataclasses.asdict(bm.ACQ),
             "transfer_true": dataclasses.asdict(bm.TRANSFER_TRUE),
         }, fh, indent=2, default=str)
+    if bar is not None:
+        bar.n = bar.total          # snap to 100% (weights are estimates)
+        bar.refresh()
+        bar.close()
     print(f"\nBenchmark finished in {(time.time() - t0) / 60.0:.1f} min. "
           f"Outputs in: {os.path.relpath(outdir)}")
 
