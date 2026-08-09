@@ -240,3 +240,56 @@ def plot_phi_profiles(bridge: Layer1Bridge, theta_nat: Dict[str, float],
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"saved: {os.path.relpath(path)}")
+
+
+def reactor_validity_report(bridge: Layer1Bridge, theta_nat: Dict[str, float],
+                            conditions: Sequence[OperatingConditions]
+                            ) -> List[Dict]:
+    """Plug-flow validity over representative conditions, using the EXISTING
+    Layer-1 flow diagnostics (no new physics is invented here).
+
+    The 1-D ideal-PFR treatment is a MODEL ASSUMPTION, not an experimentally
+    guaranteed property: an open 7 mm tube at these flows is strongly
+    laminar, and when the radial diffusion time R^2/D exceeds the residence
+    time the streamlines stay segregated, so the real reactor will show a
+    broader RTD than the twin assumes.  This report surfaces that per
+    condition; it does not attempt to correct it."""
+    from pfr_twin.diagnostics import flow_diagnostics
+    kin = bridge.kinetics_from_theta(theta_nat)
+    g = bridge.geometry
+    rows = []
+    for u in conditions:
+        inlet = bridge._inlet(u, kin)
+        T_K = u.T_C + 273.15
+        lines = flow_diagnostics(inlet, g, T_K)
+        text = " | ".join(lines)
+        q_m3_s = inlet.Q_total_m3_s
+        tau = g.residence_time_s(q_m3_s)
+        u_sup = q_m3_s / g.area_m2
+        rows.append({
+            "T_C": u.T_C,
+            "Q_total_mL_min": u.Q1_mL_min + u.Q2_mL_min,
+            "tau_s": tau,
+            "u_superficial_mm_s": u_sup * 1e3,
+            "u_interstitial_mm_s": q_m3_s / g.flow_area_m2 * 1e3,
+            "void_fraction": g.void_fraction,
+            "t_radial_diffusion_s": (g.diameter_m / 2.0) ** 2 / 1.0e-9,
+            "t_rad_over_tau": ((g.diameter_m / 2.0) ** 2 / 1.0e-9) / tau,
+            "plug_flow_advisory": int("ADVISORY" in text),
+            "regime": ("laminar" if "laminar" in text
+                       else "transitional" if "transitional" in text
+                       else "turbulent"),
+        })
+    return rows
+
+
+def write_validity_csv(rows: Sequence[Dict], path: str) -> None:
+    import csv
+    import os
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    keys = list(rows[0].keys())
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=keys)
+        w.writeheader()
+        w.writerows(rows)
+    print(f"saved: {os.path.relpath(path)}")

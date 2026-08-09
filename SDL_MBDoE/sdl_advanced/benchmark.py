@@ -461,22 +461,33 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
     # kappa: NMR scenarios declare floor-level quantification systematics in
     # Sigma_y; the governor's nulls are widened by exactly that allowance
     # (0 for direct observation -> exact nulls)
-    # kappa is DERIVED from the measured held-out validation coverage, not
-    # tuned: suite B (reachable reaction compositions) shows the calibrated
-    # Sigma_y is understated by a factor r (median r = 1.6 from coverages
-    # 0.73-0.89 via 2*Phi(1.96/r) - 1 = coverage), so the governor must
-    # tolerate a bounded measurement systematic of that size:
-    #     kappa = sqrt(r^2 - 1) ~ 1.25
-    # Re-derive whenever the NMR calibration changes.  kappa = 0 for direct
-    # observation, where Sigma is exact by construction.
+    # kappa is DERIVED from WELL-SPECIFIED CONTROL data, never from the
+    # kinetic benchmark: validation.derive_systematic_allowance() measures
+    # the standardized residual z = (c_hat - c_true)/sigma_claimed of the
+    # CALIBRATED NMR pathway on an independent control stream and returns
+    #     kappa = sqrt(rms(z)^2 - 1).
+    # With the shared calibration artifact (Priority 1) the covariance is
+    # nearly right - rms(z) = 1.11, per-species z-std [1.00, 0.77, 1.16,
+    # 1.06] - but a bounded residual BIAS survives in the overlapped
+    # resonances (z-mean EGMA -0.72, AcOH -0.52), which is exactly what the
+    # allowance is for.  Hence kappa = 0.47, down from 1.25 in v3 when the
+    # governor was compensating for a broken Sigma_y.  Re-derive whenever
+    # the NMR calibration changes.  kappa = 0 for direct observation, where
+    # Sigma is exact by construction.
+    # SEE: tests/test_calibration_governor.py::test_allowance_is_derived...
     governor = AdequacyGovernor(GovernorConfig(
         n_rounds_planned=budget,
-        systematic_allowance=(1.25 if spec.observation_mode == "nmr"
+        systematic_allowance=(0.47 if spec.observation_mode == "nmr"
                               else 0.0)))
     cov_model = None
     if spec.observation_mode == "nmr" \
             and variant.get("expected_cov", "spectral") == "spectral":
-        cov_model = SpectralCovarianceModel(SpectralFitter(ACQ))
+        # SAME public calibration artifact as the measurement pathway:
+        # Sigma_expected(MBDoE) and Sigma_actual(instrument) are two
+        # evaluations of one calibrated measurement model, not two
+        # independently invented ones.
+        cov_model = SpectralCovarianceModel(
+            SpectralFitter(ACQ), calibration=getattr(lab, "calibration", None))
     spatial_mode = variant.get("spatial_mode", "optimized")
     design_cfg = AdvancedDesignConfig(
         top_k=3, n_particles=16, n_outer=24,
@@ -575,6 +586,8 @@ def _round_metrics(spec: ScenarioSpec, strategy: str, res, lab, extra,
                 p_correct=float("nan"), model_entropy=float("nan"),
                 gov_state="", gov_score=float("nan"),
                 gov_p=float("nan"), stop_reason="",
+                probs_reliable=-1,              # n/a: no Bayesian evidence
+                evidence_reliable_by_model="", evidence_warning="",
                 blind_rmse_M=blind_rmse(inf.bridge, inf.space,
                                         inf.space.to_vector(rec.theta_nat),
                                         z_val, y_true),
@@ -610,6 +623,11 @@ def _round_metrics(spec: ScenarioSpec, strategy: str, res, lab, extra,
             gov_p=(rec.governor.p_value if rec.governor else float("nan")),
             stop_reason=res.stop_reason,
             n_rejected=rec.n_rejected, n_reacquired=rec.n_reacquired,
+            probs_reliable=int(rec.probs_reliable),
+            evidence_reliable_by_model=";".join(
+                f"{k}={int(v)}" for k, v in
+                sorted(rec.evidence_reliable_by_model.items())),
+            evidence_warning=rec.evidence_warning[:200],
             blind_rmse_M=blind_rmse(bridge, space,
                                     space.to_vector(rec.theta_nat),
                                     z_val, y_true),

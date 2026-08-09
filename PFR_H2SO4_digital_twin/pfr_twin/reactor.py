@@ -2,7 +2,8 @@
 Steady-state, isothermal, 1D plug flow reactor model.
 
 Governing equations (constant-density liquid, no axial dispersion), with
-u = Q_total / A_cross the superficial velocity and residence coordinate
+u = Q_total/(eps*A_cross) the INTERSTITIAL velocity (= superficial
+Q/A for an unpacked tube) and residence coordinate
 tau(x) = x / u.  The organic balances are catalyst-independent:
 
     u dC_EGDA/dx = -r1
@@ -120,7 +121,9 @@ class PFRResult:
             + ("(saponification: OH- consumed stoichiometrically)" if alkaline
                else "(specific acid catalysis: [H+] constant)"),
             f"Temperature                 : {self.T_K - 273.15:7.2f} C ({self.T_K:.2f} K)",
-            f"Superficial velocity u      : {self.u_m_s * 1e3:7.3f} mm/s",
+            f"Interstitial velocity u     : {self.u_m_s * 1e3:7.3f} mm/s"
+            + ("" if self.geometry.void_fraction >= 1.0
+               else f"  (superficial {self.u_m_s * self.geometry.void_fraction * 1e3:.3f} mm/s)"),
             f"Residence time tau          : {self.residence_time_s:7.1f} s "
             f"({self.residence_time_s / 60.0:.2f} min)",
             f"kappa1 = k1{cat_sym:7s}       : {self.kappa1:.4e} 1/s"
@@ -202,8 +205,9 @@ def simulate_pfr(inlet: InletState,
     """Integrate the plug-flow balances from x = 0 to x = L.
 
     u is the INTERSTITIAL velocity Q / (epsilon A); for an unpacked tube
-    (epsilon = 1, the default) this is the ordinary superficial velocity
-    and the result is unchanged."""
+    (epsilon = 1, the default) it coincides with the superficial velocity
+    Q/A and the result is unchanged.  Q/(eps A) must NOT be called
+    'superficial velocity' when packing is enabled."""
     u = inlet.Q_total_m3_s / geometry.flow_area_m2     # m/s
     kappa1, kappa2 = model.effective_constants(T_K, inlet.c_cat0)
     nu = nu_matrix(model.params.catalyst)

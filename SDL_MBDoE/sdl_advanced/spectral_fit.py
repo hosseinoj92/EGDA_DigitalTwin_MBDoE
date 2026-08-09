@@ -44,6 +44,61 @@ from .spectral import (AcquisitionSettings, CARBON_BOUND_GROUPS,
 _VAR_FLOOR = 1e-12
 
 
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class NMRCalibration:
+    """PUBLIC calibration artifact: everything a real Fourier-80 campaign
+    would obtain from PREPARED STANDARD MIXTURES, and nothing else.
+
+    It contains only measurable/public quantities - response factors, the
+    empirical bias vector, the residual correlation and variance model, and
+    the interval-scale factors.  It deliberately contains NO hidden kinetic
+    truth and NO realized instrument-nuisance draw, so handing it to the
+    design layer cannot breach the truth/inference firewall.
+
+    ONE artifact is consumed by BOTH the measurement pathway
+    (SpectralFitter) and the design-time expected covariance
+    (SpectralCovarianceModel), so Sigma_actual and Sigma_expected are two
+    evaluations of the SAME measurement model rather than two independently
+    invented ones.
+
+    Residual model (per species i, concentration c_i):
+
+        sigma_emp,i(c) = scale_i * sqrt( var_const_i + (rel_i * c_i)^2 )
+        Sigma_emp(c)   = corr * outer(sigma_emp, sigma_emp)
+
+    fitted on DATASET 1 (calibration-fit standards); `scale` is estimated on
+    DATASET 2 (independent calibration-check standards) and never on the
+    final held-out validation set."""
+    species: Tuple[str, ...]
+    response_factors: Dict[str, float]
+    bias_M: np.ndarray                    # additive bias, mol/L
+    corr: np.ndarray                      # inter-species residual correlation
+    var_const_M2: np.ndarray              # constant variance component
+    rel: np.ndarray                       # concentration-proportional part
+    scale: np.ndarray                     # interval scale from DATASET 2
+    meta: Dict = field(default_factory=dict)
+
+    def sigma_emp(self, conc: np.ndarray) -> np.ndarray:
+        c = np.maximum(np.asarray(conc, dtype=float), 0.0)
+        return self.scale * np.sqrt(self.var_const_M2 + (self.rel * c) ** 2)
+
+    def cov_emp(self, conc: np.ndarray) -> np.ndarray:
+        s = self.sigma_emp(conc)
+        return self.corr * np.outer(s, s)
+
+    def rf_vector(self) -> np.ndarray:
+        return np.array([self.response_factors.get(sp, 1.0)
+                         for sp in self.species])
+
+    def contains_only_public_fields(self) -> bool:
+        """Guard used by the firewall test: the artifact must expose only
+        calibration quantities (no theta, no realized nuisance)."""
+        allowed = {"species", "response_factors", "bias_M", "corr",
+                   "var_const_M2", "rel", "scale", "meta"}
+        return set(self.__dataclass_fields__) == allowed
+
+
 @dataclass
 class QuantificationResult:
     species: Tuple[str, ...]
@@ -134,12 +189,32 @@ class SpectralFitter:
         self.empirical_corr: Optional[np.ndarray] = None
         self.empirical_var_const: Optional[np.ndarray] = None
         self.empirical_rel: Optional[np.ndarray] = None
+        self.empirical_scale: Optional[np.ndarray] = None
+        #: the PUBLIC calibration artifact this fitter is running with
+        self.calibration: Optional["NMRCalibration"] = None
         self._ppm = acq.ppm_grid()
         x = (2.0 * (self._ppm - acq.ppm_min)
              / (acq.ppm_max - acq.ppm_min) - 1.0)
         self._baseline_cols = np.stack([np.ones_like(x), x, x ** 2], axis=1)
 
     # ------------------------------------------------------------------ #
+    def apply_calibration(self, cal: "NMRCalibration") -> None:
+        """Adopt a PUBLIC calibration artifact.  The design-time
+        SpectralCovarianceModel adopts the SAME object, so the measurement
+        covariance and the expected covariance are one model."""
+        if tuple(cal.species) != tuple(self.species):
+            raise ValueError(
+                f"calibration species {cal.species} do not match fitter "
+                f"species {self.species}.")
+        self.calibration = cal
+        self.response_correction = dict(cal.response_factors)
+        self.empirical_bias = np.asarray(cal.bias_M, dtype=float)
+        self.empirical_corr = np.asarray(cal.corr, dtype=float)
+        self.empirical_var_const = np.asarray(cal.var_const_M2, dtype=float)
+        self.empirical_rel = np.asarray(cal.rel, dtype=float)
+        self.empirical_scale = np.asarray(cal.scale, dtype=float)
+        self.empirical_cov = cal.cov_emp(np.zeros(len(self.species)))
+
     def _basis(self, eta: np.ndarray) -> np.ndarray:
         """B(eta): columns = phased species spectra, exchange pool, baseline."""
         d_ppm, ln_lw, pool_ppm, phi = eta
@@ -292,9 +367,12 @@ class SpectralFitter:
         if self.empirical_bias is not None:
             conc = conc - self.empirical_bias
         if self.empirical_corr is not None:
-            s_emp = np.sqrt(self.empirical_var_const
-                            + (self.empirical_rel
-                               * np.maximum(conc, 0.0)) ** 2)
+            scale = (self.empirical_scale
+                     if self.empirical_scale is not None
+                     else np.ones(n_s))
+            s_emp = scale * np.sqrt(
+                self.empirical_var_const
+                + (self.empirical_rel * np.maximum(conc, 0.0)) ** 2)
             cov = cov + self.empirical_corr * np.outer(s_emp, s_emp)
         elif self.empirical_cov is not None:
             cov = cov + self.empirical_cov
@@ -335,13 +413,32 @@ class SpectralCovarianceModel:
     replaced by instrument calibration): the shift database, the commanded
     acquisition settings, `assumed_noise_sigma` (per-point receiver noise)
     and `assumed_pool_area` (residual water-pool amplitude entering the
-    eta-sensitivity columns)."""
+    eta-sensitivity columns).
+
+    TWO MODES - and in the calibrated mode the design layer and the
+    measurement layer share ONE public NMRCalibration artifact, so the
+    covariance MBDoE expects is the covariance the instrument delivers:
+
+      UNCALIBRATED:  Sigma_exp = Sigma_spectral
+                                 + assumed floor/gain/shift-jitter terms
+      CALIBRATED:    Sigma_exp = Sigma_spectral / (rf rf^T)
+                                 + Sigma_empirical(c)     [same model, same
+                                                          scale, same corr]
+
+    The response-factor division is the same unit transform the fitter
+    applies when it converts fitted amplitudes into concentrations."""
 
     def __init__(self, fitter: SpectralFitter,
                  assumed_noise_sigma: float = 0.10,     # CAL
-                 assumed_pool_area: float = 100.0):     # CAL (~2*[H2O]*supp)
+                 assumed_pool_area: float = 100.0,      # CAL (~2*[H2O]*supp)
+                 calibration: Optional["NMRCalibration"] = None):
         self.fitter = fitter
         self.species = fitter.species
+        # adopt the SAME public artifact the measurement fitter uses
+        cal = calibration if calibration is not None else fitter.calibration
+        if cal is not None and fitter.calibration is None:
+            fitter.apply_calibration(cal)
+        self.calibration = cal
         self.assumed_noise_sigma = float(assumed_noise_sigma)
         self.assumed_pool_area = float(assumed_pool_area)
         pool0 = fitter._pool_center_guess()
@@ -385,6 +482,15 @@ class SpectralCovarianceModel:
             * self.assumed_noise_sigma ** 2
         cov = cov_full[:n_s, :n_s].copy()
         cov[np.diag_indices(n_s)] = np.maximum(np.diag(cov), _VAR_FLOOR)
+        if self.calibration is not None:
+            # CALIBRATED: transform the spectral part into concentration
+            # units exactly as the fitter does, then add the SAME empirical
+            # residual model.  The assumed floor/gain/jitter surrogates are
+            # NOT applied - that would double-count what the calibration
+            # already measures.
+            rf = self.calibration.rf_vector()
+            cov = cov / np.outer(rf, rf)
+            return cov + self.calibration.cov_emp(a[:n_s] / rf)
         floor = (f.sigma_floor_abs_M
                  + f.sigma_floor_rel * a[:n_s]) ** 2
         cov[np.diag_indices(n_s)] = np.diag(cov) + floor
@@ -414,6 +520,96 @@ class SpectralCovarianceModel:
 
 
 # --------------------------------------------------------------------------- #
+def _check_standards() -> List[Dict[str, float]]:
+    """DATASET 2 - independent calibration-CHECK standards.
+
+    Prepared mixtures that SPAN the composition range the campaign will
+    actually measure (including high-conversion, water-rich reaction-like
+    states), so the interval scale is estimated where it will be used.
+    These are prepared compositions: public information, not truth."""
+    return [
+        {"EGDA": 0.45, "EGMA": 0.04, "EG": 0.01, "AcOH": 0.06, "H2O": 53.0},
+        {"EGDA": 0.30, "EGMA": 0.12, "EG": 0.04, "AcOH": 0.20, "H2O": 52.5},
+        {"EGDA": 0.18, "EGMA": 0.16, "EG": 0.10, "AcOH": 0.40, "H2O": 52.0},
+        {"EGDA": 0.08, "EGMA": 0.14, "EG": 0.22, "AcOH": 0.60, "H2O": 51.0},
+        {"EGDA": 0.01, "EGMA": 0.05, "EG": 0.38, "AcOH": 0.85, "H2O": 50.0},
+        {"EGDA": 0.25, "EGMA": 0.00, "EG": 0.00, "AcOH": 0.00, "H2O": 54.0},
+        {"EGDA": 0.00, "EGMA": 0.20, "EG": 0.20, "AcOH": 0.40, "H2O": 51.5},
+        {"EGDA": 0.50, "EGMA": 0.10, "EG": 0.05, "AcOH": 0.15, "H2O": 52.0},
+    ]
+
+
+def calibrate_nmr(acq: AcquisitionSettings, acquire,
+                  rng_fit: np.random.Generator,
+                  rng_check: np.random.Generator,
+                  species: Sequence[str] = QUANTIFIED_SPECIES,
+                  standards_fit: Optional[List[Dict[str, float]]] = None,
+                  standards_check: Optional[List[Dict[str, float]]] = None,
+                  n_rep_fit: int = 4, n_rep_check: int = 6,
+                  level: float = 0.95) -> NMRCalibration:
+    """Build the PUBLIC calibration artifact from prepared standards.
+
+    Three INDEPENDENT datasets / RNG streams:
+
+      DATASET 1 (rng_fit, standards_fit)     -> response factors, bias,
+                                                residual correlation and the
+                                                variance model (const + rel)
+      DATASET 2 (rng_check, standards_check) -> the interval SCALE, from the
+                                                empirical distribution of the
+                                                standardized residuals
+      DATASET 3 (validation.py, its own RNG) -> never touched here
+
+    The scale is the per-species factor that makes the claimed intervals
+    attain their nominal level on DATASET 2:
+
+        q_i = quantile_level( |e_i| / sigma_i ) / z_level
+
+    computed on the calibration-CHECK data only.  Tuning it on the final
+    validation set would be circular and is not done."""
+    fitter = SpectralFitter(acq, species)
+    calibrate_responses(fitter, acquire, rng_fit,
+                        standards=standards_fit, n_rep=n_rep_fit)
+    emp = calibrate_empirical(fitter, acquire, rng_fit,
+                              standards=standards_fit, n_rep=n_rep_fit)
+
+    # ---- DATASET 2: scale the intervals on independent check standards --- #
+    sp = tuple(fitter.species)
+    n_s = len(sp)
+    z_level = {0.95: 1.959964, 0.90: 1.644854}.get(level, 1.959964)
+    ratios = {i: [] for i in range(n_s)}
+    for std in (standards_check or _check_standards()):
+        truth = np.array([std.get(s, 0.0) for s in sp])
+        for _ in range(n_rep_check):
+            ppm, y = acquire(std, rng_check)
+            res = fitter.fit(ppm, y)
+            sig = np.sqrt(np.maximum(np.diag(res.cov), 1e-300))
+            err = res.conc_M - truth
+            for i, s in enumerate(sp):
+                if s in res.censored:        # one-sided/censored: excluded
+                    continue                 # from the two-sided scale
+                ratios[i].append(abs(err[i]) / sig[i])
+    scale = np.ones(n_s)
+    n_used = {}
+    for i in range(n_s):
+        r = np.asarray(ratios[i])
+        n_used[sp[i]] = int(len(r))
+        if len(r) >= 8:
+            q = float(np.quantile(r, level)) / z_level
+            scale[i] = float(np.clip(q, 1.0, 25.0))   # never SHRINK claimed
+    return NMRCalibration(                            # uncertainty
+        species=sp,
+        response_factors=dict(fitter.response_correction),
+        bias_M=np.asarray(emp["bias_M"], dtype=float),
+        corr=np.asarray(emp["corr"], dtype=float),
+        var_const_M2=np.asarray(emp["var_const_M2"], dtype=float),
+        rel=np.asarray(emp["rel"], dtype=float),
+        scale=scale,
+        meta={"n_obs_fit": emp["n_obs"], "n_check_used": n_used,
+              "level": level, "n_rep_fit": n_rep_fit,
+              "n_rep_check": n_rep_check,
+              "engine": acq.engine, "n_points": acq.n_points})
+
+
 def calibrate_empirical(fitter: SpectralFitter, acquire, rng,
                         standards: Optional[List[Dict[str, float]]] = None,
                         n_rep: int = 4) -> Dict:

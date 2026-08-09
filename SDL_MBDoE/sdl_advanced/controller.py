@@ -89,6 +89,11 @@ class AdvRoundRecord:
     corr_max_offdiag: float = float("nan")
     n_rejected: int = 0
     n_reacquired: int = 0
+    #: SNAPSHOT of the Laplace-evidence boundary diagnostics as they were AT
+    #: THIS round (not the final ensemble's state)
+    probs_reliable: bool = True
+    evidence_reliable_by_model: Dict[str, bool] = field(default_factory=dict)
+    evidence_warning: str = ""
 
 
 @dataclass
@@ -374,6 +379,10 @@ def run_strategy_f(lab: AdvancedVirtualLaboratory,
             else GovernorState.NORMAL_LEARNING
         best = ensemble.best
         diag = _posterior_diag(best)
+        # snapshot NOW: copying (not referencing) the ensemble's current
+        # reliability state, so later rounds cannot rewrite this record
+        ev_by_model = dict(getattr(ensemble, "evidence_reliable", {}))
+        ev_warn = "; ".join(getattr(ensemble, "evidence_warnings", []))
         result.history.append(AdvRoundRecord(
             round=r, u=u_next, z_positions=np.asarray(zs_measured),
             theta_nat=best.space.to_natural(best.posterior.theta_map),
@@ -389,7 +398,11 @@ def run_strategy_f(lab: AdvancedVirtualLaboratory,
             param_keys=tuple(best.space.param_keys),
             bound_active=diag["bound_active"],
             corr_max_offdiag=diag["corr_max"],
-            n_rejected=n_rej, n_reacquired=n_re))
+            n_rejected=n_rej, n_reacquired=n_re,
+            probs_reliable=bool(all(ev_by_model.values())
+                                if ev_by_model else False),
+            evidence_reliable_by_model=ev_by_model,
+            evidence_warning=ev_warn))
         if verbose:
             probs = " ".join(f"{cm.name}={p:.2f}" for cm, p
                              in zip(ensemble.models, ensemble.probs))

@@ -1,21 +1,21 @@
 {
   "n_seeds": 12,
-  "false_inadequacy_campaign_rate": 0.0,
+  "false_inadequacy_campaign_rate": 0.08333333333333333,
   "detection_probability": 1.0,
   "detection_rounds": [
     4,
     4,
+    3,
+    3,
     4,
     4,
-    4,
-    4,
-    4,
-    4,
+    3,
+    3,
     4,
     4,
     4,
     4
   ],
   "median_detection_round": 4.0,
-  "runtime_s": 362.38746786117554
+  "runtime_s": 166.404057264328
 }

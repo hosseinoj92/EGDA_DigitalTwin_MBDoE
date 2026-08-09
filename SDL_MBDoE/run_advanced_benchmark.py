@@ -1,12 +1,12 @@
 """
-Main EGDA advanced benchmark (corrected framework, v2 outputs).
+Main EGDA advanced benchmark (corrected framework, v3 outputs).
 
 Runs the scenario suite of sdl_advanced.benchmark in one of three modes
 ("smoke" seconds / "demo" default / "publication" many seeds), with
 common-random-number seed lists shared across strategies, and writes a NEW
 results directory (never silently overwriting the previous reference run):
 
-  results_advanced_v2/benchmark/
+  results_advanced_v3/benchmark/
     benchmark_rounds.csv          every per-round metric, every campaign
     benchmark_params.csv          per-parameter posterior rows (#13)
     strategy_table.csv/.txt       distributional summary (median/IQR/CI)
@@ -36,7 +36,7 @@ from sdl_advanced import observability as obs
 
 CONFIG = {
     "mode": "demo",                 # "smoke" | "demo" | "publication"
-    "outdir": "results_advanced_v2/benchmark",
+    "outdir": "results_advanced_v3/benchmark",
     # optional overrides of the mode defaults (None -> use MODES[mode]):
     "seeds": None,
     "budget": None,
@@ -113,7 +113,7 @@ def main() -> None:
     scenarios = cfg["scenarios"] or mode["scenarios"]
     outdir = resolve_outdir(cfg["outdir"])
     t0 = time.time()
-    print(f"=== advanced benchmark v2 | mode={cfg['mode']} | "
+    print(f"=== advanced benchmark v3 | mode={cfg['mode']} | "
           f"{len(seeds)} seeds | budget {budget} ===")
 
     # ---- (0B) equilibrium-observability diagnostic, BEFORE any campaign - #
@@ -335,6 +335,7 @@ def main() -> None:
     n_fp = sum(1 for r in fp_rows if r["gov_state"] == "MODEL_INADEQUATE")
     with open(os.path.join(outdir, "benchmark_config.json"), "w") as fh:
         json.dump({
+            "framework_version": "v3",
             "CONFIG": {k: v for k, v in cfg.items()},
             "mode_resolved": {"seeds": list(seeds), "budget": budget,
                               "scenarios": list(scenarios)},

@@ -1,7 +1,8 @@
 {
+  "framework_version": "v3",
   "CONFIG": {
     "mode": "demo",
-    "outdir": "results_advanced_v2/benchmark",
+    "outdir": "results_advanced_v3/benchmark",
     "seeds": null,
     "budget": null,
     "scenarios": null,
@@ -33,39 +34,39 @@
     ]
   },
   "runtimes_s": {
-    "S1_ideal": 79.80584812164307,
-    "S2_nmr": 138.21911334991455,
-    "S3_transport": 283.8247058391571,
-    "S3ab_delay": 190.48875403404236,
-    "S3ab_rtd": 192.12050890922546,
-    "S4a_ambiguity": 254.89541006088257,
-    "S4b_identifiable": 172.64529824256897,
-    "S4c_out_of_domain": 137.3147120475769,
-    "S5_inadequacy": 187.08002614974976,
-    "S6_resources": 486.1283462047577,
-    "S7_spatial_modes": 542.0559229850769
+    "S1_ideal": 79.38825988769531,
+    "S2_nmr": 100.6055748462677,
+    "S3_transport": 193.2357850074768,
+    "S3ab_delay": 148.89104175567627,
+    "S3ab_rtd": 148.93890571594238,
+    "S4a_ambiguity": 159.35397624969482,
+    "S4b_identifiable": 107.69533610343933,
+    "S4c_out_of_domain": 70.27490997314453,
+    "S5_inadequacy": 96.68162107467651,
+    "S6_resources": 252.87467527389526,
+    "S7_spatial_modes": 563.5369148254395
   },
   "per_round_false_inadequacy_S1_S2": 0.0,
   "governor_validation": {
     "n_seeds": 12,
-    "false_inadequacy_campaign_rate": 0.0,
+    "false_inadequacy_campaign_rate": 0.08333333333333333,
     "detection_probability": 1.0,
     "detection_rounds": [
       4,
       4,
+      3,
+      3,
       4,
       4,
-      4,
-      4,
-      4,
-      4,
+      3,
+      3,
       4,
       4,
       4,
       4
     ],
     "median_detection_round": 4.0,
-    "runtime_s": 362.38746786117554
+    "runtime_s": 166.404057264328
   },
   "truth": {
     "k1_ref": 0.001,

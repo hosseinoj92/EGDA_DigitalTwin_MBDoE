@@ -43,8 +43,8 @@ from pfr_twin import KineticModel                                # noqa: E402
 
 from .spectral import (AcquisitionSettings, NMRSimulator,        # noqa: E402
                        SpectralNuisance, QUANTIFIED_SPECIES)
-from .spectral_fit import (SpectralFitter, calibrate_empirical,  # noqa: E402
-                           calibrate_responses)
+from .spectral_fit import (SpectralFitter, calibrate_nmr,        # noqa: E402
+                           NMRCalibration)
 from .transfer import TransferConfig, TransferLine               # noqa: E402
 from .resources import ResourceCosts, ResourceMeter              # noqa: E402
 
@@ -99,6 +99,10 @@ class AdvancedVirtualLaboratory:
         self.n_acquisitions = 0
         self.n_truth_reveals = 0
         self._last_u: Optional[OperatingConditions] = None
+        #: PUBLIC calibration artifact (prepared-standard results); the
+        #: design layer consumes THIS object, so expected and actual
+        #: covariance are one model.  Contains no hidden truth.
+        self.calibration: Optional[NMRCalibration] = None
         # pre-campaign response calibration: prepared standards measured
         # through the REAL (truth-side) channel, fitted by the public
         # fitter - standard compositions are public, so no firewall breach
@@ -107,10 +111,15 @@ class AdvancedVirtualLaboratory:
             # dedicated calibration RNG stream: keeps calibration spectra
             # statistically INDEPENDENT of the campaign's measurement
             # spectra (and leaves the measurement stream unperturbed)
-            cal_rng = np.random.default_rng(seed + 900_001)
             acquire = lambda std, r: self._nmr.simulate(std, r)[:2]
-            calibrate_responses(self._fitter, acquire, cal_rng)
-            calibrate_empirical(self._fitter, acquire, cal_rng)
+            # DATASET 1 (fit) and DATASET 2 (check) use SEPARATE streams,
+            # both independent of the campaign's measurement stream
+            self.calibration = calibrate_nmr(
+                acq, acquire,
+                rng_fit=np.random.default_rng(seed + 900_001),
+                rng_check=np.random.default_rng(seed + 800_002),
+                species=config.species_measured)
+            self._fitter.apply_calibration(self.calibration)
 
     # ------------------------------------------------------------------ #
     @property

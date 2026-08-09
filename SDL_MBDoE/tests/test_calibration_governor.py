@@ -148,9 +148,15 @@ def test_bootstrap_pvalue_uses_decision_statistic():
     gov = AdequacyGovernor(GovernorConfig(alpha_campaign=0.5,
                                           n_rounds_planned=1))
     ens = _small_ensemble(seed=5)
+    # alpha=0.5 -> B_min = ceil(1/0.5)-1 = 1, so p must lie on the DISCRETE
+    # grid (1+k)/(B+1) with B=1: exactly 0.5 or 1.0.  A real check that can
+    # genuinely fail - no unconditional escape hatch.
+    b_min = gov.min_replicates_for(0.5)
+    assert b_min == 1
     p = gov.bootstrap_pvalue(ens, np.random.default_rng(1), alpha=0.5)
     assert 0.0 < p <= 1.0
-    assert abs(p * 3 - round(p * 3)) < 1e-9 or True     # p = (1+k)/(B+1)
+    grid = [(1 + k) / (b_min + 1) for k in range(b_min + 1)]
+    assert any(abs(p - g) < 1e-12 for g in grid), (p, grid)
 
 
 # ---- boundary-aware evidence --------------------------------------------- #

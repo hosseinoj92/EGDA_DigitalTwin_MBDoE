@@ -41,8 +41,13 @@ def water_viscosity_Pa_s(T_K: float) -> float:
 
 def flow_diagnostics(inlet: InletState, geometry: ReactorGeometry,
                      T_K: float, D_m: float = DIFFUSIVITY_LIQ) -> List[str]:
-    u = inlet.Q_total_m3_s / geometry.area_m2
-    tau = geometry.length_m / u
+    # TERMINOLOGY: u_sup = Q/A is the SUPERFICIAL velocity (used for the
+    # Reynolds number and the empty-tube dispersion estimate); the
+    # INTERSTITIAL velocity is Q/(epsilon A) and is what sets the liquid
+    # residence time.  They coincide only for an unpacked tube (epsilon=1).
+    u = inlet.Q_total_m3_s / geometry.area_m2            # superficial
+    u_int = inlet.Q_total_m3_s / geometry.flow_area_m2   # interstitial
+    tau = geometry.residence_time_s(inlet.Q_total_m3_s)
     radius = geometry.diameter_m / 2.0
 
     # dilute aqueous mixture: stream-blend density at 25 C, scaled with T like water
@@ -57,7 +62,10 @@ def flow_diagnostics(inlet: InletState, geometry: ReactorGeometry,
         f"(L = {geometry.length_m * 1e3:.0f} mm, ID = {geometry.diameter_m * 1e3:.1f} mm)",
         f"Mixture density (est.)      : {rho:7.1f} g/L",
         f"Water viscosity at T        : {mu * 1e3:7.4f} mPa s",
-        f"Reynolds number             : {re:7.1f} "
+        f"Superficial velocity        : {u * 1e3:7.3f} mm/s"
+        + (f"   (interstitial {u_int * 1e3:.3f} mm/s, eps={geometry.void_fraction:.2f})"
+           if geometry.void_fraction < 1.0 else ""),
+        f"Reynolds number (superficial): {re:7.1f} "
         f"({'laminar' if re < 2100 else 'transitional' if re < 4000 else 'turbulent'})",
         f"Radial diffusion time R^2/D : {t_rad:9.3g} s   vs   tau = {tau:.1f} s",
     ]
