@@ -1,0 +1,17 @@
+scenario,strategy,model,round,median_probability,n_seeds
+S4c_out_of_domain,F,irreversible,1,0.5003341735752085,40
+S4c_out_of_domain,F,irreversible,2,0.4606505472916165,40
+S4c_out_of_domain,F,irreversible,3,1.5506942850456428e-185,40
+S4c_out_of_domain,F,irreversible,4,0.0,40
+S4c_out_of_domain,F,irreversible,5,0.0,40
+S4c_out_of_domain,F,irreversible,6,0.0,40
+S4c_out_of_domain,F,irreversible,7,0.0,40
+S4c_out_of_domain,F,irreversible,8,0.0,40
+S4c_out_of_domain,F,rev-pitzer,1,0.4996658264247915,40
+S4c_out_of_domain,F,rev-pitzer,2,0.5393494527083835,40
+S4c_out_of_domain,F,rev-pitzer,3,1.0,40
+S4c_out_of_domain,F,rev-pitzer,4,1.0,40
+S4c_out_of_domain,F,rev-pitzer,5,1.0,40
+S4c_out_of_domain,F,rev-pitzer,6,1.0,40
+S4c_out_of_domain,F,rev-pitzer,7,1.0,40
+S4c_out_of_domain,F,rev-pitzer,8,1.0,40
