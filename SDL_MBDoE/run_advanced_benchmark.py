@@ -16,32 +16,69 @@ results directory (never silently overwriting the previous reference run):
     figure_* ...                  the figure set (see FIGURES in README)
     benchmark_config.json         exact reproduction record
 
+Parallelism: set CONFIG["n_workers"].  Campaigns are independent and each is
+a pure function of (scenario, strategy, seed, budget), so they are spread
+over processes and reassembled in submission order - every saved file is
+identical to a one-core run except the wall-clock telemetry (per-campaign
+`runtime_s`, per-scenario `runtimes_s`), which is what more cores are meant
+to change.  Verified end to end by tests/test_parallel.py.  Works the same
+on macOS (Apple Silicon included), Windows and Linux; see
+sdl_advanced/parallel.py for how the identity is maintained.
+
 IDE workflow: edit CONFIG and press Run.
 """
 
 from __future__ import annotations
 
-import csv
-import dataclasses
-import json
 import os
-import time
 
-import numpy as np
+# --------------------------------------------------------------------- #
+# Numerical threads are pinned BEFORE numpy/scipy are imported, because a
+# BLAS backend reads these at import time and cannot be reconfigured
+# afterwards.  One thread per process is what makes an N-worker run
+# reproduce a one-core run digit for digit (a threaded BLAS reduction sums
+# in a nondeterministic order), and it costs nothing here: the linear
+# algebra is 6x6 parameter blocks.  Raising it is a deliberate,
+# determinism-losing choice - see CONFIG["threads_per_worker"].
+#
+# The variable list is spelled out rather than imported from
+# sdl_advanced.parallel because importing anything from that PACKAGE runs
+# sdl_advanced/__init__.py, which imports numpy - too late.  The two lists
+# are pinned equal by tests/test_parallel.py.
+# --------------------------------------------------------------------- #
+for _var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
+             "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS"):
+    os.environ[_var] = "1"
+
+import csv                                                       # noqa: E402
+import dataclasses                                               # noqa: E402
+import json                                                      # noqa: E402
+import multiprocessing                                           # noqa: E402
+import os                                                        # noqa: E402
+import sys                                                       # noqa: E402
+import time                                                      # noqa: E402
+
+import numpy as np                                               # noqa: E402
 
 try:                                    # progress bar (optional dependency)
     from tqdm.auto import tqdm
 except ImportError:                     # pragma: no cover - fallback
     tqdm = None
 
-from sdl_advanced import benchmark as bm
-from sdl_advanced import reporting as rep
-from sdl_advanced import validation as val
-from sdl_advanced import observability as obs
+from sdl_advanced import audit_export as aex                      # noqa: E402
+from sdl_advanced import audit_summary as asum                   # noqa: E402
+from sdl_advanced import benchmark as bm                         # noqa: E402
+from sdl_advanced import nmr_examples as nex                     # noqa: E402
+from sdl_advanced import parallel as par                         # noqa: E402
+from sdl_advanced import reporting as rep                        # noqa: E402
+from sdl_advanced import validation as val                       # noqa: E402
+from sdl_advanced import observability as obs                    # noqa: E402
 
 CONFIG = {
     "mode": "publication",                 # "smoke" | "demo" | "publication"
-    "outdir": "results_advanced_v3/publication",
+    # NEW directory: the v3 publication run stays exactly where it is, so
+    # the results the README currently reports are never overwritten.
+    "outdir": "results_advanced_v4/publication",
     # optional overrides of the mode defaults (None -> use MODES[mode]):
     "seeds": None,
     "budget": None,
@@ -50,6 +87,48 @@ CONFIG = {
     "run_quant_validation": True,
     "progress": True,          # overall tqdm bar with % done + ETA
     "verbose_rounds": False,   # per-round campaign lines (noisy under the bar)
+
+    # ---- parallelism (identical results at any setting) ---------------- #
+    # One campaign = one task.  Choose the number of PROCESSES:
+    #   None / "auto" -> every core but one (recommended: keeps the laptop
+    #                    responsive, and the OS still schedules the pool)
+    #   0             -> every core
+    #   1             -> serial, no multiprocessing machinery at all
+    #   n             -> exactly n processes
+    # On Apple Silicon os.cpu_count() counts performance + efficiency cores;
+    # the pool is dynamically load-balanced, so the slower cores simply take
+    # fewer campaigns.
+    "n_workers": "auto",
+    # BLAS threads INSIDE each worker.  Keep at 1: it prevents oversubscription
+    # (n_workers x threads > cores, which is slower, not faster) and it is the
+    # setting under which parallel output is bit-identical to serial output.
+    "threads_per_worker": 1,
+
+    # ---- publication audit trail --------------------------------------- #
+    # Adds the long-form audit tables (design history, candidate scores,
+    # model probabilities, governor diagnostics, blind predictions,
+    # posterior covariances, per-acquisition NMR records, resource events,
+    # timings) under audit/ in the output directory, plus the run-level
+    # reports and the representative NMR examples.
+    #
+    # It is PURE REPORTING: recording draws no random numbers and evaluates
+    # no objective, so the scientific results are identical with it on or
+    # off - tests/test_audit_regression.py proves that for matched seeds.
+    # It does cost disk: expect a few hundred MB for a 40-seed run, mostly
+    # nmr_measurements_long.csv and posterior_covariance_long.csv.
+    "audit": True,
+    "audit_examples": True,     # the three representative NMR spectra
+}
+
+#: audit tables grouped into subdirectories so the trail stays navigable
+AUDIT_LAYOUT = {
+    "design": ("design_history", "design_candidate_scores"),
+    "inference": ("model_probabilities_long", "posterior_covariance_long",
+                  "identifiability_summary"),
+    "governor": ("governor_diagnostics_long",),
+    "measurement": ("nmr_measurements_long", "nmr_calibration_by_seed"),
+    "resources": ("resource_events_long", "controller_timing"),
+    "validation": ("blind_predictions_long",),
 }
 
 
@@ -122,11 +201,11 @@ def main() -> None:
     t0 = time.time()
 
     # ---- overall progress bar ------------------------------------------- #
-    gov_seeds_planned = cfg["governor_mc_seeds"] or list(seeds)
-    if len(gov_seeds_planned) < 12:
-        gov_seeds_planned = list(range(1, 13))
+    gov_seeds = cfg["governor_mc_seeds"] or list(seeds)
+    if len(gov_seeds) < 12:
+        gov_seeds = list(range(1, 13))
     total_units = bm.total_cost_units(scenarios, seeds, budget,
-                                      len(gov_seeds_planned))
+                                      len(gov_seeds))
     use_bar = bool(cfg.get("progress", True)) and tqdm is not None
     bar = (tqdm(total=round(total_units), unit="wu", dynamic_ncols=True,
                 smoothing=0.05,
@@ -140,8 +219,24 @@ def main() -> None:
             bar.update(bm.campaign_cost_units(strategy, b))
             bar.set_description(f"{scenario}/{strategy} seed{seed}")
 
+    # ---- parallel plan --------------------------------------------------- #
+    # Children inherit the environment, so setting it here (before the pool
+    # is created) configures every worker.  The parent was already pinned at
+    # import time; they must agree for serial and parallel to match.
+    threads = int(cfg.get("threads_per_worker", 1) or 1)
+    par.pin_numerical_threads(threads)
+    n_proc = par.resolve_workers(cfg.get("n_workers", "auto"))
+    audit_on = bool(cfg.get("audit", False))
+
     say(f"=== advanced benchmark v3 | mode={cfg['mode']} | "
         f"{len(seeds)} seeds | budget {budget} ===")
+    say(f"    parallelism: {par.describe_workers(cfg.get('n_workers', 'auto'))}"
+        f", {threads} BLAS thread(s) each")
+    if threads != 1:
+        say("    WARNING: threads_per_worker != 1 - a threaded BLAS reduction "
+            "sums in a nondeterministic order, so bit-identical agreement "
+            "with a serial run is no longer guaranteed.")
+    say(f"    audit trail: {'ON -> ' + os.path.join(outdir, 'audit') if audit_on else 'off'}")
 
     # ---- (0B) equilibrium-observability diagnostic, BEFORE any campaign - #
     # uses ASSUMED (literature) parameters only: firewall-clean
@@ -192,19 +287,43 @@ def main() -> None:
                 f"{scen} is declared well-specified but its truth is not "
                 f"inside the candidate parameter domain: {dom['detail']}")
 
+    # ==== COMPUTE PHASE (parallel) ======================================= #
+    # Everything that runs campaigns happens here, under one pool; the
+    # reporting phase below is serial and touches no laboratory.  The pool
+    # is created once rather than per scenario so the process start-up cost
+    # (a fresh interpreter importing numpy/scipy, under `spawn`) is paid a
+    # single time.
     all_rows, all_prows, all_status, runtimes = [], [], [], {}
-    for scen in scenarios:
-        spec = bm.SCENARIOS[scen]
-        say(f"\n=== {scen}: {spec.description}")
-        t_s = time.time()
-        rows, prows, status = bm.run_scenario(
-            spec, seeds, budget,
-            verbose=bool(cfg.get("verbose_rounds", False)), progress=_tick)
-        runtimes[scen] = time.time() - t_s
-        all_rows.extend(rows)
-        all_prows.extend(prows)
-        all_status.extend(status)
-        say(f"    {scen} done in {runtimes[scen]:.0f} s")
+    audit_all = aex.empty_bundle() if audit_on else None
+    executor = par.make_executor(cfg.get("n_workers", "auto"),
+                                 initializer=bm.worker_init,
+                                 initargs=(budget,))
+    try:
+        for scen in scenarios:
+            spec = bm.SCENARIOS[scen]
+            say(f"\n=== {scen}: {spec.description}")
+            t_s = time.time()
+            rows, prows, status, bundle = bm.run_scenario(
+                spec, seeds, budget,
+                verbose=bool(cfg.get("verbose_rounds", False)),
+                progress=_tick, executor=executor, audit=audit_on)
+            runtimes[scen] = time.time() - t_s
+            all_rows.extend(rows)
+            all_prows.extend(prows)
+            all_status.extend(status)
+            if audit_on:
+                aex.merge(audit_all, bundle)
+            say(f"    {scen} done in {runtimes[scen]:.0f} s")
+
+        say(f"\n=== governor Monte Carlo validation ({len(gov_seeds)} seeds)")
+        t_g = time.time()
+        gov = bm.governor_mc_validation(gov_seeds, budget=budget,
+                                        progress=_tick, executor=executor)
+        gov["runtime_s"] = time.time() - t_g
+    finally:
+        if executor is not None:
+            executor.shutdown(wait=True)
+    # ==== REPORTING PHASE (serial) ======================================= #
 
     _write_rows(all_rows, os.path.join(outdir, "benchmark_rounds.csv"))
     _write_rows(all_prows, os.path.join(outdir, "benchmark_params.csv"))
@@ -281,13 +400,7 @@ def main() -> None:
                 os.path.join(outdir, f"figure_params_{scen}_{strat}.png"))
 
     # ---- (11) governor diagnostics + MC validation ---------------------- #
-    gov_seeds = cfg["governor_mc_seeds"] or list(seeds)
-    if len(gov_seeds) < 12:
-        gov_seeds = list(range(1, 13))
-    t_g = time.time()
-    gov = bm.governor_mc_validation(gov_seeds, budget=budget,
-                                    progress=_tick)
-    gov["runtime_s"] = time.time() - t_g
+    # (the campaigns themselves ran in the compute phase above)
     with open(os.path.join(outdir, "governor_validation.json"), "w") as fh:
         json.dump(gov, fh, indent=2)
     print(f"\ngovernor MC validation ({len(gov_seeds)} seeds): "
@@ -357,6 +470,70 @@ def main() -> None:
                     os.path.join(outdir, "quantification_validation.csv"))
         print(f"quantification validation done in {time.time() - t_v:.0f} s")
 
+    # ==== PUBLICATION AUDIT TRAIL ======================================== #
+    # Pure reporting: everything below reads finished results.  No campaign
+    # code runs, so nothing here can move a scientific number.
+    if audit_on:
+        adir = os.path.join(outdir, "audit")
+        for sub, tables in AUDIT_LAYOUT.items():
+            os.makedirs(os.path.join(adir, sub), exist_ok=True)
+            for t in tables:
+                _write_rows(audit_all.get(t, []),
+                            os.path.join(adir, sub, f"{t}.csv"))
+        # -- convergence summary: observed AND carried-forward ------------ #
+        conv = asum.convergence_summary_rows(all_rows, all_status, budget)
+        _write_rows(conv, os.path.join(adir, "convergence_summary.csv"))
+        # -- scenario-level publication figures --------------------------- #
+        fdir = os.path.join(adir, "figures")
+        os.makedirs(fdir, exist_ok=True)
+        for scen in scenarios:
+            for basis in ("locf", "observed"):
+                rep.figure_convergence_band(
+                    conv, scen,
+                    os.path.join(fdir, f"figure_band_{scen}_{basis}.png"),
+                    basis=basis)
+        for scen in ("S4a_ambiguity", "S4b_identifiable",
+                     "S4c_out_of_domain"):
+            if scen not in scenarios:
+                continue
+            spec = bm.SCENARIOS[scen]
+            rep.figure_model_probability_reliability(
+                audit_all.get("model_probabilities_long", []), scen,
+                os.path.join(fdir, f"figure_model_probs_reliability_{scen}.png"),
+                truth_in_family=bool(spec.well_specified),
+                tracked=spec.track_correct_model or "")
+        if "S6_resources" in scenarios:
+            f6 = _finals(all_rows, "S6_resources")
+            rep.figure_pareto_labeled(
+                {k: v for k, v in f6.items() if "blind_rmse_M" in v},
+                os.path.join(fdir, "figure_pareto_S6_labeled.png"))
+        # -- domain checks ------------------------------------------------- #
+        _write_rows(
+            asum.parameter_domain_check_rows(
+                lambda: __import__("sdl").ParameterSpace(
+                    t_ref_K=t_ref_K, initial_guess=dict(guess)),
+                scenarios, bm.SCENARIOS, bm.check_truth_in_domain),
+            os.path.join(adir, "parameter_domain_checks.csv"))
+        # -- representative NMR examples (own fixed seed, after the run) -- #
+        if cfg.get("audit_examples", True):
+            edir = os.path.join(adir, "nmr_examples")
+            _write_rows(nex.generate(bm.ACQ, bm.NMR_NUISANCE_TRUE, edir),
+                        os.path.join(edir, "nmr_examples_summary.csv"))
+            rep.figure_nmr_examples(
+                nex.spectra_for_plot(bm.ACQ, bm.NMR_NUISANCE_TRUE),
+                os.path.join(fdir, "figure_nmr_examples.png"))
+        # -- run integrity -------------------------------------------------- #
+        integrity = asum.run_integrity_report(all_rows, all_status, scenarios,
+                                              seeds, budget, bm.SCENARIOS)
+        with open(os.path.join(adir, "run_integrity_report.json"), "w") as fh:
+            json.dump(integrity, fh, indent=2, default=str)
+        print(f"saved: {os.path.relpath(os.path.join(adir, 'run_integrity_report.json'))}")
+        if not integrity["complete"]:
+            print("  RUN INTEGRITY: " + "; ".join(integrity["problems"]))
+        else:
+            print(f"  run integrity OK: {integrity['n_campaigns']} campaigns, "
+                  f"{integrity['n_round_rows']} round rows, no gaps")
+
     # ---- reproducibility record ----------------------------------------- #
     fp_rows = [r for r in all_rows
                if r["scenario"] in ("S1_ideal", "S2_nmr")
@@ -368,6 +545,15 @@ def main() -> None:
             "CONFIG": {k: v for k, v in cfg.items()},
             "mode_resolved": {"seeds": list(seeds), "budget": budget,
                               "scenarios": list(scenarios)},
+            # execution environment: affects WALL TIME only.  Every result
+            # file is reassembled in submission order and every campaign is
+            # seeded from its own (scenario, strategy, seed), so these
+            # numbers do not enter any reported quantity.
+            "execution": {"n_workers_resolved": n_proc,
+                          "threads_per_worker": threads,
+                          "cpu_count": os.cpu_count(),
+                          "start_method": "spawn" if n_proc > 1 else "none",
+                          "platform": sys.platform},
             "runtimes_s": runtimes,
             "per_round_false_inadequacy_S1_S2":
                 (n_fp / len(fp_rows)) if fp_rows else None,
@@ -380,6 +566,24 @@ def main() -> None:
             "acquisition": dataclasses.asdict(bm.ACQ),
             "transfer_true": dataclasses.asdict(bm.TRANSFER_TRUE),
         }, fh, indent=2, default=str)
+    if audit_on:
+        # LAST, so the checksums cover every file the run produced
+        manifest = asum.reproducibility_manifest(
+            outdir, os.path.dirname(os.path.abspath(__file__)),
+            cfg, {"seeds": list(seeds), "budget": budget,
+                  "scenarios": list(scenarios),
+                  "governor_mc_seeds": list(gov_seeds),
+                  "n_workers_resolved": n_proc,
+                  "threads_per_worker": threads,
+                  "nmr_example_seed": nex.EXAMPLE_SEED},
+            {"runtimes_s": runtimes})
+        mp_path = os.path.join(outdir, "audit",
+                               "reproducibility_manifest.json")
+        with open(mp_path, "w") as fh:
+            json.dump(manifest, fh, indent=2, default=str)
+        print(f"saved: {os.path.relpath(mp_path)}  "
+              f"({len(manifest['checksums']['files'])} files checksummed)")
+
     if bar is not None:
         bar.n = bar.total          # snap to 100% (weights are estimates)
         bar.refresh()
@@ -389,4 +593,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # Required before any pool is created when this script is frozen into a
+    # Windows executable; a no-op otherwise.  The __main__ guard itself is
+    # what makes `spawn` safe on Windows and macOS.
+    multiprocessing.freeze_support()
     main()

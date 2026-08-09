@@ -24,6 +24,25 @@ The architecture is deliberately modular so that, when the hardware arrives,
 the simulated spectra can be replaced by real Fourier 80 data without touching
 the inference or design code (see §8).
 
+### Results at a glance
+
+The current reference result is the **v3 publication benchmark**: 11 scenarios
+× 40 common-random-number seeds × budget 8, 1 320 closed-loop campaigns, 9 h of
+compute, in [`SDL_MBDoE/results_advanced_v3/publication/`](SDL_MBDoE/results_advanced_v3/publication/).
+Full analysis in [§6](#6-benchmark-results).
+
+![Headline benchmark](SDL_MBDoE/results_advanced_v3/publication/figure_readme_headline.png)
+
+| Claim | Evidence |
+|---|---|
+| Measurement-awareness matters most when the measurement is real | ideal 10.4 %→5.8 % param error, but NMR 41.5 %→16.7 % and transport 36.8 %→10.6 % (§6.1) |
+| Sophisticated statistics on an unmodeled transfer line are **worse than naive** | F-uncorr 48.3 % vs D 36.8 %; modeling only the mean delay gives 10.6 % (§6.4) |
+| The inadequacy governor detects a wrong model family | 40/40 seeds, median round 4 of 8, 2.5 % campaign false-alarm rate (§6.6) |
+| High posterior model probability is **not** correctness | S4c reaches P = 1.00 on a wrong model at 116.9 % error (§6.5) |
+| K₁ is unidentifiable in this design space — predicted *before* the campaign | best signal 5.3 mM ≈ 1.1σ anywhere in the box; posterior width 514 % (§6.7, §6.3) |
+| The NMR covariance is calibrated, not inflated | all 12 species × suite cells at 0.86–1.00 held-out coverage (§6.10) |
+| Resource-aware design is cheaper but **not** free | −61 % material, −73 % energy, at P(better) = 0.28 (§6.8) |
+
 ---
 
 ## Table of contents
@@ -48,7 +67,20 @@ the inference or design code (see §8).
    - [5.13 Framework corrections (v2)](#513-framework-corrections-v2)
    - [5.14 Targeted scientific corrections (v3)](#514-targeted-scientific-corrections-v3)
    - [5.15 NMR uncertainty calibration (v3 final)](#515-nmr-uncertainty-calibration-v3-final)
-6. [Benchmark results](#6-benchmark-results)
+6. [Benchmark results — the v3 publication run](#6-benchmark-results)
+   - [6.1 Headline](#61-headline-what-each-layer-of-realism-costs-and-what-awareness-recovers)
+   - [6.2 S1 ideal](#62-scenario-1--does-the-new-machinery-cost-anything-when-it-is-not-needed)
+   - [6.3 S2 realistic NMR](#63-scenario-2--realistic-nmr-whose-covariance-does-the-estimator-believe)
+   - [6.4 S3 transport + ablation](#64-scenario-3--transport-reality-and-the-transport-ablation)
+   - [6.5 S4 model discrimination](#65-scenario-4--model-discrimination-and-its-three-honest-outcomes)
+   - [6.6 S5 the governor](#66-scenario-5--the-model-inadequacy-governor)
+   - [6.7 Equilibrium observability](#67-equilibrium-observability--a-pre-campaign-identifiability-verdict)
+   - [6.8 S6 resource-aware campaigning](#68-scenario-6--resource-aware-campaigning)
+   - [6.9 S7 spatial sampling modes](#69-scenario-7--spatial-sampling-modes)
+   - [6.10 NMR quantification validation](#610-nmr-quantification-validation)
+   - [6.11 Figures and data](#611-figures-and-data)
+   - [6.12 Where the time went](#612-where-the-time-went)
+   - [6.13 What this run does *not* establish](#613-what-this-run-does-not-establish)
 7. [User manual](#7-user-manual)
 8. [Scientific integrity and calibration status](#8-scientific-integrity-and-calibration-status)
 9. [Code map](#9-code-map)
@@ -954,9 +986,10 @@ selects the candidate maximizing the expected whitened *disagreement between
 the candidate models' predictions* — the experiment best able to separate
 parameter uncertainty from structural error.
 
-**Measured behaviour** (benchmark, §6): false-positive rate under the correct
-model **1/48 rounds = 2.1%** (α = 0.01 per test, two tests); detection of the
-deliberately misspecified Scenario 5 in **4/4 seeds at rounds 3–4 of 6**.
+**Measured behaviour** (publication benchmark, §6.6 — 40 dedicated seeds):
+detection of the deliberately misspecified Scenario 5 in **40/40 seeds, median
+round 4 of 8** (range 3–5); campaign-level false-alarm rate under the correct
+model **1/40 = 2.5 %**, per-round false-inadequacy rate **0.0031**.
 
 ### 5.10 Resource-aware utility
 
@@ -1016,7 +1049,7 @@ hidden truth.
 
 ---
 
-## 5.13 Framework corrections (v2)
+### 5.13 Framework corrections (v2)
 
 An external-review pass produced a corrected framework (all 78 tests green; new outputs in `results_advanced_v2/`, the previous reference run is preserved). The corrections, each pinned by tests:
 
@@ -1051,7 +1084,7 @@ together with $|dC/d\ln K_i|$ over the reachable (T, Q, C_cat, z) domain, report
 
 **S4b made a valid well-specified test.** The old S4b truth K2 = 0.002 lay BELOW the candidate bound (0.0155), which is why K2 pinned with ~672% error — that was structural misspecification mislabelled as correct-model recovery. S4b now uses the **standard benchmark truth with no override at all** (nothing tuned), verified by a reusable `check_truth_in_domain()` guard that every `well_specified` scenario must pass. The out-of-domain case is preserved but relabelled **S4c_out_of_domain (MODEL-MISSPECIFICATION, not correct-model recovery)**.
 
-**NMR uncertainty calibrated instead of inflated.** `calibrate_empirical()` measures, on PREPARED calibration standards with an INDEPENDENT RNG stream, the systematic bias and inter-species residual covariance the single-spectrum Jacobian cannot see, giving Σ_eff = Σ_fit + Σ_empirical (with bias correction). The hand-set surrogate floors switch OFF when this calibration is active, so the two are never double-counted. Held-out validation showed a constant empirical covariance insufficient, which justified — by the stated criterion — a composition-dependent form σ²(c) = v_const + (rel·c)², both regressed from calibration residuals, with the measured correlation preserved. AcOH coverage rose from **0.59 to within the honest 0.73–1.00 band**; the remaining under-coverage is reported, not papered over.
+**NMR uncertainty calibrated instead of inflated.** `calibrate_empirical()` measures, on PREPARED calibration standards with an INDEPENDENT RNG stream, the systematic bias and inter-species residual covariance the single-spectrum Jacobian cannot see, giving Σ_eff = Σ_fit + Σ_empirical (with bias correction). The hand-set surrogate floors switch OFF when this calibration is active, so the two are never double-counted. Held-out validation showed a constant empirical covariance insufficient, which justified — by the stated criterion — a composition-dependent form σ²(c) = v_const + (rel·c)², both regressed from calibration residuals, with the measured correlation preserved. AcOH coverage rose from **0.59 to within the honest 0.73–1.00 band**; the remaining under-coverage is reported, not papered over. (The v3-final rework of §5.15 closed the gap completely — 0.97 on reachable states; see §6.10.)
 
 **Governor.** `decision_components()` is now the single definition of which diagnostics enter the decision, used identically by `assess()`, the analytic combination and every bootstrap replicate. `bootstrap_pvalue()` refuses any B that cannot resolve the threshold (B ≥ ⌈1/α⌉ − 1, since the smallest attainable p is 1/(B+1)). The allowance κ was **re-derived from the measured held-out coverage** (median implied σ-understatement r = 1.6 ⇒ κ = √(r²−1) ≈ 1.25), not tuned.
 
@@ -1097,7 +1130,9 @@ $$\Sigma_{\mathrm{eff}} = \underbrace{\Sigma_{\mathrm{fit}}/(r r^{\top})}_{\text
 **A statistical gate, not a slogan.** A Clopper–Pearson one-sided bound
 refuses to call a covariance "calibrated" when the held-out coverage is
 confidently below 0.85; the v3-first-pass numbers (0.73–0.79) fail it and the
-current ones pass.
+current ones pass. In the publication run **all 12 species × suite cells pass**
+(coverage 0.86–1.00, §6.10), including AcOH on reachable states — which was
+0.59 before this rework.
 
 **Governor allowance re-derived.** With Σ fixed, κ is measured on
 WELL-SPECIFIED control data (`validation.derive_systematic_allowance`) as
@@ -1109,165 +1144,405 @@ It is derived from control data, never from kinetic-benchmark performance.
 
 ## 6. Benchmark results
 
-**The tables below are the v1 reference run (preserved for comparison in `results_advanced/`).** The corrected-framework v2 outputs live in `results_advanced_v2/benchmark/` (distributional `strategy_table.csv`, `paired_comparisons.csv`, `governor_validation.json`, `quantification_validation.csv`, per-parameter `benchmark_params.csv`, and the full figure set including the transport ablation, Pareto frontier and spatial-mode comparison); headline v2 findings are summarized in §6.1 below. All numbers everywhere are DEMONSTRATED BY SIMULATION under ASSUMED instrument parameters — nothing here is an experimentally validated Fourier-80 property.
+**This section reports the v3 publication run** — the full Monte Carlo
+benchmark executed with `CONFIG["mode"] = "publication"`:
 
-### 6.1 Corrected-framework (v2) headline results
-
-Demo mode: 6 common-random-number seeds per strategy, budget 6 reactor
-conditions (S4a: 10, S4b: 8), 10 positions/profile, full truth-model
-mismatch + response calibration active, total runtime 42.8 min (single
-laptop core).  Values are MEDIANS over seeds; distributions, IQRs and
-bootstrap CIs in `results_advanced_v2/benchmark/strategy_table.csv`.
-
-| Scenario | Result (median param err % / blind RMSE mM) |
+| | |
 |---|---|
-| S1 ideal | F **16%**/0.30 · D 48%/0.39 · E 54%/0.32 · C 69% · B 131% · A 215% |
-| S2 NMR (with mismatch) | F **24%**/2.3 · D 85%/3.1 · B 291%/9.4 — paired P(F better than D)=1.0 |
-| S3 transport | F **14%**/2.1 · F-uncorr 103%/15.0 · D 102%/17.9 — P(F better)=1.0 |
-| S3 ablation | naive-D bias: delay-only 114%/18.8 · +RTD 104%/17.9 · +carryover 102%/17.9 → **the mean delay + in-line reaction is the dominant effect**; RTD/carryover are second-order here |
-| S4a hard ambiguity | honestly UNRESOLVED: final P(rev-pitzer)=0.17, entropy 0.85 — pitzer vs dilute activity is experimentally indistinguishable in this domain (irreversible is eliminated); F still delivers 18%/1.9 mM vs D 75%/2.8 mM |
-| S4b identifiable ambiguity | **P(correct)=1.00, entropy ≈ 0 in all seeds** — when the discriminating region exists, model-EIG finds it and discrimination completes |
-| S5 inadequacy | governor: campaign FP **0/12**, detection 3/12 (median round 4) at a 41 mM footprint ≈ 2.7× declared systematics — the detectability-limit finding of §5.13(4); F ≈ F-noGovernor ≈ D on blind RMSE (4.7–5.2 mM): detection, not accuracy, is the governor's value here |
-| S6 resources | F-res-1x vs F: **−31% EGDA, −33% time, −56% energy proxy, −22% waste** at 29% vs 24% param err; λ-sweep frontier flat from 1× to 4× (`figure_pareto_S6`) |
-| S7 spatial modes | optimized-batch 24% ≈ adaptive 27% > fixed-equal 33% param err at equal acquisition budgets (adaptive: 1 of 6 seeds paused on a QC fault — the gate working as designed) |
+| Scenarios | 11 (`S1_ideal`, `S2_nmr`, `S3_transport`, `S3ab_delay`, `S3ab_rtd`, `S4a_ambiguity`, `S4b_identifiable`, `S4c_out_of_domain`, `S5_inadequacy`, `S6_resources`, `S7_spatial_modes`) |
+| Seeds | **40** common-random-number seeds (1–40), shared across strategies within a scenario |
+| Budget | **8** reactor conditions per campaign (S4a: 10), 10 axial positions per profile |
+| Reactor | 20 cm × 7 mm i.d., unpacked (ε = 1), τ = 58–924 s over the design box |
+| Governor MC | 40 dedicated seeds, independent of the campaign seeds |
+| Total campaigns | 1 320 closed-loop campaigns + 40 governor-validation campaigns |
+| Wall time | **9.0 h** on a single laptop core (31 042 s scenarios + 1 392 s governor MC + validation/figures). The runner is now process-parallel — see §7.5; the results are unchanged by the worker count |
+| Outputs | [`SDL_MBDoE/results_advanced_v3/publication/`](SDL_MBDoE/results_advanced_v3/publication/) — 18 MB, 103 files |
 
-NMR quantification validation (`quantification_validation.csv`; bias/RMSE/
-95%-coverage per suite): stress-mixture and FID-truth suites cover at
-0.91–1.00 for all species; the REACHABLE-composition suite exposes the known
-AcOH weakness honestly — coverage 0.59 (n=73, bias −6 mM, acetyl-overlap
-bias-dominated) — the concrete calibration target for the real instrument.
+Everything below is **demonstrated by simulation under assumed instrument
+parameters**. Nothing here is an experimentally validated Fourier-80 or CPR
+property. *Parameter error* = geometric-mean relative error over the estimated
+parameters against the hidden truth; *blind RMSE* = concentration RMSE on four
+predetermined validation conditions that no controller ever sees. Both are
+computable only because this is a simulation. All entries are **medians over
+40 seeds** with inter-quartile ranges; the complete distributional summary
+(mean, IQR, bootstrap CI) is in `strategy_table.csv`, and every per-round
+metric of every campaign is in `benchmark_rounds.csv` (3.8 MB, one row per
+campaign-round) with per-parameter posterior rows in `benchmark_params.csv`
+(9.5 MB).
 
-All v1 numbers below are from the checked-in benchmark
-(`SDL_MBDoE/run_advanced_benchmark.py`): **6 scenarios × 4 seeds × budget 6
-reactor conditions**, 10 positions per profile, blind validation on 4
-predetermined conditions spanning the admissible box (never visible to any
-controller), full per-round records in
-[`results_advanced/benchmark/benchmark_rounds.csv`](SDL_MBDoE/results_advanced/benchmark/)
-and exact reproduction config in `benchmark_config.json`. Total runtime:
-**3.9 minutes** on a single laptop core (the single-seed demo takes ~13 s; the
-58-test suite ~22 s; the legacy A–D regression campaign ~3.3 min).
+### 6.1 Headline: what each layer of realism costs, and what awareness recovers
 
-*Parameter error* = geometric-mean relative error over the estimated
-(unscreened) parameters vs hidden truth; *blind RMSE* = concentration RMSE on
-the blind validation set; both computable only because this is a simulation.
+![Headline benchmark](SDL_MBDoE/results_advanced_v3/publication/figure_readme_headline.png)
 
-### Scenario 1 — ideal observation, correct model (does the new machinery cost anything?)
+*Left: median parameter error. Right: median blind RMSE (log scale). Bars are
+medians over 40 seeds, whiskers the IQR. Data: `figure_readme_headline.csv`.*
 
-| Strategy | param err % | blind RMSE mM | EGDA mol | time h | capillary travel m |
-|---|---|---|---|---|---|
-| A outlet + fixed | 172 | 1.45 | 0.031 | 1.04 | 0 |
-| B spatial + fixed | 147 | 1.14 | 0.074 | 2.48 | 0.59 |
-| C outlet + MBDoE | 78 | 0.80 | 0.080 | 1.69 | 0 |
-| D spatial + MBDoE | 47 | 0.34 | 0.157 | 3.13 | 0.59 |
-| E optimized-z + MBDoE | 50 | 0.25 | **0.072** | 3.10 | 0.33 |
-| **F full Bayesian** | **19** | **0.22** | 0.052 | 3.20 | 0.28 |
+| Scenario | D — naive spatial MBDoE | F — measurement-aware Bayesian | paired P(F better) |
+|---|---|---|---|
+| S1 ideal | 10.4 % / 0.74 mM | **5.8 % / 0.63 mM** | 0.70 param, 0.63 RMSE |
+| S2 NMR | 41.5 % / 3.09 mM | **16.7 % / 0.97 mM** | 0.80 param, **1.00** RMSE |
+| S3 transport (full) | 36.8 % / 10.74 mM | **10.6 % / 1.26 mM** | 0.98 param, **1.00** RMSE |
+| S3ab delay only | 41.9 % / 13.08 mM | **19.0 % / 0.96 mM** | — |
+| S3ab + RTD | 36.8 % / 11.91 mM | **22.0 % / 1.06 mM** | — |
+| S4a ambiguity | 40.7 % / 2.98 mM | **17.2 % / 0.93 mM** | — |
+| S4b identifiable | 41.5 % / 3.09 mM | **19.8 % / 0.93 mM** | — |
+| S5 inadequacy | **67.9 %** / 23.96 mM | 36.1 % / **48.2 mM** | — (see §6.6) |
 
-The advanced framework loses nothing when the old assumptions hold — F is the
-most accurate *and* among the cheapest in material. The honest nuance: **E ≈ D
-on parameter error.** Optimized positions alone do not beat equal spacing on
-accuracy in this reactor (the information density along z is broad — Figure A);
-their measurable value is resource efficiency: E matches D with **54% less
-EGDA and 44% less capillary travel**.
+`paired_comparisons.csv` holds the per-seed paired differences, their
+bootstrap CIs, and P(F better) computed on the 40 matched seeds.
 
-### Scenario 2 — realistic NMR (assumed noise model vs actual spectral uncertainty)
+**The result that survives 40 seeds is the same one the 6-seed demo suggested,
+and it is a statement about the *measurement model*, not about optimizer
+sophistication.** In the ideal scenario the whole advanced apparatus buys
+comparatively little (10.4 % → 5.8 %; P(F better) = 0.70, i.e. *not*
+decisive). The moment the observation becomes an NMR spectrum, the gap opens
+to 2.5×; the moment a physical transfer line is inserted, it opens to 3.5× in
+parameters and **8.5× in blind prediction**, with P(F better) = 1.00 on RMSE.
+The advanced machinery does not out-optimize the baseline — it stops the
+baseline from confidently fitting the wrong quantity.
+
+### 6.2 Scenario 1 — does the new machinery cost anything when it is not needed?
+
+| Strategy | param err % (median) | IQR | blind RMSE mM |
+|---|---|---|---|
+| A outlet + fixed ladder | 46.7 | 41.7–53.3 | 3.94 |
+| B spatial + fixed ladder | 30.0 | 15.8–40.9 | 1.34 |
+| C outlet + MBDoE | 15.9 | 10.1–39.6 | 2.04 |
+| D spatial + MBDoE | 10.4 | 4.6–19.2 | 0.74 |
+| E optimized-z + MBDoE | 7.1 | 3.8–12.3 | 0.64 |
+| **F full Bayesian** | **5.8** | 3.7–9.3 | **0.63** |
+
+The ordering A > B > C > D > E > F is now **monotone across 40 seeds** — both
+spatial resolution and model-based design pay, and they pay independently
+(C vs B isolates design; B vs A isolates spatial sampling). But note the
+honest ceiling: E → F is 7.1 % → 5.8 % with heavily overlapping IQRs, and the
+paired test gives only P(F better than D) = 0.70. **Under ideal observation
+the Bayesian ensemble, the EIG objective and the governor are close to free —
+neither a large gain nor a penalty.** Their value appears only when the
+observation stops being ideal.
+
+Convergence traces per round, per acquisition and per campaign-second:
+`figure_conv_S1_ideal_per_{round,acquisition,time}.png`.
+
+### 6.3 Scenario 2 — realistic NMR: whose covariance does the estimator believe?
 
 | Strategy | param err % | blind RMSE mM |
 |---|---|---|
-| B (assumed NoiseModel) | 167 | 1.30 |
-| D (assumed NoiseModel) | 92 | 0.55 |
-| **F (Σ_y from deconvolution)** | **8.5** | **0.15** |
+| B (hand-assumed `NoiseModel`) | 50.0 | 8.96 |
+| D (hand-assumed `NoiseModel`) | 41.5 | 3.09 |
+| **F (calibrated Σ_y from deconvolution)** | **16.7** | **0.97** |
 
-Same spectra, same chemistry — the difference is *whose covariance the
-estimator believes*. The hand-assumed `σ_abs/σ_rel/ρ` model mis-weights the
-strongly composition- and overlap-dependent errors of real quantification;
-the deconvolution-derived Σ_y (with its floor, gain, and jitter terms) makes
-the *existing* Fisher machinery dramatically more effective without changing
-it.
+Same spectra, same chemistry, same reactor. The only difference is the
+covariance the estimator is given. P(F better than D) = 1.00 on blind RMSE
+over 40 paired seeds. Since v3-final both sides of the loop consume the *same*
+public `NMRCalibration` artifact (§5.15), so the Σ the designer plans against
+is the Σ the instrument actually delivers.
 
-### Scenario 3 — transport reality (the strongest single result)
+Per-parameter posterior evolution (`figure_params_S2_nmr_F.csv`, round 8
+medians over seeds):
+
+| Parameter | 95 % rel. width | rel. error vs truth | bound active |
+|---|---|---|---|
+| Ea1 | 0.94 % | 0.27 % | 0/40 |
+| Ea2 | 1.47 % | 0.43 % | 0/40 |
+| k1_ref | 2.42 % | 1.23 % | 0/40 |
+| k2_ref | 4.22 % | 1.51 % | 0/40 |
+| K2_ref | 6.69 % | 2.14 % | 0/40 |
+| **K1_ref** | **514 %** | **132 %** | 1/40 |
+
+Five of six parameters are pinned to 1–7 % width with sub-2.2 % error. **K1
+is not identified, and the framework said so before the campaign started** —
+see §6.7. This is reported rather than hidden: no interval was widened and no
+parameter was screened out to make the table look better.
+
+### 6.4 Scenario 3 — transport reality, and the transport ablation
 
 | Strategy | param err % | blind RMSE mM |
 |---|---|---|
-| D (naive concentration-at-z) | 127 | 20.9 |
-| F-uncorr (advanced, transport unmodeled) | 130 | 18.0 |
-| **F (mean-delay correction, own kinetics)** | **7.5** | **0.51** |
+| D (naive concentration-at-z) | 36.8 | 10.74 |
+| F-uncorr (full Bayesian, transport **un**modeled) | 48.3 | 12.70 |
+| **F (mean-delay correction through its own kinetics)** | **10.6** | **1.26** |
 
-With a real transfer line (τ = V/Q delay, gamma RTD, continued reaction at
-line temperature, 5% carryover), *naive* inference is biased by more than an
-order of magnitude regardless of how sophisticated its statistics are —
-F-uncorr is no better than D. Modeling just the **commanded mean delay**
-through the batch identity recovers accurate kinetics. Note the governor
-behaviour: F-uncorr is *flagged* `MODEL_INADEQUATE` (the framework knows its
-model can't explain the data), while corrected F stays `NORMAL_LEARNING` —
-the flag is doing exactly its job of separating "wrong model" from "noisy
-data".
+![Transport ablation](SDL_MBDoE/results_advanced_v3/publication/figure_transport_ablation.png)
 
-### Scenario 4 — model ambiguity (Bayesian discrimination)
+This is the framework's strongest and most transferable claim. With a real
+transfer line (τ = V/Q delay, gamma RTD, continued reaction at line
+temperature, 5 % carryover), sophisticated statistics **do not help at all**:
+F-uncorr is *worse* than the naive baseline D (48.3 % vs 36.8 %) because it
+confidently propagates a biased likelihood. Modeling only the commanded mean
+delay — one line of physics, through the batch-advance identity — recovers
+10.6 % / 1.26 mM. P(F better than F-uncorr) = 0.93 on parameters, 1.00 on
+blind RMSE.
 
-Truth is reversible + Pitzer. Candidate family {M1, M2, M3}, uniform prior
-(⅓ each). Posterior probability of the correct structure, mean over seeds:
-0.33 → 0.34 → 0.40 → 0.44 → 0.50 → **0.51** over six rounds, with the
-irreversible model eliminated (→ ~0.02–0.07) and the governor correctly in
-`MODEL_DISCRIMINATION` throughout. The honest reading: reversible-vs-
-irreversible is decided quickly; **pitzer-vs-dilute activity is genuinely
-hard to separate** at 0.25–0.5 M acid in six rounds — the two models remain
-~50/50. The framework reports that indistinguishability rather than
-manufacturing confidence; final blind RMSE (0.19 mM) is excellent under
-either surviving structure.
+The ablation separates *which* transport effect matters
+(`figure_transport_ablation.csv`, blind RMSE in mM):
 
-### Scenario 5 — model inadequacy (the governor's exam)
-
-The correct (reversible) model is **removed** from the candidate family; the
-truth is a documented hypothetical strongly reversible ester chemistry
-(K₁ = 0.30, K₂ = 0.02) whose reversibility the irreversible family cannot
-represent. (With the nominal EGDA truth, the irreversible best-fit is within
-~6 mM of the reversible one everywhere reachable in this short reactor —
-itself a finding, see below.)
-
-- Detection: **4/4 seeds, rounds 3–4 of 6**, via the residual-autocorrelation
-  test (χ²/dof stays *below* 1 the whole time because Σ_y is conservative —
-  the magnitude test alone would never have fired).
-- Figure F shows the naive loop's 95% CI shrinking from 10⁴% to ~36% —
-  *growing confidence in a structurally wrong model* — while the governor
-  declares `MODEL_INADEQUATE` at round 4.
-- False-positive control: 1/48 correct-model rounds (2.1%).
-- Honest caveat: within the 6-round budget, F's diagnostic-mode designs did
-  **not** yet improve blind prediction over D (1.15 vs 0.99 mM) — the
-  governor's demonstrated value here is *detection and honesty* (F knows the
-  family is broken; D is confidently wrong), not an accuracy win.
-
-### Scenario 6 — resource-aware campaigning
-
-| Strategy | param err % | blind RMSE mM | EGDA mol | time h | energy proxy kJ |
-|---|---|---|---|---|---|
-| D | 92 | 0.55 | 0.062 | 3.09 | 156 |
-| F (pure information) | 8.5 | 0.15 | 0.053 | 3.26 | 164 |
-| **F-resource (λ-weighted)** | **7.1** | 0.16 | **0.044** | **2.63** | **98** |
-
-Adding the resource penalties loses nothing statistically while cutting the
-energy proxy by 40%, material by 18%, and campaign time by 19% — information
-per unit resource, not information per experiment, is the right objective for
-an autonomous platform.
-
-### Figures and data
-
-All figures ship with a same-name CSV of exactly the plotted numbers.
-
-| Figure | File(s) | Content |
+| Transport realism | D (naive) | F (delay-corrected) |
 |---|---|---|
-| A | `results_advanced/figure_A_spatial.png` | true profiles, equal vs optimized positions, information-density curve along z |
-| B | `results_advanced/figure_B_positions.png` | selected z/L per campaign round and condition |
-| C | `results_advanced/figure_C_spectra.png` | noisy simulated Fourier-80 spectra, deconvolution fit, residual, backbone-overlap zoom |
-| D | `results_advanced/figure_D_recovery.png` | truth vs deconvolved concentrations with 95% intervals (coverage/RMSE table of §5.4) |
-| E | `results_advanced/benchmark/figure_E_<scenario>_per_{condition,time}.png` | parameter error, CI width, P(correct model), blind RMSE vs rounds and vs campaign time |
-| F | `results_advanced/benchmark/figure_F_inadequacy.png` | naive confidence vs governor detection in Scenario 5 |
-| G | `results_advanced/benchmark/figure_G_resources_S6_resources.png` | blind RMSE vs material/time/acquisitions/energy |
-| H | `results_advanced/benchmark/figure_H_ablation.png` | ideal → NMR-naive → NMR-aware → +transport-uncorrected → +transport-modeled |
+| delay + in-line reaction (plug) | 13.08 | 0.96 |
+| + RTD dispersion | 11.91 | 1.06 |
+| + carryover (full) | 10.74 | 1.26 |
 
-Figure H carries the headline message in one picture: **each added layer of
-realism damages naive inference (92%, 130% parameter error), and each matching
-layer of measurement-awareness recovers it (8.5%, 7.5%) — at no penalty when
-the realism is absent (19% vs 47% baseline in the ideal scenario).**
+**The mean delay with in-line reaction is the dominant effect by an order of
+magnitude**; RTD dispersion and carryover are second-order here, and are the
+residual that F does *not* correct (F degrades gracefully, 0.96 → 1.26 mM, as
+they are added). That is an actionable engineering conclusion: instrument the
+transfer volume and the line temperature first; RTD characterization is a
+refinement, not a prerequisite.
+
+### 6.5 Scenario 4 — model discrimination, and its three honest outcomes
+
+The three S4 variants were designed to produce three *different* answers, and
+they do.
+
+| | S4a ambiguity | S4b identifiable | S4c out-of-domain |
+|---|---|---|---|
+| final P(correct model) | **0.35** | **1.00** | 1.00 (on a *wrong* model) |
+| final model entropy | 0.37 | 0.00 | 0.00 |
+| F param err | 17.2 % | 19.8 % | **116.9 %** |
+| F blind RMSE | 0.93 mM | 0.93 mM | **26.4 mM** |
+
+![Model probabilities, S4a](SDL_MBDoE/results_advanced_v3/publication/figure_model_probs_S4a_ambiguity.png)
+![Model probabilities, S4b](SDL_MBDoE/results_advanced_v3/publication/figure_model_probs_S4b_identifiable.png)
+
+**S4a — genuinely unresolved, and reported as such.** Pitzer-vs-dilute
+activity at 0.25–0.5 M acid is experimentally indistinguishable in this
+domain. P(correct) rises 0.33 → 0.45, collapses to 0.15 when the irreversible
+member is eliminated, and settles at 0.35 with entropy 0.37 after ten rounds.
+The framework does not manufacture a winner. Predictions remain excellent
+(0.93 mM) under *either* surviving structure — which is the correct scientific
+reading: the two models are observationally equivalent here.
+
+**S4b — discrimination completes when a discriminating region exists.**
+P(correct) climbs 0.50 → 0.67 → 0.85 → 0.97 → 0.98 → 0.99 → **1.00** by round
+7, entropy → 0, in essentially every seed. Model-EIG finds the discriminating
+condition; this is the positive control for §5.8.
+
+**S4c — the honest failure mode.** When the truth lies *outside* the candidate
+family (K2 = 0.002, below the parameter-space bound), the ensemble converges
+to P = 1.00 on the best available member by round 5 — and is **confidently
+wrong**: 116.9 % parameter error, 26.4 mM blind RMSE, roughly 20× worse than
+any in-domain scenario. High posterior model probability is *not* evidence of
+correctness; only the governor and the blind set can catch this. The scenario
+is retained precisely because it is the failure mode a real platform will hit.
+
+### 6.6 Scenario 5 — the model-inadequacy governor
+
+![Governor detection](SDL_MBDoE/results_advanced_v3/publication/figure_governor_S5.png)
+
+The correct (reversible) structure is **removed** from the candidate family;
+the truth is a documented hypothetical strongly reversible ester chemistry the
+irreversible family cannot represent.
+
+| Governor metric (40 dedicated seeds) | Value |
+|---|---|
+| Detection probability | **1.00 (40/40)** |
+| Median detection round | **4** (range 3–5, of 8) |
+| Campaign-level false-alarm rate (well-specified S1/S2) | **0.025 (1/40)** |
+| Per-round false-inadequacy rate | **0.0031** |
+
+This is the single largest improvement over v3: detection went from 3/12 to
+**40/40** while the false-alarm rate *fell* to 2.5 % at the campaign level.
+Both numbers now follow from the corrected Σ_y — with an honest covariance the
+systematic allowance drops to κ = 0.47 (§5.15), so the χ²/dof statistic is
+finally on a meaningful scale. `figure_governor_S5.png` shows the mechanism in
+one picture: the naive loop's 95 % CI shrinks from 10⁴ % to ~12 % — *growing
+confidence in a structurally wrong model* — while χ²/dof jumps 1.06 → 8.88 at
+round 4 and the state flips to `MODEL_INADEQUATE`, eventually reaching 22.5.
+
+**The honest caveat, unchanged and important.** Detection is not accuracy:
+
+| Strategy | param err % | blind RMSE mM |
+|---|---|---|
+| D (naive, no governor) | 67.9 | **23.96** |
+| F (governor active) | **36.1** | 48.2 |
+| F-noGovernor | 38.4 | 51.4 |
+
+F halves the parameter error but its blind RMSE is *twice* D's. When the
+governor fires, F switches to diagnostic designs that probe the inadequacy
+rather than designs that minimize prediction error — it deliberately spends
+budget on finding out the model is wrong. F vs F-noGovernor (36.1 % vs 38.4 %,
+48.2 vs 51.4 mM) shows the accuracy effect of the governor itself is within
+noise. **The governor's demonstrated value is detection and honesty, not a
+prediction win.** A platform that needs the best possible prediction from a
+knowingly wrong model should not run diagnostic designs; a platform that needs
+to know its model is wrong must.
+
+### 6.7 Equilibrium observability — a pre-campaign identifiability verdict
+
+![Equilibrium observability](SDL_MBDoE/results_advanced_v3/publication/figure_equilibrium_observability.png)
+
+Before any campaign runs, the observability scan
+(`equilibrium_observability.csv`) sweeps the design box and reports how close
+each condition gets to equilibrium (φ = approach to equilibrium) and how
+strongly the outlet composition responds to each equilibrium constant:
+
+| Condition | τ (s) | X_outlet | max φ₁ | max φ₂ | dC/dlnK₁ | dC/dlnK₂ |
+|---|---|---|---|---|---|---|
+| 40 °C, 0.5 mL/min, 1.0 M | 924 | 0.28 | 0.002 | 0.002 | 0.08 mM | 0.008 mM |
+| 100 °C, 0.5 mL/min, 1.0 M | 924 | 0.997 | 0.85 | 0.86 | 5.3 mM | 38.0 mM |
+| **160 °C, 0.5 mL/min, 1.0 M** | 924 | 0.998 | **1.000** | **1.000** | 3.9 mM | **35.2 mM** |
+| 160 °C, 8 mL/min, 0.5 M | 58 | 0.95 | 0.108 | 0.146 | 3.9 mM | 10.1 mM |
+
+The 20 cm × 7 mm geometry **does** reach full equilibrium (φ = 1.000) at the
+hot/slow corner — the old 6 cm tube topped out near φ ≈ 0.9. The verdict is
+therefore split, and it is quantitative: the best K₂ signal anywhere in the box
+is **38.0 mM ≈ 7.6σ**, so K₂ is identifiable; the best K₁ signal anywhere is
+**5.6 mM ≈ 1.1σ**, so **K₁ is not identifiable in this design space, at any
+condition, with this instrument** — exactly what the S2 posterior table in §6.3
+then shows (514 % width, 132 % error). The diagnostic *predicted* the failure
+before the data existed. Fixing it requires changing the experiment (longer
+residence time, a different concentration regime, or a direct equilibrium
+measurement), not changing the estimator.
+
+### 6.8 Scenario 6 — resource-aware campaigning
+
+![Pareto frontier, S6](SDL_MBDoE/results_advanced_v3/publication/figure_pareto_S6.png)
+
+| Strategy | param err % | blind RMSE mM | EGDA mol | time s | energy kJ |
+|---|---|---|---|---|---|
+| D | 41.5 | 3.09 | 0.371 | 33 316 | 537 |
+| F (pure information) | **16.7** | **0.97** | 0.218 | 33 172 | 400 |
+| F-res-0.5× | 23.7 | 1.40 | 0.084 | 17 476 | 107 |
+| **F-res-1×** | 21.8 | 1.66 | **0.085** | **17 285** | **107** |
+| F-res-2× | 23.1 | 3.57 | 0.078 | 16 261 | 66 |
+| F-res-4× | 31.7 | 24.60 | 0.168 | 11 311 | 125 |
+
+Against pure-information F, the λ-weighted F-res-1× uses **61 % less EGDA,
+48 % less campaign time and 73 % less energy proxy** for 21.8 % vs 16.7 %
+parameter error. Unlike the 6-seed demo, the 40-seed paired test is now
+unambiguous about the trade-off being *real*: P(F-res-1× better than F) =
+0.275 on parameters and 0.175 on blind RMSE — **the resource penalty does cost
+statistical performance, it is not free.** The frontier is flat from 0.5× to
+2× and then collapses: at 4× the controller starts refusing informative
+experiments outright (24.6 mM blind RMSE, and material use *rises* again
+because it needs more rounds). Information per unit resource is the right
+objective for an autonomous platform, but the multiplier has to be chosen
+inside the flat region — and this benchmark locates it.
+
+### 6.9 Scenario 7 — spatial sampling modes
+
+![Spatial modes, S7](SDL_MBDoE/results_advanced_v3/publication/figure_spatial_modes_S7.png)
+
+| Mode | param err % | blind RMSE mM | seeds paused on QC fault |
+|---|---|---|---|
+| **F-zbatch (optimized batch positions)** | **16.7** | **0.97** | 0/40 |
+| F-zadaptive (data-adaptive within a profile) | 20.5 | 1.05 | **2/40** |
+| F-zfixed (equal spacing) | 21.1 | 1.09 | 0/40 |
+
+Optimized batch positions beat equal spacing (16.7 % vs 21.1 %) at equal
+acquisition budgets. Truly adaptive within-profile sampling does **not** beat
+optimized-batch here (20.5 %) — the information density along z is broad
+enough (§5.6) that choosing all positions up front captures most of the
+available gain. The 2 paused seeds are the QC gate working as designed: a
+spectral fit failed acceptance, the controller declared `MEASUREMENT_FAULT`
+and stopped rather than assimilating garbage, and both seeds are retained in
+the statistics at their last valid round (no survivorship bias).
+
+The per-budget trajectories (`figure_spatial_modes_S7.csv`) contain a finding
+worth stating plainly: parameter error is **non-monotone in sample count** —
+it bottoms out near 30–40 spatial samples (12.6–14.3 %) and then *rises* to
+17–20 % at 80. Blind RMSE keeps improving monotonically (0.0956 → 0.0011 M).
+The cause is K₁: as more data arrive, the posterior for the unidentifiable
+K₁ drifts along its flat direction toward a bound and inflates the geometric
+mean of relative errors, while every predictive quantity keeps getting better.
+This is a property of the *metric* under partial identifiability, not a defect
+of the loop — and it is another reason §6.7's pre-campaign verdict matters.
+
+### 6.10 NMR quantification validation
+
+![NMR coverage](SDL_MBDoE/results_advanced_v3/publication/figure_readme_coverage.png)
+
+Three independent held-out suites, none of them the calibration data
+(`quantification_validation.csv`):
+
+| Species | Suite A stress mixtures | Suite B reachable states | Suite C FID truth |
+|---|---|---|---|
+| EGDA | 0.93 (n=74) | 0.88 (n=75) | 0.96 (n=24) |
+| EGMA | 0.91 (n=58) | 0.95 (n=88) | 0.88 (n=24) |
+| EG | 0.86 (n=74) | 0.91 (n=89) | 1.00 (n=24) |
+| AcOH | 0.95 (n=66) | **0.97 (n=90)** | 0.95 (n=22) |
+
+Nominal is 95 %. **Every species in every suite passes the Clopper–Pearson
+severe-undercoverage gate** (one-sided upper bound ≥ 0.85), including
+Suite C — the hardest case, where the spectra come from the FID engine while
+the fitter uses the analytic lineshape model, so there is genuine forward-model
+mismatch. The v3 AcOH catastrophe (coverage 0.59 on reachable states, bias
+−6 mM) is **resolved**: 0.97 at n=90. Residual biases are honest and reported:
+EGMA −6.24 mM and AcOH −2.04 mM on Suite B, both consequences of acetyl-region
+overlap at 80 MHz. Coverage is achieved *with* those biases present, because
+the calibration's composition-dependent variance σ²(c) = v_const + (rel·c)²
+accounts for them rather than assuming them away.
+
+Two entries are at the edge and are not being talked up: EGDA 0.88 on Suite B
+and EG 0.86 on Suite A both sit below nominal, pass the gate on sample size
+alone, and would be the first things to re-examine on real hardware.
+
+### 6.11 Figures and data
+
+Every figure ships with a same-name CSV of exactly the plotted numbers. All
+paths are relative to `SDL_MBDoE/results_advanced_v3/publication/`.
+
+| File(s) | Content |
+|---|---|
+| `figure_readme_headline.png` | D-vs-F medians + IQR across eight scenarios (both metrics) |
+| `figure_readme_coverage.png` | NMR interval coverage, three held-out suites |
+| `figure_conv_<scenario>_per_round.png` | parameter error, CI width, P(correct model), blind RMSE vs round |
+| `figure_conv_<scenario>_per_acquisition.png` | the same vs NMR acquisitions (the fair-cost axis) |
+| `figure_conv_<scenario>_per_time.png` | the same vs campaign seconds |
+| `figure_params_<scenario>_F.png` | per-parameter CI width, relative error and bound-activity vs round |
+| `figure_model_probs_<S4a\|S4b\|S4c>.png` | posterior model probability and entropy vs round |
+| `figure_governor_S5.png` | naive CI shrinkage vs governor χ²/dof and state |
+| `figure_transport_ablation.png` | delay → +RTD → +carryover, D vs F |
+| `figure_pareto_S6.png` | blind RMSE vs material / time / acquisitions / energy |
+| `figure_spatial_modes_S7.png` | fixed vs optimized-batch vs adaptive positions |
+| `figure_equilibrium_observability.png` | φ₁, φ₂ and dC/dlnK over the design box |
+| `strategy_table.csv/.txt` | median / IQR / mean / bootstrap-CI per scenario × strategy |
+| `paired_comparisons.csv` | per-seed paired differences, bootstrap CI, P(a better) |
+| `governor_validation.json` | detection probability, detection rounds, false-alarm rate |
+| `quantification_validation.csv` | bias / RMSE / coverage per species per suite |
+| `benchmark_rounds.csv`, `benchmark_params.csv`, `campaign_status.csv` | every per-round and per-parameter record |
+| `benchmark_config.json` | complete reproduction record (truth, geometry, design, nuisance, seeds, runtimes) |
+| `make_readme_figures.py` | the post-hoc script that produced the two `figure_readme_*` summaries from the CSVs above |
+
+### 6.12 Where the time went
+
+Per-scenario wall time (`benchmark_config.json` → `runtimes_s`), 40 seeds each:
+
+| Scenario | s | | Scenario | s |
+|---|---|---|---|---|
+| S7_spatial_modes | **9 971** | | S3ab_rtd | 2 593 |
+| S6_resources | 4 023 | | S4a_ambiguity | 1 967 |
+| S3_transport | 3 470 | | S2_nmr | 1 916 |
+| S3ab_delay | 2 553 | | S5_inadequacy | 1 515 |
+| governor MC | 1 392 | | S4b_identifiable | 1 214 |
+| | | | S1_ideal | 1 011 |
+| | | | S4c_out_of_domain | 810 |
+
+S7 alone is a third of the campaign (three F-variants, one of them adaptive
+and therefore re-optimizing positions inside every profile), and S6 is another
+eighth (six strategies, four of them F-variants). Together with the governor MC
+they account for over half the run — worth knowing before scheduling one.
+
+These are **single-core** times, which is how this run was executed. The
+1 360 campaigns are independent, so the runner now distributes them over
+processes (`CONFIG["n_workers"]`, §7.5) and every saved file is identical to
+the one-core run — only the numbers in this table change.
+
+### 6.13 What this run does *not* establish
+
+- No real CPR or Fourier-80 measurement exists. Every instrument constant is
+  an assumption (§8), and coverage of 0.95 against a simulated instrument is
+  not coverage against a real one.
+- **K₁ is unidentifiable in this design space** (§6.7). Any downstream use of
+  the K₁ estimate is unsupported by this benchmark.
+- S4c demonstrates that P(model) = 1.00 carries **no** guarantee of
+  correctness when the family is misspecified.
+- The governor's value is demonstrated as *detection*, not as improved
+  prediction (§6.6).
+- The resource trade-off is real, not free: P(F-res better than F) < 0.3
+  (§6.8).
+- The energy figure is a **campaign-cost proxy**, not calorimetry.
 
 ---
 
@@ -1358,11 +1633,26 @@ budget, seed, and output directory.
 python run_advanced_benchmark.py
 ```
 
-Runs scenarios S1–S6 × seeds × strategies (defaults: 4 seeds, budget 6 —
-~4 min), and writes **Figures E–H**, `strategy_table.csv/.txt`,
-`benchmark_rounds.csv` (every per-round metric for every campaign), the
-governor false-positive rate, and `benchmark_config.json`. Set
-`CONFIG["smoke"] = True` for a 30 s end-to-end miniature. Scenario
+Runs the scenario suite × seeds × strategies and writes the full figure set,
+`strategy_table.csv/.txt`, `paired_comparisons.csv`, `benchmark_rounds.csv`
+(every per-round metric for every campaign), `benchmark_params.csv`,
+`governor_validation.json`, `quantification_validation.csv`,
+`equilibrium_observability.csv` and `benchmark_config.json`.
+
+Three modes, selected by `CONFIG["mode"]` at the top of the runner
+(`MODES` in `sdl_advanced/benchmark.py`):
+
+| mode | seeds | budget | scenarios | campaigns | wall time (1 core) |
+|---|---|---|---|---|---|
+| `smoke` | 1 | 3 | 3 | 33 | ~2 min |
+| `demo` (default) | 6 | 6 | 11 | 198 | ~45 min |
+| `publication` | 40 | 8 | 11 | 1 360 | **~9 h** (the §6 run) |
+
+`CONFIG["progress"] = True` shows a single tqdm bar with % complete and an ETA
+weighted by per-strategy cost, so a long run is predictable. The output
+directory is created at start-up (`resolve_outdir`), but almost all files are
+written in the post-processing phase after every scenario has finished — an
+apparently near-empty folder mid-run is expected. Scenario
 definitions, the design space, truth, transfer/nuisance assumptions, and
 resource-cost λ's all live in
 [`sdl_advanced/benchmark.py`](SDL_MBDoE/sdl_advanced/benchmark.py) as one
@@ -1371,18 +1661,156 @@ config block per concern (`sampling_design` → `SpatialDesignConfig`, `nmr` →
 `TransferConfig`, `resource_cost` → `ResourceCosts`, `advanced_design` →
 `AdvancedDesignConfig`, `model_adequacy` → `GovernorConfig`).
 
+#### Running it on more than one core
+
+One campaign is one task, and a campaign is a **pure function** of
+`(scenario, strategy, seed, budget)` — `AdvancedVirtualLaboratory` seeds its
+own `default_rng(seed)`, the design selector seeds `default_rng(seed + offset)`,
+and nothing anywhere reads global RNG state. So the 1 360 campaigns of a
+publication run are embarrassingly parallel. Set:
+
+```python
+CONFIG = {
+    ...
+    "n_workers": "auto",      # None/"auto" → cores−1 · 0 → all cores
+                              # 1 → serial  · n → exactly n processes
+    "threads_per_worker": 1,  # BLAS threads inside each worker — keep at 1
+}
+```
+
+**The saved results do not depend on the worker count.** Verified end to end
+by running the whole runner both ways and comparing every produced file:
+
+| | |
+|---|---|
+| Byte-identical | 33 of 36 files — including **every** figure PNG, `benchmark_rounds.csv`, `benchmark_params.csv`, `strategy_table.csv`, `paired_comparisons.csv` and every figure CSV |
+| Differ, by design | `runtime_s` in `campaign_status.csv`, `runtimes_s` in `benchmark_config.json`, and the recorded `n_workers` — i.e. **only wall-clock telemetry** |
+
+Three things buy that guarantee, and each has a test in
+[`tests/test_parallel.py`](SDL_MBDoE/tests/test_parallel.py):
+
+1. **Submission-order reassembly.** `ordered_map` indexes results by the
+   order tasks were *submitted*, never the order they *finished*, so every
+   CSV row lands in the position a one-core run would have given it
+   (strategy-major, then seed).
+2. **Pinned numerical threads.** A multi-threaded BLAS reduction sums in a
+   nondeterministic order, which perturbs the last digits and can diverge
+   visibly over a long iterative campaign. The runner pins every backend
+   (`OMP`/`OPENBLAS`/`MKL`/`VECLIB`/`NUMEXPR`) to one thread **before numpy
+   is imported** — that ordering is itself asserted by a test, because doing
+   it afterwards silently has no effect. It costs nothing here: the linear
+   algebra is 6×6 parameter blocks, far below the size where threading one
+   BLAS call pays for itself. It also prevents oversubscription
+   (workers × threads > cores is slower, not faster).
+3. **The `spawn` start method everywhere.** macOS (Apple Silicon included)
+   and Windows already default to it; forcing it on Linux too means a worker
+   is always a clean interpreter re-importing the package, so there is one
+   behaviour on all three platforms. Only primitives cross the process
+   boundary — a task is `(scenario_name, strategy, seed, budget)` and comes
+   back as plain dict rows, never a laboratory or a posterior object.
+
+Practical notes:
+
+- On Apple Silicon `os.cpu_count()` counts performance **and** efficiency
+  cores. The pool is dynamically load-balanced, so the slower cores simply
+  take fewer campaigns; `"auto"` (cores − 1) keeps the machine usable.
+- Memory scales with the worker count — each process holds its own numpy,
+  laboratory and model ensemble. Drop `n_workers` if the machine starts
+  swapping.
+- Scaling is bounded by the longest single campaign, so a scenario with few
+  seeds parallelizes less well than the full suite. A 6-worker smoke run
+  measured 3.3×; `publication`, with 1 360 independent tasks, keeps workers
+  saturated for far longer.
+- Scenarios must be defined at module level in `SCENARIOS` to be
+  parallelizable (a worker rebuilds the scenario by name). `run_scenario`
+  detects an unregistered spec and runs it serially rather than silently
+  substituting the registered one.
+- `threads_per_worker` ≠ 1 is allowed but prints a warning: bit-identical
+  agreement with a serial run is no longer guaranteed.
+
+#### The publication audit trail
+
+`CONFIG["audit"] = True` adds a complete, publication-ready record of *how*
+every number was produced, under `audit/` in the output directory. It is
+**pure reporting**: the recorder draws no random numbers and evaluates no
+objective, so the scientific results are byte-identical with it on or off.
+That is not an assertion — [`tests/test_audit_regression.py`](SDL_MBDoE/tests/test_audit_regression.py)
+runs matched seeds both ways across a baseline, strategy E, the full
+Bayesian loop, the NMR + transport loop and a governor trip, and compares
+every result row exactly.
+
+| Subfolder | Table | One row per |
+|---|---|---|
+| `design/` | `design_history.csv` | assimilated acquisition — conditions, z and z/L, spatial/design mode, EIG, QC status, cumulative resources |
+| `design/` | `design_candidate_scores.csv` | selected candidate + the best alternatives, with screen score, EIG terms, resource penalty, total utility |
+| `inference/` | `model_probabilities_long.csv` | (round, candidate model), carrying `evidence_reliable`, bound contact and the warning text |
+| `inference/` | `posterior_covariance_long.csv` | (round, parameter pair) — covariance and correlation |
+| `inference/` | `identifiability_summary.csv` | final-round parameter — estimate, error, interval width, bound flag, eigenvalues, effective rank, condition number |
+| `governor/` | `governor_diagnostics_long.csv` | round — state, combined and per-component p-values, threshold, χ²/dof, trends, trigger reasons, affected species/region, first detection |
+| `measurement/` | `nmr_measurements_long.csv` | (acquisition attempt, species) — fitted concentration, σ, censoring, QC flags, residual RMS, fit condition number, disposition |
+| `measurement/` | `nmr_calibration_by_seed.csv` | (seed, species) — response factor, bias, variance terms, interval scale, correlations |
+| `resources/` | `resource_events_long.csv` | metered event — incremental and cumulative time, material, waste, energy, motion, acquisitions |
+| `resources/` | `controller_timing.csv` | round — fitting and design-selection wall time |
+| `validation/` | `blind_predictions_long.csv` | (validation condition, z, species) — true, predicted, residual, squared error |
+
+Plus `convergence_summary.csv`, `parameter_domain_checks.csv`,
+`run_integrity_report.json`, `reproducibility_manifest.json` (git commit,
+resolved config, package versions, platform, SHA-256 of every output), the
+three representative NMR examples under `nmr_examples/`, and the new figures
+under `figures/`.
+
+Three design decisions in there are worth knowing, because each one is a
+place where the easy implementation would have been wrong:
+
+1. **The audit may not consume randomness.** The EIG is a Monte-Carlo
+   estimate drawing on the selector's generator. Scoring extra candidates
+   "just for the report" would advance that stream and change every later
+   design decision. So the table exports the candidates the selector
+   *actually evaluated* (`top_k`) with their EIG terms, and the remaining
+   screened alternatives with `eig_evaluated = 0` and blank EIG columns.
+2. **Failed campaigns must not vanish.** `convergence_summary.csv` reports
+   every metric twice: `basis="observed"` (only campaigns that reached the
+   round — honest, but the sample thins after a fault) and `basis="locf"`
+   (last observation carried forward, constant *n*). `n_total`,
+   `n_observed` and `n_faulted_cumulative` sit on every row, and the
+   convergence figures draw the active count as a grey step, so a curve
+   that improves because the sample shrank is visible as such.
+3. **Eigen-diagnostics are labelled by what they actually are.** Baselines
+   A–E are WLS/FIM, so `identifiability_summary.csv` reports genuine Fisher
+   eigenvalues. F is a Laplace posterior whose curvature is `F + prior
+   precision`; calling those "FIM eigenvalues" would overstate what the data
+   alone determined, so they carry `matrix_kind = posterior_precision`.
+
+Rejected spectra deserve a note of their own: the QC gate drops them before
+assimilation, so they appear in no posterior-derived table. They are
+recorded at the point of rejection instead, which is why
+`nmr_measurements_long.csv` has a `disposition` column
+(`accepted` / `accepted_after_reacquisition` / `failed_qc` / `rejected`)
+rather than only a count.
+
+**Cost**: the trail roughly doubles the output size of a smoke run and is
+expected to add a few hundred MB to a 40-seed publication run (mostly
+`nmr_measurements_long.csv` and `posterior_covariance_long.csv`).
+Runtime overhead measured on the smoke run was ~15%, almost all of it in
+writing the tables rather than in the campaigns.
+
+The representative NMR spectra are generated **after** the benchmark from a
+fixed seed of their own (`nmr_examples.EXAMPLE_SEED`) at three documented
+compositions — low conversion, the overlap-rich intermediate case, and near
+complete conversion. They are deliberately not sampled from a campaign:
+pulling a spectrum out of a seeded run would either mean carrying every
+spectrum through the run or re-simulating inside a live stream, and the
+second would move the campaign.
+
 ### 7.6 Tests
 
 ```bash
 cd SDL_MBDoE
-for f in tests/self_test.py tests/test_spectral.py tests/test_deconvolution.py \
-         tests/test_transfer.py tests/test_spatial_design.py \
-         tests/test_resource_accounting.py tests/test_posterior.py \
-         tests/test_adequacy.py tests/test_truth_firewall.py; do python $f; done
+for f in tests/*.py; do python $f; done      # 16 files, all standalone
 ```
 
-**58 tests, ~22 s, all standalone-runnable and pytest-compatible.** The
-acceptance criteria they pin down include: existing Layer 1/2 tests unchanged;
+**137 tests across 16 files, all standalone-runnable and pytest-compatible.**
+The acceptance criteria they pin down include: existing Layer 1/2 tests unchanged;
 `fixed_equal` ≡ the legacy port layout; reactor-length rescaling; optimized
 positions in-bounds/spaced/unique/deterministic; zero-noise deconvolution
 recovery to numerical tolerance; Monte Carlo interval coverage; all-transport-
@@ -1390,7 +1818,25 @@ off ≡ legacy observation (to 10⁻¹²); delta-RTD ≡ legacy `extra_tau_s`
 (to 10⁻⁸); zero truth reveals in a full F campaign and no truth values
 reachable in any emitted object; governor false-positive and detection
 behaviour; non-negative, event-auditable resource totals; hard-bound
-enforcement on candidates.
+enforcement on candidates; parallel-vs-serial bit-identity of the whole
+benchmark; audit-on/audit-off bit-identity of every scientific result;
+configurable geometry and optional packing
+(ε-aware τ, interstitial vs superficial velocity); the equilibrium-observability
+verdict; the single public `NMRCalibration` artifact shared by the measurement
+and design layers; the Clopper–Pearson severe-undercoverage gate; the
+governor's shared decision-component definition and bootstrap resolution guard;
+boundary-aware evidence reliability; and survivorship-free aggregation.
+
+| File | Tests | File | Tests |
+|---|---|---|---|
+| `self_test.py` (Layer 2 baseline) | 20 | `test_posterior.py` | 6 |
+| `test_geometry_packing.py` | 12 | `test_deconvolution.py` | 6 |
+| `test_nmr_calibration.py` | 12 | `test_spatial_design.py` | 6 |
+| `test_calibration_governor.py` | 9 | `test_adequacy.py` | 5 |
+| `test_spectral.py` | 7 | `test_observation_operator.py` | 5 |
+| `test_transfer.py` | 7 | `test_truth_firewall.py` | 5 |
+| `test_resource_accounting.py` | 7 | `test_measurement_fault.py` | 4 |
+| `test_parallel.py` | 13 | `test_audit_regression.py` | 13 |
 
 ### 7.7 Troubleshooting
 
@@ -1440,6 +1886,18 @@ Every simulation output directory contains the complete configuration and RNG
 seeds needed for exact reproduction (`run_config.json`, `config_used.json`,
 `benchmark_config.json`).
 
+**Calibration status after the v3 publication run.** The NMR covariance model
+is now *calibrated* in the defensible sense — a single public artifact drives
+both the measurement and design layers, and every held-out species × suite cell
+passes the Clopper–Pearson gate (§6.10). That statement is about a **simulated**
+instrument: it says the framework's internal uncertainty accounting is
+self-consistent and honest, **not** that a Fourier 80 would deliver these
+intervals. The first hardware calibration campaign replaces datasets 1 and 2 of
+§5.15 with prepared standards and re-runs the same gate; if real coverage lands
+below 0.85 the framework will say so rather than proceed. Two known weak spots
+to test first: EGDA on reachable states (0.88) and EG on stress mixtures (0.86),
+plus the persistent acetyl-overlap biases (EGMA −6.2 mM, AcOH −2.0 mM).
+
 ---
 
 ## 9. Code map
@@ -1483,21 +1941,36 @@ SDL_MBDoE/
 │   ├── adequacy.py       AdequacyGovernor (4 states, calibrated tests)
 │   ├── bayes_design.py   NoiseSurrogate, EIG estimator, AdvancedSelector
 │   ├── controller.py     run_strategy_e / run_strategy_f (+ ablations)
-│   ├── benchmark.py      scenarios S1–S6, fairness adapter, metrics
-│   └── reporting.py      Figures A–H, strategy table, paired CSVs
+│   ├── benchmark.py      scenarios S1–S7, modes, fairness adapter, metrics
+│   ├── observability.py  equilibrium-observability scan + identifiability verdict
+│   ├── parallel.py       spawn pool + submission-order map (results unchanged)
+│   ├── audit.py          passive recorder: candidate scores, timings, QC dispositions
+│   ├── audit_export.py   post-campaign long tables (design/inference/governor/...)
+│   ├── audit_summary.py  convergence (observed + LOCF), integrity, manifest
+│   ├── nmr_examples.py   three representative spectra, own fixed seed
+│   ├── validation.py     held-out NMR suites, kappa derivation from control data
+│   └── reporting.py      figure set, strategy table, paired CSVs
 ├── run_sdl_campaign.py            baseline A–D entry point
 ├── run_advanced_campaign.py       Layer 3 demo (Figures A–D)
-├── run_advanced_benchmark.py      Monte Carlo benchmark (Figures E–H)
-└── tests/
+├── run_advanced_benchmark.py      Monte Carlo benchmark (smoke/demo/publication)
+├── results_advanced_v3/publication/   the §6 run: 40 seeds x budget 8 x 11 scenarios
+└── tests/                             137 tests, 16 files
     ├── self_test.py               20 baseline tests (unchanged)
+    ├── test_geometry_packing.py   geometry/packing/observability/ladder (12)
+    ├── test_nmr_calibration.py    one public calibration artifact + gate (12)
+    ├── test_calibration_governor.py  governor components + bootstrap + PSD (9)
     ├── test_spectral.py           forward model (7)
-    ├── test_deconvolution.py      quantification + coverage (4)
-    ├── test_transfer.py           transport + legacy limits (6)
-    ├── test_spatial_design.py     position optimality (5)
-    ├── test_resource_accounting.py  auditable costs (4)
-    ├── test_posterior.py          Laplace + evidence + cov_y contract (4)
-    ├── test_adequacy.py           governor detection/calibration (4)
-    └── test_truth_firewall.py     end-to-end firewall (4)
+    ├── test_transfer.py           transport + legacy limits (7)
+    ├── test_resource_accounting.py  auditable costs (7)
+    ├── test_deconvolution.py      quantification + coverage (6)
+    ├── test_spatial_design.py     position optimality (6)
+    ├── test_posterior.py          Laplace + evidence + cov_y contract (6)
+    ├── test_adequacy.py           governor detection/calibration (5)
+    ├── test_observation_operator.py  the single prediction operator (5)
+    ├── test_truth_firewall.py     end-to-end firewall (5)
+    ├── test_measurement_fault.py  QC-before-assimilation (4)
+    ├── test_parallel.py           parallel == serial, byte for byte (13)
+    └── test_audit_regression.py   audit ON == audit OFF, exactly (13)
 
 EGDA_NMR_sim/sim_nmr(2).py         standalone spectrum visualization tool
                                    (NOT used inside the campaign loop)

@@ -201,11 +201,17 @@ class AdvancedSelector:
                  cfg: AdvancedDesignConfig = AdvancedDesignConfig(),
                  bounds: Optional[Dict[str, Sequence[float]]] = None,
                  seed: int = 0,
-                 reference_conditions: Optional[Sequence] = None):
+                 reference_conditions: Optional[Sequence] = None,
+                 recorder=None):
         # reference_conditions: [(u, z_array), ...] defining the PREDICTIVE
         # objective's reference grid.  Must be an internal documented grid -
         # NEVER the blind validation set (which stays invisible by design).
         self.reference_conditions = list(reference_conditions or [])
+        # PASSIVE audit sink (sdl_advanced/audit.py) or None.  It only ever
+        # receives numbers this selector had already computed for its own
+        # decision; it is never consulted, and it never draws a random
+        # number, so the decision sequence is identical with and without it.
+        self.recorder = recorder
         if not candidates:
             raise ValueError("Need at least one operating-condition candidate.")
         self.ensemble = ensemble
@@ -302,11 +308,13 @@ class AdvancedSelector:
         top = screened[:max(cfg.top_k, 1)]
 
         if governor_state == GovernorState.MODEL_INADEQUATE:
-            return self._select_diagnostic(top)
+            return self._select_diagnostic(top, screened, governor_state)
         if cfg.objective == "predictive":
             score, u, zs, _f = top[0]
             cost = self.meter.cost_of_candidate(
                 u.T_C, u.Q1_mL_min + u.Q2_mL_min, u.C_EGDA_M, u.C_cat_M, zs)
+            self._record(governor_state, "predictive", screened,
+                         {0: {"utility": score, "cost": cost}}, 0)
             return DesignDecision(u=u, z_positions=zs, utility=score,
                                   eig_param=np.nan, eig_model=np.nan,
                                   cost=cost, mode="predictive")
@@ -317,11 +325,14 @@ class AdvancedSelector:
         particles = self.ensemble.particles(cfg.n_particles, self._rng)
         if not particles:
             score, u, zs, _ = top[0]
+            self._record(governor_state, "eig", screened,
+                         {0: {"utility": score, "cost": 0.0}}, 0)
             return DesignDecision(u=u, z_positions=zs, utility=score,
                                   eig_param=np.nan, eig_model=np.nan,
                                   cost=0.0, mode="eig")
         best: Optional[DesignDecision] = None
-        for screen_score, u, zs, _field in top:
+        best_rank, evaluated = None, {}
+        for rank, (screen_score, u, zs, _field) in enumerate(top):
             preds = np.stack([self.ensemble.predict(pt, u, zs, self.species)
                               for pt in particles])
             models = np.array([pt.model_index for pt in particles])
@@ -332,13 +343,31 @@ class AdvancedSelector:
             cost = self.meter.cost_of_candidate(
                 u.T_C, u.Q1_mL_min + u.Q2_mL_min, u.C_EGDA_M, u.C_cat_M, zs)
             util = (cfg.alpha_param * (eig_t - eig_m) + beta * eig_m - cost)
+            evaluated[rank] = {"eig_param": eig_t - eig_m, "eig_model": eig_m,
+                               "cost": cost, "utility": util}
             dec = DesignDecision(u=u, z_positions=zs, utility=util,
                                  eig_param=eig_t - eig_m, eig_model=eig_m,
                                  cost=cost, mode="eig",
                                  screen_scores={u.label(): screen_score})
             if best is None or util > best.utility:
                 best = dec
+                best_rank = rank
+        self._record(governor_state, "eig", screened, evaluated, best_rank,
+                     beta)
         return best
+
+    # ------------------------------------------------------------------ #
+    def _record(self, governor_state: str, mode: str, screened,
+                evaluated: Dict[int, Dict], chosen_rank: Optional[int],
+                beta: float = float("nan")) -> None:
+        """Hand the ALREADY-COMPUTED scores to the audit sink, if any.
+
+        Nothing here is recomputed and no RNG is touched, so this call is
+        invisible to the campaign - see sdl_advanced/audit.py."""
+        if self.recorder is None:
+            return
+        self.recorder.record_candidates(governor_state, mode, screened,
+                                        evaluated, chosen_rank, beta)
 
     # ------------------------------------------------------------------ #
     def _normalized_u(self, u: OperatingConditions) -> np.ndarray:
@@ -354,7 +383,8 @@ class AdvancedSelector:
                 out.append(0.0)
         return np.array(out)
 
-    def _select_diagnostic(self, top) -> DesignDecision:
+    def _select_diagnostic(self, top, screened=None,
+                           governor_state: str = "") -> DesignDecision:
         """MODEL_INADEQUATE: stop exploiting the (wrong) model's FIM.
 
         Score = expected whitened DISAGREEMENT between the candidate models'
@@ -368,7 +398,8 @@ class AdvancedSelector:
         visited = [self._normalized_u(m.u)
                    for m in self.ensemble.best.inference.measurements]
         best_dec, best_score = None, -np.inf
-        for screen_gain, u, zs, _field in top:
+        best_rank, evaluated = None, {}
+        for rank, (screen_gain, u, zs, _field) in enumerate(top):
             preds = []
             for cm in self.ensemble.models:
                 preds.append(cm.predict_observation(cm.theta_hat, u, zs,
@@ -386,10 +417,19 @@ class AdvancedSelector:
             cost = self.meter.cost_of_candidate(
                 u.T_C, u.Q1_mL_min + u.Q2_mL_min, u.C_EGDA_M, u.C_cat_M, zs)
             score = disagreement + stress - cost
+            # the diagnostic objective has no EIG decomposition; the audit
+            # trail carries its two terms in the same columns so the CSV
+            # stays one shape (documented in audit_export.py)
+            evaluated[rank] = {"eig_param": disagreement, "eig_model": stress,
+                               "cost": cost, "utility": score}
             if score > best_score:
                 best_score = score
+                best_rank = rank
                 best_dec = DesignDecision(
                     u=u, z_positions=zs, utility=score,
                     eig_param=np.nan, eig_model=np.nan, cost=cost,
                     mode="diagnostic")
+        self._record(governor_state, "diagnostic",
+                     screened if screened is not None else top,
+                     evaluated, best_rank)
         return best_dec

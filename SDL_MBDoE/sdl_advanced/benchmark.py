@@ -32,6 +32,14 @@ Scenario map (see SCENARIOS):
 
 Modes: "smoke" (seconds), "demo" (default), "publication" (many seeds) -
 see MODES; runners may override any entry.
+
+PARALLELISM: the unit of work is ONE (scenario, strategy, seed) campaign,
+which is a pure function of those three labels plus the budget - see
+`campaign_task`.  Passing an executor to `run_scenario` /
+`governor_mc_validation` distributes those units over processes and
+reassembles them in submission order, so the saved results are identical to
+a one-core run at any worker count (sdl_advanced/parallel.py explains how
+that identity is maintained).
 """
 
 from __future__ import annotations
@@ -59,6 +67,7 @@ from .controller import (AdvancedStrategyResult, QCGateConfig,
 from .instrument import AdvancedVirtualLaboratory, InstrumentConfig
 from .model_ensemble import (AssumedTransfer, ModelEnsemble,
                              build_egda_family)
+from . import parallel as par
 from .resources import ResourceCosts, ResourceMeter
 from .spatial_design import SpatialDesignConfig, fixed_equal_positions
 from .spectral import AcquisitionSettings, SpectralNuisance
@@ -359,12 +368,20 @@ def check_truth_in_domain(space: ParameterSpace, truth: Dict[str, float],
 
 
 _SCREEN_CACHE: Dict[int, Tuple[str, ...]] = {}
+# Worker processes announce nothing: the screen is a deterministic function
+# of the budget, so every process computes the SAME answer and only the
+# parent should report it (set False by worker_init).
+_SCREEN_VERBOSE = True
 
 
 def screened_dropped_keys(budget: int) -> Tuple[str, ...]:
     """Pre-campaign identifiability screen (same code as
     run_sdl_campaign.py), computed once per budget and applied identically
-    to every strategy."""
+    to every strategy.
+
+    Deterministic in `budget` alone, so a worker process re-deriving it
+    reaches the same result as the parent - the per-process cache is a
+    speed-up, never a source of divergence."""
     if budget not in _SCREEN_CACHE:
         t_ref_K = T_REF_C + 273.15
         bridge = Layer1Bridge(GEOMETRY, t_ref_K, activity_model="pitzer")
@@ -375,9 +392,22 @@ def screened_dropped_keys(budget: int) -> Tuple[str, ...]:
                     build_candidates(DESIGN) + reference_design(DESIGN),
                     ports, SPECIES, budget=budget, max_rel_ci_pct=200.0)
         _SCREEN_CACHE[budget] = sr.dropped
-        if sr.dropped:
+        if sr.dropped and _SCREEN_VERBOSE:
             print(f"  identifiability screen: holding fixed {sr.dropped}")
     return _SCREEN_CACHE[budget]
+
+
+def worker_init(budget: Optional[int] = None) -> None:
+    """Initializer for a parallel worker process.
+
+    Silences the per-process identifiability-screen announcement and warms
+    the screen cache once, so the first campaign a worker runs is not slower
+    than the rest.  It changes NO numerical result: the screen is a pure
+    function of the budget."""
+    global _SCREEN_VERBOSE
+    _SCREEN_VERBOSE = False
+    if budget is not None:
+        screened_dropped_keys(int(budget))
 
 
 def _spatial_cfg(mode: str) -> SpatialDesignConfig:
@@ -428,9 +458,14 @@ def design_for_budget(budget: int) -> Dict:
 
 def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
                      budget: int, verbose: bool = False,
-                     store_spectra: bool = False):
+                     store_spectra: bool = False, recorder=None):
     """One (scenario, strategy, seed) campaign.  Returns (result, lab,
-    extra)."""
+    extra).
+
+    `recorder`: passive audit sink (sdl_advanced/audit.py) or None.  It is
+    handed to the advanced controllers, which report already-computed
+    quantities to it; it never influences a decision.  Baselines A-D run
+    unchanged sdl.campaign code and are audited entirely post-campaign."""
     t_ref_K = T_REF_C + 273.15
     variant = spec.f_variants.get(strategy, {})
     lab = make_lab(spec, seed, store_spectra=store_spectra,
@@ -471,7 +506,7 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
         inference = InferenceModel(space, bridge, NOISE_DIRECT)
         res = run_strategy_e(lab, inference, candidates, fixed[0],
                              _spatial_cfg("optimized"), budget,
-                             verbose=verbose)
+                             verbose=verbose, recorder=recorder)
         return res, lab, None
 
     # F and its variants -------------------------------------------------- #
@@ -525,7 +560,7 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
         cov_model=cov_model,
         qc=QCGateConfig(enabled=spec.observation_mode == "nmr"),
         bounds=DESIGN["continuous_bounds"], seed=seed, verbose=verbose,
-        key=strategy)
+        key=strategy, recorder=recorder)
     return res, lab, governor
 
 
@@ -694,9 +729,82 @@ def total_cost_units(scenarios: Sequence[str], seeds: Sequence[int],
     return total
 
 
+def campaign_task(scenario_name: str, strategy: str, seed: int, budget: int,
+                  verbose: bool = False, audit: bool = False) -> Dict:
+    """ONE campaign, as a picklable pure function of its four labels.
+
+    This is the unit of parallel work.  It takes and returns only primitives
+    (never a ScenarioSpec, a laboratory or a posterior object), so it costs
+    the same to hand to a worker process as to call in-process, and it reads
+    no state that a worker would not have.  Everything random inside is
+    seeded from `seed`, so the returned rows are the same on any core, in any
+    process, at any level of parallelism.
+
+    The scenario is looked up by NAME rather than passed in, both to keep the
+    payload tiny and to guarantee the worker uses this module's own
+    definition rather than a pickled copy of it.  A consequence worth
+    knowing: a scenario must be defined at MODULE level in SCENARIOS to be
+    parallelizable, because a spawned worker re-imports this module and sees
+    only what is written here - one registered at run time would raise a
+    KeyError naming itself.  `run_scenario` refuses to send an unregistered
+    spec to a pool at all.
+    """
+    spec = SCENARIOS[scenario_name]
+    budget = spec.budget_override or budget
+    z_val = np.array([GEOMETRY["length_m"] / 3.0, GEOMETRY["length_m"]])
+    y_true = _truth_prediction(spec.truth, z_val)
+    recorder = None
+    if audit:
+        from .audit import AuditRecorder
+        recorder = AuditRecorder(spec.name, strategy, seed, SPECIES)
+    t0 = time.time()
+    res, lab, extra = run_one_campaign(spec, strategy, seed, budget,
+                                       verbose=verbose, recorder=recorder)
+    r, p = _round_metrics(spec, strategy, res, lab, extra, z_val, y_true)
+    stop = getattr(res, "stop_reason", "budget exhausted")
+    tot = lab.meter.totals()
+    audit_bundle = None
+    if audit:
+        # POST-campaign derivation: reads the finished result/laboratory,
+        # runs no controller code and touches no RNG (audit_export.py)
+        from . import audit_export as aex
+        spatial_mode = spec.f_variants.get(strategy, {}).get(
+            "spatial_mode", "optimized" if strategy in ("E",) or
+            strategy.startswith("F") else "fixed_equal")
+        audit_bundle = aex.collect_campaign(
+            spec, strategy, seed, res, lab, extra, recorder, z_val, y_true,
+            VALIDATION_CONDS, SPECIES, spatial_mode)
+    return {
+        "rows": [dict(x, seed=seed) for x in r],
+        "prows": [dict(x, seed=seed) for x in p],
+        "audit": audit_bundle,
+        "status": {
+            "scenario": spec.name, "strategy": strategy, "seed": seed,
+            "rounds_completed": len(r),
+            "rounds_planned": budget,
+            "completed": int(len(r) >= budget),
+            "faulted": int("MEASUREMENT_FAULT" in str(stop)),
+            "stop_reason": stop,
+            "qc_rejected": tot.get("qc_rejected", 0.0),
+            "nmr_reacquisitions": tot.get("nmr_reacquisitions", 0.0),
+            "nmr_acquisitions": tot.get("nmr_acquisitions", 0.0),
+            "last_valid_blind_rmse_M": (r[-1]["blind_rmse_M"] if r
+                                        else float("nan")),
+            "last_valid_param_err_pct": (r[-1]["param_err_pct"] if r
+                                         else float("nan")),
+            # WALL CLOCK: the only field a worker count can change.  It
+            # measures the run, not the chemistry; every scientific column
+            # above is deterministic, and the simulated laboratory time the
+            # figures plot against ("time_s") comes from ResourceMeter.
+            "runtime_s": time.time() - t0,
+        },
+    }
+
+
 def run_scenario(spec: ScenarioSpec, seeds: Sequence[int], budget: int,
-                 verbose: bool = False, progress=None
-                 ) -> Tuple[List[Dict], List[Dict], List[Dict]]:
+                 verbose: bool = False, progress=None, executor=None,
+                 audit: bool = False
+                 ) -> Tuple[List[Dict], List[Dict], List[Dict], Optional[Dict]]:
     """Returns (round rows, per-parameter rows, per-campaign status rows).
 
     NO campaign is ever dropped: a run that PAUSES on a measurement fault
@@ -704,46 +812,54 @@ def run_scenario(spec: ScenarioSpec, seeds: Sequence[int], budget: int,
     for that seed) and is recorded in the status table with its completion
     flag, fault counts and stop reason - so accuracy statistics and
     completion/fault rates are reported side by side (no survivorship
-    bias)."""
+    bias).
+
+    `executor`: an optional process pool (see sdl_advanced.parallel).  The
+    campaigns are independent, so they are simply distributed over it and
+    reassembled in SUBMISSION order - strategy-major, then seed - which is
+    the order the serial loop produced.  Passing None keeps the original
+    in-process loop exactly as it was."""
     budget = spec.budget_override or budget
-    z_val = np.array([GEOMETRY["length_m"] / 3.0, GEOMETRY["length_m"]])
-    y_true = _truth_prediction(spec.truth, z_val)
+    tasks = [(spec.name, strategy, seed, budget, verbose, audit)
+             for strategy in spec.strategies for seed in seeds]
+
+    # A worker rebuilds the scenario from SCENARIOS[name] (only the name
+    # crosses the process boundary).  An ad-hoc spec that is not the
+    # registered one would therefore be silently replaced by it, so such a
+    # spec is run in-process instead - correctness before speed.
+    if executor is not None and SCENARIOS.get(spec.name) is not spec:
+        print(f"    note: '{spec.name}' is not the registered scenario "
+              f"object; running it serially so the passed spec is honoured")
+        executor = None
+
+    def _landed(_i, args, out):
+        """Parent-side reporting only; runs in completion order when
+        parallel, so nothing saved may depend on it."""
+        _scen, strategy, seed, b, _v, _a = args
+        if verbose:
+            n_done = out["status"]["rounds_completed"]
+            print(f"    {spec.name}/{strategy}/seed{seed}: "
+                  f"{out['status']['runtime_s']:.1f} s"
+                  + ("" if n_done >= b
+                     else f"  [PAUSED after {n_done}/{b} rounds]"))
+        if progress is not None:
+            progress(spec.name, strategy, seed, b)
+
+    results = par.ordered_map(campaign_task, tasks, executor=executor,
+                              on_result=_landed)
     rows, prows, status = [], [], []
-    for strategy in spec.strategies:
-        for seed in seeds:
-            t0 = time.time()
-            res, lab, extra = run_one_campaign(spec, strategy, seed, budget,
-                                               verbose=verbose)
-            r, p = _round_metrics(spec, strategy, res, lab, extra, z_val,
-                                  y_true)
-            rows.extend([dict(x, seed=seed) for x in r])
-            prows.extend([dict(x, seed=seed) for x in p])
-            stop = getattr(res, "stop_reason", "budget exhausted")
-            tot = lab.meter.totals()
-            status.append({
-                "scenario": spec.name, "strategy": strategy, "seed": seed,
-                "rounds_completed": len(r),
-                "rounds_planned": budget,
-                "completed": int(len(r) >= budget),
-                "faulted": int("MEASUREMENT_FAULT" in str(stop)),
-                "stop_reason": stop,
-                "qc_rejected": tot.get("qc_rejected", 0.0),
-                "nmr_reacquisitions": tot.get("nmr_reacquisitions", 0.0),
-                "nmr_acquisitions": tot.get("nmr_acquisitions", 0.0),
-                "last_valid_blind_rmse_M": (r[-1]["blind_rmse_M"] if r
-                                            else float("nan")),
-                "last_valid_param_err_pct": (r[-1]["param_err_pct"] if r
-                                             else float("nan")),
-                "runtime_s": time.time() - t0,
-            })
-            if verbose:
-                print(f"    {spec.name}/{strategy}/seed{seed}: "
-                      f"{time.time() - t0:.1f} s"
-                      + ("" if len(r) >= budget
-                         else f"  [PAUSED after {len(r)}/{budget} rounds]"))
-            if progress is not None:
-                progress(spec.name, strategy, seed, budget)
-    return rows, prows, status
+    bundle = None
+    if audit:
+        from . import audit_export as aex
+        bundle = aex.empty_bundle()
+    for out in results:
+        rows.extend(out["rows"])
+        prows.extend(out["prows"])
+        status.append(out["status"])
+        if audit:
+            from . import audit_export as aex
+            aex.merge(bundle, out.get("audit"))
+    return rows, prows, status, bundle
 
 
 # ------------------------------------------------------------------------- #
@@ -828,8 +944,22 @@ def paired_comparison(rows: List[Dict], scenario: str, strat_a: str,
 
 
 # ------------------------------------------------------------------------- #
+def governor_task(scenario_name: str, seed: int, budget: int):
+    """First round at which the governor declares MODEL_INADEQUATE, or None.
+
+    The parallel unit of the governor validation, and like `campaign_task` a
+    picklable pure function of its arguments returning a primitive."""
+    res, _lab, _gov = run_one_campaign(SCENARIOS[scenario_name], "F", seed,
+                                       budget, verbose=False)
+    rd = next((r.round for r in res.history
+               if r.governor and r.governor.state
+               == GovernorState.MODEL_INADEQUATE), None)
+    return None if rd is None else int(rd)
+
+
 def governor_mc_validation(seeds: Sequence[int], budget: int = 6,
-                           verbose: bool = False, progress=None) -> Dict:
+                           verbose: bool = False, progress=None,
+                           executor=None) -> Dict:
     """Monte Carlo validation of the governor (#calibration honesty):
 
       * correct-family scenario (S2-style)  -> realized campaign-level
@@ -838,33 +968,37 @@ def governor_mc_validation(seeds: Sequence[int], budget: int = 6,
         the distribution of first-detection rounds.
 
     The rates REPORTED here are the empirically measured ones; no exact
-    false-positive control is claimed beyond them."""
-    fp = 0
-    det_rounds = []
-    for seed in seeds:
-        res, _, gov = run_one_campaign(SCENARIOS["S2_nmr"], "F", seed,
-                                       budget, verbose=False)
-        if any(r.governor and r.governor.state
-               == GovernorState.MODEL_INADEQUATE for r in res.history):
-            fp += 1
-        if verbose:
-            print(f"    governor-MC correct-family seed {seed}: "
-                  f"{'FP' if fp else 'ok'}")
+    false-positive control is claimed beyond them.
+
+    `executor`: optional process pool.  Both halves are submitted as one
+    batch so a pool never idles between them, and `ordered_map` restores
+    seed order, so `detection_rounds` is listed in the same order a serial
+    run would have produced."""
+    seeds = list(seeds)
+    n = len(seeds)
+
+    def _landed(_i, args, _out):
+        scen, seed, b = args
         if progress is not None:
-            progress("governor-MC", "well-specified", seed, budget)
-    detected = 0
-    for seed in seeds:
-        res, _, gov = run_one_campaign(SCENARIOS["S5_inadequacy"], "F",
-                                       seed, budget, verbose=False)
-        rd = next((r.round for r in res.history
-                   if r.governor and r.governor.state
-                   == GovernorState.MODEL_INADEQUATE), None)
-        if rd is not None:
-            detected += 1
-            det_rounds.append(rd)
-        if progress is not None:
-            progress("governor-MC", "misspecified", seed, budget)
-    n = len(list(seeds))
+            progress("governor-MC",
+                     "well-specified" if scen == "S2_nmr" else "misspecified",
+                     seed, b)
+
+    tasks = ([("S2_nmr", s, budget) for s in seeds]
+             + [("S5_inadequacy", s, budget) for s in seeds])
+    out = par.ordered_map(governor_task, tasks, executor=executor,
+                          on_result=_landed)
+    fp_rounds, det_rounds_all = out[:n], out[n:]
+
+    fp = sum(1 for rd in fp_rounds if rd is not None)
+    det_rounds = [rd for rd in det_rounds_all if rd is not None]
+    detected = len(det_rounds)
+    if verbose:
+        for label, got in (("correct-family", fp_rounds),
+                           ("misspecified", det_rounds_all)):
+            for seed, rd in zip(seeds, got):
+                verdict = "no flag" if rd is None else f"flagged at round {rd}"
+                print(f"    governor-MC {label} seed {seed}: {verdict}")
     return {"n_seeds": n,
             "false_inadequacy_campaign_rate": fp / n,
             "detection_probability": detected / n,

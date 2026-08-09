@@ -372,3 +372,263 @@ def write_strategy_table(rows: List[Dict], path: str) -> str:
     with open(path.replace(".csv", ".txt"), "w", encoding="utf-8") as fh:
         fh.write(text + "\n")
     return text
+
+
+# ========================================================================= #
+# Publication audit-trail figures
+# ========================================================================= #
+#: markers, not colour alone - the S6 Pareto has six overlapping strategies
+#: and colour-only encoding is unreadable in print and to colour-blind
+#: readers
+_PARETO_MARKERS = ("o", "s", "^", "D", "v", "P", "X", "*", "<", ">")
+
+
+def figure_convergence_band(summary_rows: List[Dict], scenario: str,
+                            path: str, basis: str = "locf",
+                            panels=(("param_err_pct",
+                                     "parameter error (geo-mean) / %"),
+                                    ("blind_rmse_M", "blind RMSE / M"),
+                                    ("max_rel_ci_pct", "worst 95% CI / %"),
+                                    ("p_correct", "P(model)"))) -> None:
+    """Median with IQR band and bootstrap-CI whiskers, plus the ACTIVE
+    SAMPLE COUNT on a second axis.
+
+    Two things this fixes over a plain mean curve.  First, a mean over a
+    heavy-tailed error distribution is dominated by the worst seed; the
+    median and IQR describe where the campaigns actually are.  Second, the
+    sample can THIN as rounds advance when campaigns pause on a measurement
+    fault - so `n_in_summary` is drawn as a grey step on the right-hand
+    axis of the first panel.  A curve that improves while that step falls is
+    survivorship, not learning, and the figure makes the two separable at a
+    glance.
+
+    `basis` selects the observed-only or last-observation-carried-forward
+    summary (see audit_summary.py); the basis is written into the title so
+    a figure can never be mistaken for the other one."""
+    rows = [r for r in summary_rows
+            if r["scenario"] == scenario and r["basis"] == basis]
+    if not rows:
+        return
+    strategies = sorted({r["strategy"] for r in rows})
+    fig, axes = plt.subplots(1, len(panels), figsize=(4.5 * len(panels), 4.0))
+    axes = np.atleast_1d(axes)
+    out_rows = []
+    for j, (metric, lab) in enumerate(panels):
+        ax = axes[j]
+        drew = False
+        for key in strategies:
+            sel = sorted((r for r in rows if r["strategy"] == key
+                          and r["metric"] == metric),
+                         key=lambda r: r["round"])
+            xs = [r["round"] for r in sel]
+            med = np.array([r["median"] for r in sel], dtype=float)
+            if not xs or np.all(~np.isfinite(med)):
+                continue
+            drew = True
+            q25 = np.array([r["q25"] for r in sel], dtype=float)
+            q75 = np.array([r["q75"] for r in sel], dtype=float)
+            lo = np.array([r["boot_ci_lo"] for r in sel], dtype=float)
+            hi = np.array([r["boot_ci_hi"] for r in sel], dtype=float)
+            c = STRAT_COLOR.get(key, None)
+            ax.plot(xs, med, "o-", ms=4, lw=1.6, color=c, label=key)
+            ax.fill_between(xs, q25, q75, color=c, alpha=0.18, lw=0)
+            ax.errorbar(xs, med, yerr=[np.clip(med - lo, 0, None),
+                                       np.clip(hi - med, 0, None)],
+                        fmt="none", ecolor=c, alpha=0.75, capsize=2, lw=1.0)
+            out_rows.extend([[scenario, key, metric, basis, r["round"],
+                              r["n_total"], r["n_observed"],
+                              r["n_in_summary"], r["n_faulted_cumulative"],
+                              r["median"], r["q25"], r["q75"],
+                              r["boot_ci_lo"], r["boot_ci_hi"]]
+                             for r in sel])
+        ax.set_xlabel("campaign round")
+        ax.set_ylabel(lab)
+        if not drew:
+            ax.set_visible(False)
+            continue
+        if metric.endswith("pct") or metric.endswith("_M"):
+            ax.set_yscale("log")
+    # active-sample step on the first visible panel
+    first = axes[0]
+    ref = sorted((r for r in rows if r["strategy"] == strategies[0]
+                  and r["metric"] == panels[0][0]), key=lambda r: r["round"])
+    if ref:
+        ax2 = first.twinx()
+        ax2.step([r["round"] for r in ref], [r["n_in_summary"] for r in ref],
+                 where="mid", color="0.45", lw=1.2, ls=":")
+        ax2.set_ylabel(f"n active (of {ref[0]['n_total']})", color="0.45",
+                       fontsize=8, labelpad=1)
+        ax2.set_ylim(0, max(r["n_total"] for r in ref) * 1.15)
+        ax2.tick_params(axis="y", colors="0.45", labelsize=7, pad=1)
+    first.legend(fontsize=8, frameon=False)
+    basis_note = ("last observation carried forward - constant n"
+                  if basis == "locf"
+                  else "observed campaigns only - n shrinks after a fault")
+    fig.suptitle(f"{scenario}: median, IQR band and bootstrap 95% CI "
+                 f"({basis_note})")
+    # the first panel carries a twin axis; without extra horizontal padding
+    # its labels collide with the next panel's y-axis
+    fig.tight_layout(w_pad=2.6, rect=(0, 0, 1, 0.94))
+    _save(fig, path)
+    _csv(path.replace(".png", ".csv"),
+         ["scenario", "strategy", "metric", "basis", "round", "n_total",
+          "n_observed", "n_in_summary", "n_faulted_cumulative", "median",
+          "q25", "q75", "boot_ci_lo", "boot_ci_hi"], out_rows)
+
+
+def figure_model_probability_reliability(prob_rows: List[Dict], scenario: str,
+                                         path: str,
+                                         truth_in_family: bool = True,
+                                         tracked: str = "") -> None:
+    """Model probability vs round with the UNRELIABLE-EVIDENCE rounds shaded.
+
+    A Laplace evidence evaluated at a parameter resting on a box bound is
+    not a valid evidence, so the probabilities derived from it are not
+    valid probabilities.  They are still plotted - hiding them would be its
+    own distortion - but every round where any candidate's evidence was
+    flagged unreliable is shaded, and the legend says so.  Nothing inside a
+    shaded span may be quoted as evidence for a model.
+
+    When the truth is OUTSIDE the candidate family the tracked curve cannot
+    be 'P(correct model)' - there is no correct model in the family.  The
+    axis is then labelled by what is actually being tracked, so S4c reads
+    'probability of the reversible candidate' rather than claiming a
+    correctness the scenario is designed to deny."""
+    rows = [r for r in prob_rows if r["scenario"] == scenario]
+    if not rows:
+        return
+    strategies = sorted({r["strategy"] for r in rows})
+    fig, axes = plt.subplots(1, max(len(strategies), 1),
+                             figsize=(5.4 * max(len(strategies), 1), 4.2),
+                             squeeze=False)
+    out = []
+    for si, strat in enumerate(strategies):
+        ax = axes[0][si]
+        srows = [r for r in rows if r["strategy"] == strat]
+        models = sorted({r["model"] for r in srows})
+        rounds = sorted({r["round"] for r in srows})
+        # shade rounds where ANY seed reported unreliable evidence
+        for rnd in rounds:
+            rr = [r for r in srows if r["round"] == rnd]
+            n_bad = sum(1 for r in rr if not int(r["probs_reliable_all_models"]))
+            if n_bad:
+                ax.axvspan(rnd - 0.5, rnd + 0.5, color="#c0504d",
+                           alpha=0.10 + 0.14 * min(n_bad / max(len(rr), 1), 1.0),
+                           lw=0)
+        for mi, m in enumerate(models):
+            xs, ys, ns = [], [], []
+            for rnd in rounds:
+                vals = [float(r["probability"]) for r in srows
+                        if r["round"] == rnd and r["model"] == m]
+                if vals:
+                    xs.append(rnd)
+                    ys.append(float(np.median(vals)))
+                    ns.append(len(vals))
+            if not xs:
+                continue
+            style = "-" if m == tracked else "--"
+            ax.plot(xs, ys, style, marker="o", ms=4, lw=1.8 if m == tracked
+                    else 1.2, label=m)
+            out.extend([[scenario, strat, m, x, y, n]
+                        for x, y, n in zip(xs, ys, ns)])
+        ax.set_ylim(-0.02, 1.02)
+        ax.set_xlabel("campaign round")
+        ax.set_ylabel("posterior model probability (median over seeds)")
+        ax.set_title(strat, fontsize=10)
+        ax.axhline(1.0, color="0.7", lw=0.6, ls=":")
+        handles, labels = ax.get_legend_handles_labels()
+        handles.append(plt.Rectangle((0, 0), 1, 1, fc="#c0504d", alpha=0.2))
+        labels.append("evidence flagged UNRELIABLE\n(bound-limited Laplace)")
+        ax.legend(handles, labels, fontsize=7, frameon=False, loc="best")
+    claim = (f"probability of the tracked candidate '{tracked}'"
+             if not truth_in_family and tracked
+             else "probability of the correct model")
+    caveat = ("" if truth_in_family else
+              "\nTRUTH IS OUTSIDE THE CANDIDATE FAMILY: probability 1 here "
+              "means the best AVAILABLE model, not a correct one")
+    fig.suptitle(f"{scenario}: {claim}{caveat}", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.90 if caveat else 0.94))
+    _save(fig, path)
+    _csv(path.replace(".png", ".csv"),
+         ["scenario", "strategy", "model", "round", "median_probability",
+          "n_seeds"], out)
+
+
+def figure_nmr_examples(spectra, path: str,
+                        ppm_window: Tuple[float, float] = (0.5, 5.5)) -> None:
+    """Observed / fitted / residual with the fitted species components, for
+    the three representative compositions (nmr_examples.py).
+
+    The residual gets its own panel row at a shared scale: a deconvolution
+    is only as trustworthy as its residual is structureless, and plotting it
+    on the same axis as the spectrum would hide exactly the structure worth
+    seeing."""
+    n = len(spectra)
+    if not n:
+        return
+    fig, axes = plt.subplots(2, n, figsize=(5.6 * n, 6.2), squeeze=False,
+                             gridspec_kw={"height_ratios": [3, 1]},
+                             sharex="col")
+    for j, (name, ppm, obs, fit, resid, comps) in enumerate(spectra):
+        top, bot = axes[0][j], axes[1][j]
+        top.plot(ppm, obs, lw=1.0, color="0.25", label="observed")
+        top.plot(ppm, fit, lw=1.2, color="#a23b2e", label="fitted")
+        for sp, c in comps.items():
+            if sp in ("baseline", "exchange_pool"):
+                continue
+            top.plot(ppm, c, lw=0.9, alpha=0.75, ls="--", label=sp)
+        top.set_title(name.replace("_", " "), fontsize=10)
+        top.set_ylabel("intensity / a.u.")
+        top.invert_xaxis()
+        top.legend(fontsize=7, frameon=False, ncol=2)
+        bot.plot(ppm, resid, lw=0.9, color="#2a7f62")
+        bot.axhline(0.0, color="0.6", lw=0.6)
+        bot.set_ylabel("residual")
+        bot.set_xlabel("chemical shift / ppm")
+        bot.invert_xaxis()
+        if ppm_window:
+            top.set_xlim(ppm_window[1], ppm_window[0])
+    fig.suptitle("Representative simulated 80 MHz spectra, deconvolution fit "
+                 "and residual (fixed example seed, generated after the run)")
+    _save(fig, path)
+
+
+def figure_pareto_labeled(points: Dict[str, Dict[str, float]], path: str,
+                          axes_keys=(("egda_mol", "EGDA consumed / mol"),
+                                     ("time_s", "campaign time / s"),
+                                     ("nmr_acquisitions", "NMR acquisitions"),
+                                     ("energy_kJ", "energy proxy / kJ"))
+                          ) -> None:
+    """Resource frontier with a distinct marker AND an inline label per
+    strategy - the S6 sweep puts six near-identical colours on one axis,
+    where colour alone is not a usable encoding."""
+    keys = list(points)
+    fig, axs = plt.subplots(1, len(axes_keys),
+                            figsize=(4.6 * len(axes_keys), 4.2))
+    axs = np.atleast_1d(axs)
+    rows = []
+    for i, key in enumerate(keys):
+        pt = points[key]
+        mk = _PARETO_MARKERS[i % len(_PARETO_MARKERS)]
+        for j, (rk, lab) in enumerate(axes_keys):
+            if rk not in pt:
+                continue
+            axs[j].scatter(pt[rk], pt["blind_rmse_M"], s=110, marker=mk,
+                           c=STRAT_COLOR.get(key, "#333333"),
+                           edgecolors="white", linewidths=0.8,
+                           zorder=3, label=key if j == 0 else None)
+            axs[j].annotate(key, (pt[rk], pt["blind_rmse_M"]),
+                            textcoords="offset points", xytext=(7, 4),
+                            fontsize=7.5, color="0.25")
+            axs[j].set_xlabel(lab)
+            axs[j].set_yscale("log")
+            axs[j].grid(alpha=0.25)
+            axs[j].set_axisbelow(True)
+        rows.append([key] + [pt.get(rk, float("nan")) for rk, _ in axes_keys]
+                    + [pt["blind_rmse_M"]])
+    axs[0].set_ylabel("blind RMSE / M  (lower is better)")
+    axs[0].legend(fontsize=8, frameon=False, loc="best")
+    fig.suptitle("Resource frontier - marker and label per strategy")
+    _save(fig, path)
+    _csv(path.replace(".png", ".csv"),
+         ["strategy"] + [rk for rk, _ in axes_keys] + ["blind_rmse_M"], rows)

@@ -1,7 +1,0 @@
-a,b,bootci_hi,bootci_lo,median_diff,metric,n_pairs,p_a_better,scenario
-F,D,nan,nan,8.982180415254026e-05,blind_rmse_M,1,0.0,S1_ideal
-F,D,nan,nan,0.5672099055386237,param_err_pct,1,0.0,S1_ideal
-F,D,nan,nan,-0.026985732743511757,blind_rmse_M,1,1.0,S3_transport
-F,D,nan,nan,-58.16896011135992,param_err_pct,1,1.0,S3_transport
-F,F-uncorr,nan,nan,-0.025670425237677187,blind_rmse_M,1,1.0,S3_transport
-F,F-uncorr,nan,nan,-77.27626597195308,param_err_pct,1,1.0,S3_transport

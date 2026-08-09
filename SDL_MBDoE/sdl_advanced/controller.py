@@ -94,6 +94,12 @@ class AdvRoundRecord:
     probs_reliable: bool = True
     evidence_reliable_by_model: Dict[str, bool] = field(default_factory=dict)
     evidence_warning: str = ""
+    #: AUDIT ONLY (publication trail).  A REFERENCE to the posterior
+    #: covariance/correlation the round already computed - stored, never
+    #: recomputed, so keeping it cannot change a number.  None when the
+    #: audit trail is off, which is the default.
+    theta_cov: Optional[np.ndarray] = None
+    theta_corr: Optional[np.ndarray] = None
 
 
 @dataclass
@@ -175,34 +181,62 @@ def _qc_failed(qc_entry: Dict) -> bool:
 
 
 def measure_with_qc(lab: AdvancedVirtualLaboratory, u: OperatingConditions,
-                    zs: Sequence[float], qc: QCGateConfig
+                    zs: Sequence[float], qc: QCGateConfig,
+                    recorder=None, round_no: int = 0
                     ) -> Tuple[Optional[Measurement], int, int, bool]:
     """Measure the positions with the QC gate applied BEFORE assimilation.
 
     Returns (measurement_of_passing_positions_or_None, n_rejected,
     n_reacquired, fault).  fault=True when the reject fraction exceeds the
-    configured limit - the caller must pause, not continue designing."""
+    configured limit - the caller must pause, not continue designing.
+
+    `recorder`: passive audit sink or None.  A REJECTED spectrum never
+    reaches the posterior and would otherwise leave no trace beyond a
+    counter, so each acquisition's disposition (accepted / reacquired /
+    rejected) is reported to the sink as it is decided.  The sink is never
+    consulted and draws nothing - the gate's behaviour is unchanged."""
     m = lab.run_profile(u, zs)
     if not qc.enabled or (m.meta or {}).get("observation_mode") == "direct" \
             or lab.config.observation_mode == "direct":
+        if recorder is not None:
+            recorder.record_acquisitions(round_no, u, m, "accepted",
+                                         attempt=1)
         return m, 0, 0, False
     parts = _split_positions(m)
     kept, n_rej, n_re = [], 0, 0
     for p in parts:
         if not _qc_failed(p["qc"]):
             kept.append(p)
+            if recorder is not None:
+                recorder.record_acquisition_part(round_no, u, p, "accepted",
+                                                 attempt=1)
             continue
         recovered = False
-        for _ in range(max(qc.max_retries, 0)):
+        for attempt in range(max(qc.max_retries, 0)):
             n_re += 1
+            if recorder is not None:
+                recorder.record_acquisition_part(round_no, u, p,
+                                                 "failed_qc_reacquiring",
+                                                 attempt=attempt + 1)
             m_re = lab.run_profile(u, [p["z"]], reacquire=True)
             p_re = _split_positions(m_re)[0]
             if not _qc_failed(p_re["qc"]):
                 kept.append(p_re)
+                if recorder is not None:
+                    recorder.record_acquisition_part(
+                        round_no, u, p_re, "accepted_after_reacquisition",
+                        attempt=attempt + 2)
                 recovered = True
                 break
+            if recorder is not None:
+                recorder.record_acquisition_part(round_no, u, p_re,
+                                                 "failed_qc",
+                                                 attempt=attempt + 2)
         if not recovered:
             n_rej += 1
+            if recorder is not None:
+                recorder.record_acquisition_part(round_no, u, p, "rejected",
+                                                 attempt=0)
             lab.meter.log_qc_reject(p["z"])
     fault = (len(parts) > 0
              and n_rej / len(parts) > qc.max_reject_fraction)
@@ -224,7 +258,11 @@ def _posterior_diag(cm: CandidateModel) -> Dict:
     with np.errstate(divide="ignore", invalid="ignore"):
         corr = np.where(denom > 0, cm.posterior.cov / denom, 0.0)
     off = corr - np.diag(np.diag(corr))
+    # `corr` is returned as well so the audit trail can export the full
+    # correlation matrix without recomputing it; existing callers read only
+    # the three keys they always did.
     return {"sigma": sig, "bound_active": tuple(bound_active),
+            "corr": corr,
             "corr_max": float(np.max(np.abs(off))) if off.size else 0.0}
 
 
@@ -237,7 +275,8 @@ def run_strategy_e(lab: AdvancedVirtualLaboratory,
                    budget: int,
                    mbdoe_criterion: str = "D",
                    continuous_bounds: Optional[Dict] = None,
-                   verbose: bool = True) -> AdvancedStrategyResult:
+                   verbose: bool = True,
+                   recorder=None) -> AdvancedStrategyResult:
     """E: baseline WLS/FIM inference + baseline condition MBDoE, but the
     POSITIONS each round are the greedy incremental D-optimal set.  All
     predictions route through inference.predict_at (the observation
@@ -258,6 +297,7 @@ def run_strategy_e(lab: AdvancedVirtualLaboratory,
     u_next = first_u
     z_next = fixed_equal_positions(L, spatial_cfg.n_positions)
     for r in range(1, budget + 1):
+        t_round = time.perf_counter()
         if r > 1 or spatial_cfg.mode != "fixed_equal":
             F0 = inference.fisher_information()
             z_next = designer.positions(field_for(u_next), F0)
@@ -265,6 +305,7 @@ def run_strategy_e(lab: AdvancedVirtualLaboratory,
         inference.add_measurement(meas)
         inference.fit()
         rep = inference.uncertainty()
+        t_fit_done = time.perf_counter()
         result.history.append(AdvRoundRecord(
             round=r, u=u_next, z_positions=np.asarray(z_next),
             theta_nat=inference.space.to_natural(inference.theta),
@@ -272,13 +313,21 @@ def run_strategy_e(lab: AdvancedVirtualLaboratory,
             resources=lab.meter.totals(), n_data=inference.n_data,
             design_mode="fim", sigma_scaled=rep.sigma,
             param_keys=tuple(inference.space.param_keys),
-            bound_active=tuple(rep.active_bounds)))
+            bound_active=tuple(rep.active_bounds),
+            theta_cov=(rep.cov if recorder is not None else None),
+            theta_corr=(rep.corr if recorder is not None else None)))
         if verbose:
             print(f"  [E] round {r}/{budget}  {u_next.label():34s} "
                   f"z/L={np.round(np.asarray(z_next) / L, 3)} "
                   f"maxCI={rep.max_rel_ci_pct:7.1f}%")
         if r == budget:
+            if recorder is not None:
+                recorder.record_timing(
+                    r, measure_fit_s=t_fit_done - t_round,
+                    design_select_s=0.0,
+                    round_total_s=time.perf_counter() - t_round)
             break
+        t_sel = time.perf_counter()
         selector = MBDoESelector(
             inference=inference, candidates=candidates, spatial=True,
             ports_z_m=np.asarray(z_next), outlet_z_m=np.array([L]),
@@ -286,6 +335,11 @@ def run_strategy_e(lab: AdvancedVirtualLaboratory,
             continuous=continuous_bounds is not None,
             continuous_bounds=continuous_bounds)
         u_next = selector.select()
+        if recorder is not None:
+            recorder.record_timing(
+                r, measure_fit_s=t_fit_done - t_round,
+                design_select_s=time.perf_counter() - t_sel,
+                round_total_s=time.perf_counter() - t_round)
     result.runtime_s = time.time() - t0
     return result
 
@@ -306,12 +360,19 @@ def run_strategy_f(lab: AdvancedVirtualLaboratory,
                    bounds: Optional[Dict] = None,
                    seed: int = 0,
                    verbose: bool = True,
-                   key: str = "F") -> AdvancedStrategyResult:
+                   key: str = "F",
+                   recorder=None) -> AdvancedStrategyResult:
     """F: the full advanced loop (see module docstring).
 
     cov_model: optional measurement-aware expected-covariance model (e.g.
     SpectralCovarianceModel) used for spatial design and EIG; the
-    NoiseSurrogate remains the fallback and keeps learning from data."""
+    NoiseSurrogate remains the fallback and keeps learning from data.
+
+    recorder: passive audit sink (sdl_advanced/audit.py) or None.  When
+    present it receives wall-clock timings and a reference to the posterior
+    covariance each round already computed.  It draws no random numbers,
+    evaluates nothing, and is never read back, so the campaign is identical
+    with and without it - asserted by tests/test_audit_regression.py."""
     t0 = time.time()
     result = AdvancedStrategyResult(key=key, ensemble=ensemble)
     governor = governor or AdequacyGovernor()
@@ -330,16 +391,19 @@ def run_strategy_f(lab: AdvancedVirtualLaboratory,
     selector = AdvancedSelector(ensemble, candidates, designer, exp_cov,
                                 lab.meter, lab.species, design_cfg,
                                 bounds=bounds, seed=seed,
-                                reference_conditions=ref_conds)
+                                reference_conditions=ref_conds,
+                                recorder=recorder)
     state = GovernorState.NORMAL_LEARNING
     decision: Optional[DesignDecision] = None
     u_next = first_u
     for r in range(1, budget + 1):
         # ---- measure this round's spatial set --------------------------- #
+        t_round = time.perf_counter()
         n_rej = n_re = 0
         if spatial_cfg.mode == "adaptive_sequential" and r > 1:
             meas_list, n_rej, n_re, fault = _adaptive_profile_bayes(
-                lab, ensemble, designer, surrogate, u_next, spatial_cfg, qc)
+                lab, ensemble, designer, surrogate, u_next, spatial_cfg, qc,
+                recorder=recorder, round_no=r)
             zs_measured = np.concatenate([m.z_m for m in meas_list]) \
                 if meas_list else np.array([])
         else:
@@ -355,7 +419,8 @@ def run_strategy_f(lab: AdvancedVirtualLaboratory,
                     if ensemble.best.posterior.theta_map is None
                     else ensemble.best.inference.fisher_information(
                         ensemble.best.posterior.theta_map))
-            meas, n_rej, n_re, fault = measure_with_qc(lab, u_next, zs, qc)
+            meas, n_rej, n_re, fault = measure_with_qc(
+                lab, u_next, zs, qc, recorder=recorder, round_no=r)
             if meas is not None and not fault:
                 surrogate.observe(meas)
                 ensemble.add_measurement(meas)
@@ -374,6 +439,7 @@ def run_strategy_f(lab: AdvancedVirtualLaboratory,
             result.stop_reason = f"no assimilable data in round {r}; paused"
             break
 
+        t_fit_done = time.perf_counter()
         gov_rep = governor.assess(ensemble, r)
         state = gov_rep.state if use_governor \
             else GovernorState.NORMAL_LEARNING
@@ -402,15 +468,31 @@ def run_strategy_f(lab: AdvancedVirtualLaboratory,
             probs_reliable=bool(all(ev_by_model.values())
                                 if ev_by_model else False),
             evidence_reliable_by_model=ev_by_model,
-            evidence_warning=ev_warn))
+            evidence_warning=ev_warn,
+            # audit-only references to matrices this round already built
+            theta_cov=(best.posterior.cov if recorder is not None else None),
+            theta_corr=(diag["corr"] if recorder is not None else None)))
         if verbose:
             probs = " ".join(f"{cm.name}={p:.2f}" for cm, p
                              in zip(ensemble.models, ensemble.probs))
             print(f"  [{key}] round {r}/{budget}  {u_next.label():34s} "
                   f"n_z={len(zs_measured)}  {gov_rep.state:20s} {probs}")
         if r == budget:
+            if recorder is not None:
+                recorder.record_timing(
+                    r, measure_fit_s=t_fit_done - t_round,
+                    design_select_s=0.0,
+                    round_total_s=time.perf_counter() - t_round)
             break
+        if recorder is not None:
+            recorder.set_decision_round(r + 1)   # the round being designed for
+        t_sel = time.perf_counter()
         decision = selector.select(state)
+        if recorder is not None:
+            recorder.record_timing(
+                r, measure_fit_s=t_fit_done - t_round,
+                design_select_s=time.perf_counter() - t_sel,
+                round_total_s=time.perf_counter() - t_round)
         u_next = decision.u
     result.runtime_s = time.time() - t0
     return result
@@ -423,7 +505,8 @@ def _adaptive_profile_bayes(lab: AdvancedVirtualLaboratory,
                             surrogate: NoiseSurrogate,
                             u: OperatingConditions,
                             cfg: SpatialDesignConfig,
-                            qc: QCGateConfig
+                            qc: QCGateConfig,
+                            recorder=None, round_no: int = 0
                             ) -> Tuple[List[Measurement], int, int, bool]:
     """TRULY data-adaptive sequential axial sampling:
 
@@ -452,7 +535,8 @@ def _adaptive_profile_bayes(lab: AdvancedVirtualLaboratory,
                 and gain < cfg.marginal_information_threshold:
             break
         meas, n_rej, n_re, fault = measure_with_qc(lab, u, [float(z_next)],
-                                                   qc)
+                                                   qc, recorder=recorder,
+                                                   round_no=round_no)
         n_rej_tot += n_rej
         n_re_tot += n_re
         chosen.append(float(z_next))

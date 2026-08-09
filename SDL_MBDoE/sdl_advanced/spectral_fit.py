@@ -215,6 +215,37 @@ class SpectralFitter:
         self.empirical_scale = np.asarray(cal.scale, dtype=float)
         self.empirical_cov = cal.cov_emp(np.zeros(len(self.species)))
 
+    def component_spectra(self, res: "QuantificationResult"
+                          ) -> Dict[str, np.ndarray]:
+        """REPORTING ONLY: the per-species (and pool/baseline) contributions
+        to an already-computed fit, rebuilt from the result's own stored
+        nuisance parameters and amplitudes.
+
+        It refits nothing and returns the decomposition whose sum is
+        `res.fitted`; used by nmr_examples.py to draw the component traces
+        under an observed/fitted/residual figure.  The species amplitude is
+        recovered by inverting the two reported corrections in order:
+        conc = amplitude / response_factor - bias, hence
+        amplitude = (conc + bias) * response_factor."""
+        eta = np.array([res.eta["shift_offset_ppm"],
+                        np.log(res.eta["linewidth_factor"]),
+                        res.eta["pool_center_ppm"],
+                        np.deg2rad(res.eta["phase_deg"])])
+        B = self._basis(eta)
+        n_s = len(self.species)
+        rf = np.array([self.response_correction.get(sp, 1.0)
+                       for sp in self.species]) if self.response_correction \
+            else np.ones(n_s)
+        bias = (self.empirical_bias if self.empirical_bias is not None
+                else np.zeros(n_s))
+        amp = (np.asarray(res.conc_M, dtype=float) + bias) * rf
+        out = {sp: B[:, i] * amp[i] for i, sp in enumerate(self.species)}
+        na = res.nuisance_amplitudes or {}
+        out["exchange_pool"] = B[:, n_s] * float(na.get("pool_area", 0.0))
+        out["baseline"] = sum(
+            B[:, n_s + 1 + k] * float(na.get(f"b{k}", 0.0)) for k in range(3))
+        return out
+
     def _basis(self, eta: np.ndarray) -> np.ndarray:
         """B(eta): columns = phased species spectra, exchange pool, baseline."""
         d_ppm, ln_lw, pool_ppm, phi = eta
