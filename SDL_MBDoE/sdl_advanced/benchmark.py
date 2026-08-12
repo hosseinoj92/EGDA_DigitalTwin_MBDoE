@@ -295,12 +295,53 @@ GEOMETRY_DESIGN = {
     "bounds": {"length_m": [0.05, 0.60],
                "diameter_m": [0.002, 0.012]},
     # discrete levels used when DESIGN_SPACE["continuous"] is False
-    "levels": {"length_m": [0.10, 0.20, 0.40],
+    "levels": {"length_m": [0.10, 0.20, 0.40, 0.60],
                "diameter_m": [0.004, 0.007, 0.010]},
     # commandable resolution: you cannot order a tube to the micron
     "resolution": {"length_m": 0.005,      # 5 mm
                    "diameter_m": 0.0005},  # 0.5 mm
     "switch_cost_s": 1800.0,         # per geometry change (per_experiment)
+
+    # ---- ideality: open tube vs packed bed ------------------------------ #
+    # The kinetics are intrinsic - geometry never changes the constants -
+    # but it DOES change whether the plug-flow model is valid.  In an open
+    # laminar tube the validity metric is the radial-mixing ratio
+    #     t_rad / tau = (R^2/D) / (eps V/Q) = Q / (pi D L eps)
+    # (Layer 1's own diagnostic; note the BORE CANCELS - only length, flow
+    # and holdup help).  Candidates whose ratio exceeds `max_radial_ratio`
+    # at the reference design's nominal flow are INFEASIBLE: an optimizer
+    # must not select a reactor in which the model it is fitting does not
+    # apply.  The default 10.0 is Layer 1's published advisory boundary
+    # between "moderate deviation" and "radially segregated streamlines"
+    # (pfr_twin/diagnostics.py), not a number invented here.
+    #
+    # `packing` is the engineering fix: random-packed spherical beads
+    # (eps ~ 0.4) break up the laminar streamlines, so a packed candidate
+    # is treated as plug-flow valid.  ASSUMPTION (CAL): beads chosen with
+    # d_p <= d/10 and L/d_p >= 100, the standard packed-bed plug-flow
+    # criteria; bed RTD itself is not simulated (future work).  Packing
+    # costs holdup: tau_liquid = eps V/Q, so a packed reactor needs ~2.5x
+    # the volume for the same residence time - the optimizer sees that
+    # automatically through Layer 1.
+    #   "auto"  consider every geometry both open and packed, pick the best
+    #   True    all candidates packed;  False  open tubes only (may make
+    #           every candidate infeasible -> raises with guidance)
+    "packing": "auto",
+    "bed_void_fraction": 0.40,       # random-packed spheres
+    "max_radial_ratio": 10.0,        # open-tube feasibility threshold
+
+    # ---- information-resource exchange rate for the sizing objective ---- #
+    #     score = logdet F(reference design)  -  sum_r lambda_r * resource_r
+    # where the resources are what the reference campaign would consume in
+    # that reactor (stabilization scales with liquid volume, so this is
+    # what stops "bigger is always better").  The weights are THE SAME 1x
+    # vector the S6 resource-aware controller uses - one exchange rate for
+    # the whole framework, swept in S6 precisely so no single value is
+    # presented as universal.  All zeros recovers pure information.
+    "objective_lambdas": {"lambda_time_per_s": 2e-3,
+                          "lambda_material_per_mol": 50.0,
+                          "lambda_waste_per_mL": 5e-3,
+                          "lambda_energy_per_kJ": 0.05},
 }
 
 
@@ -337,11 +378,83 @@ _GEOMETRY_CACHE: Dict[Tuple, Dict] = {}
 
 
 def _geometry_candidates() -> List[Dict]:
-    """Discrete geometry grid, from the declared levels."""
+    """Discrete geometry grid x packing state, from the declared levels.
+
+    `packing="auto"` doubles the grid (every size open AND packed) and lets
+    the objective decide; True/False pin the state.  A packed candidate
+    carries eps = bed_void_fraction, which Layer 1 turns into interstitial
+    velocity and reduced liquid holdup - so its lower information per
+    volume is priced in automatically, not assumed."""
     import itertools as _it
     lv = GEOMETRY_DESIGN["levels"]
-    return [{**GEOMETRY, "length_m": float(L), "diameter_m": float(d)}
-            for L, d in _it.product(lv["length_m"], lv["diameter_m"])]
+    pk = GEOMETRY_DESIGN.get("packing", "auto")
+    states = ((False, True) if pk == "auto" else
+              ((True,) if pk else (False,)))
+    eps = float(GEOMETRY_DESIGN.get("bed_void_fraction", 0.40))
+    out = []
+    for L, d in _it.product(lv["length_m"], lv["diameter_m"]):
+        for packed in states:
+            out.append({**GEOMETRY, "length_m": float(L),
+                        "diameter_m": float(d),
+                        "packing_enabled": bool(packed),
+                        "bed_void_fraction": eps if packed else 1.0})
+    return out
+
+
+def _radial_ratio(geom: Dict) -> float:
+    """Open-tube plug-flow validity ratio t_rad/tau = Q/(pi D L eps) at the
+    reference design's nominal flow (Layer 1's diagnostic; the bore
+    cancels).  Packed beds return 0.0: the beads break the laminar
+    streamlines, which is the point of packing (assumptions documented in
+    GEOMETRY_DESIGN)."""
+    if geom.get("packing_enabled", False):
+        return 0.0
+    from pfr_twin.parameters import DIFFUSIVITY_LIQ
+    q_m3s = float(DESIGN["nominal_Q_total_mL_min"]) * 1e-6 / 60.0
+    return q_m3s / (np.pi * DIFFUSIVITY_LIQ * float(geom["length_m"]))
+
+
+def _reference_campaign_cost(geom: Dict, budget: int) -> Dict[str, float]:
+    """What the reference campaign would CONSUME in this reactor, replayed
+    deterministically through the same ResourceMeter that meters real
+    campaigns - one accounting, not a second model.  Stabilization scales
+    with liquid volume, which is what stops 'bigger is always better'."""
+    from pfr_twin.parameters import ReactorGeometry as _RG
+    meter = ResourceMeter(RESOURCE_COSTS, _RG(**geom).liquid_volume_mL)
+    z = fixed_equal_positions(float(geom["length_m"]), N_PORTS)
+    for u in build_fixed_design(design_for_budget(budget), budget=budget):
+        q = u.Q1_mL_min + u.Q2_mL_min
+        meter.log_condition(u.T_C, q, u.C_EGDA_M, u.C_cat_M)
+        for zk in z:
+            meter.log_acquisition(float(zk), u.T_C, q, u.C_EGDA_M,
+                                  u.C_cat_M)
+    return meter.totals()
+
+
+def _geometry_objective(geom: Dict, budget: int) -> Dict[str, float]:
+    """score = information - resource penalty, with feasibility.
+
+    Returns the decomposition so the sizing table can show WHY a reactor
+    won, not just that it did."""
+    lam = GEOMETRY_DESIGN["objective_lambdas"]
+    ratio = _radial_ratio(geom)
+    feasible = ratio <= float(GEOMETRY_DESIGN["max_radial_ratio"])
+    info = _geometry_score(geom, budget) if feasible else float("nan")
+    tot = _reference_campaign_cost(geom, budget) if feasible else {}
+    penalty = (float(lam.get("lambda_time_per_s", 0.0)) * tot.get("time_s", 0.0)
+               + float(lam.get("lambda_material_per_mol", 0.0))
+               * tot.get("egda_mol", 0.0)
+               + float(lam.get("lambda_waste_per_mL", 0.0))
+               * tot.get("waste_mL", 0.0)
+               + float(lam.get("lambda_energy_per_kJ", 0.0))
+               * tot.get("energy_kJ", 0.0)) if feasible else float("nan")
+    score = (info - penalty if feasible and np.isfinite(info)
+             else float("-inf"))
+    return {"score": score, "info_nats": info, "cost_penalty_nats": penalty,
+            "radial_ratio": ratio, "feasible": float(feasible),
+            "time_s": tot.get("time_s", float("nan")),
+            "egda_mol": tot.get("egda_mol", float("nan")),
+            "energy_kJ": tot.get("energy_kJ", float("nan"))}
 
 
 def _geometry_score(geom: Dict, budget: int) -> float:
@@ -374,15 +487,16 @@ def _geometry_score(geom: Dict, budget: int) -> float:
 
 
 def optimal_geometry(budget: int) -> Dict:
-    """Pre-campaign reactor sizing.
+    """Pre-campaign reactor sizing under the combined objective
+    (information - resource penalty, plug-flow feasibility enforced).
 
-    Discrete mode screens the declared level grid; continuous mode then
-    refines inside `bounds`, snapped to a resolution you could actually
-    order a tube to (5 mm length, 0.5 mm bore) and accepted only when it
-    strictly beats the grid winner - the same never-worse rule the
-    operating-condition design uses.
+    Discrete mode screens levels x packing states; continuous mode then
+    refines (L, d) inside `bounds` WITHIN the winning packing state,
+    snapped to what a tube can be ordered to (5 mm length, 0.5 mm bore) and
+    accepted only when it strictly beats the grid winner - the same
+    never-worse rule as the operating-condition design.
 
-    Deterministic in (budget, configuration), so every worker process
+    Deterministic in (budget, configuration): every worker process
     re-derives the same reactor."""
     if GEOMETRY_DESIGN["mode"] != "per_campaign":
         raise NotImplementedError(
@@ -397,18 +511,40 @@ def optimal_geometry(budget: int) -> Dict:
                         GEOMETRY_DESIGN["bounds"].items())),
            tuple(sorted((k, tuple(v)) for k, v in
                         GEOMETRY_DESIGN["levels"].items())),
+           str(GEOMETRY_DESIGN.get("packing", "auto")),
+           float(GEOMETRY_DESIGN.get("max_radial_ratio", 10.0)),
+           tuple(sorted(GEOMETRY_DESIGN["objective_lambdas"].items())),
            bool(DESIGN_SPACE["continuous"]))
     if key in _GEOMETRY_CACHE:
         return _GEOMETRY_CACHE[key]
+
     cands = _geometry_candidates()
-    best = max(cands, key=lambda g: _geometry_score(g, budget))
-    best_s = _geometry_score(best, budget)
+    table = []
+    for g in cands:
+        obj = _geometry_objective(g, budget)
+        table.append((g, obj))
+    feasible = [(g, o) for g, o in table if np.isfinite(o["score"])]
+    if not feasible:
+        best_ratio = min(o["radial_ratio"] for _g, o in table)
+        raise ValueError(
+            "Reactor sizing found NO feasible geometry: every open tube in "
+            f"the declared space has t_rad/tau > "
+            f"{GEOMETRY_DESIGN['max_radial_ratio']:g} at the nominal flow "
+            f"(best was {best_ratio:.1f}; note the ratio = Q/(pi D L eps) - "
+            "the bore cancels, only length and holdup help).  Either allow "
+            "packed beds (GEOMETRY_DESIGN['packing'] = 'auto'), lengthen "
+            "the bounds, or explicitly accept non-ideality by raising "
+            "GEOMETRY_DESIGN['max_radial_ratio'].")
+    best, best_obj = max(feasible, key=lambda t: t[1]["score"])
+
     if DESIGN_SPACE["continuous"]:
         from scipy.optimize import minimize as _minimize
         b = GEOMETRY_DESIGN["bounds"]
         res = GEOMETRY_DESIGN["resolution"]
         lo = [float(b["length_m"][0]), float(b["diameter_m"][0])]
         hi = [float(b["length_m"][1]), float(b["diameter_m"][1])]
+        state = {k: best[k] for k in ("packing_enabled",
+                                      "bed_void_fraction")}
 
         def _snap(x):
             out = []
@@ -420,8 +556,8 @@ def optimal_geometry(budget: int) -> Dict:
 
         def _neg(x):
             L, d = _snap(x)
-            sc = _geometry_score({**GEOMETRY, "length_m": L,
-                                  "diameter_m": d}, budget)
+            sc = _geometry_objective({**GEOMETRY, **state, "length_m": L,
+                                      "diameter_m": d}, budget)["score"]
             return -sc if np.isfinite(sc) else 1e100
 
         try:
@@ -430,15 +566,17 @@ def optimal_geometry(budget: int) -> Dict:
                             options={"maxiter": 30, "xtol": 1e-3,
                                      "ftol": 1e-6})
             L, d = _snap(np.atleast_1d(sol.x))
-            cand = {**GEOMETRY, "length_m": L, "diameter_m": d}
-            if _geometry_score(cand, budget) > best_s:
-                best = cand
+            cand = {**GEOMETRY, **state, "length_m": L, "diameter_m": d}
+            cand_obj = _geometry_objective(cand, budget)
+            if cand_obj["score"] > best_obj["score"]:
+                best, best_obj = cand, cand_obj
+                table.append((cand, cand_obj))
         except (ValueError, RuntimeError, np.linalg.LinAlgError):
             pass
+
     # An optimum sitting ON a bound means the bound is binding, not that an
-    # interior optimum was found: within this box "bigger is better" and the
-    # answer is the box, not the chemistry.  Say so rather than presenting a
-    # boundary as a design result.
+    # interior optimum was found - say so rather than presenting the edge of
+    # the declared box as a design result.
     on_bound = []
     for k in ("length_m", "diameter_m"):
         lo, hi = (float(v) for v in GEOMETRY_DESIGN["bounds"][k])
@@ -446,10 +584,15 @@ def optimal_geometry(budget: int) -> Dict:
         if abs(best[k] - lo) <= step or abs(best[k] - hi) <= step:
             on_bound.append(k)
     if _SCREEN_VERBOSE:
+        packed = best.get("packing_enabled", False)
         print(f"  reactor sizing: L = {best['length_m'] * 100:.1f} cm, "
-              f"ID = {best['diameter_m'] * 1e3:.1f} mm "
-              f"({'continuous' if DESIGN_SPACE['continuous'] else 'grid'}"
-              f", prior-based)")
+              f"ID = {best['diameter_m'] * 1e3:.1f} mm, "
+              f"{'PACKED bed (eps=%.2f)' % best['bed_void_fraction'] if packed else 'open tube'} "
+              f"({'continuous' if DESIGN_SPACE['continuous'] else 'grid'}, "
+              f"prior-based)")
+        print(f"    info = {best_obj['info_nats']:.2f} nats - cost "
+              f"{best_obj['cost_penalty_nats']:.2f} nats "
+              f"(t_rad/tau = {best_obj['radial_ratio']:.1f})")
         if on_bound:
             print(f"    NOTE: optimum rests on the {', '.join(on_bound)} "
                   f"bound - the constraint is binding, so this is the edge "
@@ -458,7 +601,27 @@ def optimal_geometry(budget: int) -> Dict:
     best = dict(best)
     best["_on_bound"] = tuple(on_bound)
     _GEOMETRY_CACHE[key] = best
+    _GEOMETRY_CACHE[("table",) + key] = [
+        {"length_m": g["length_m"], "diameter_m": g["diameter_m"],
+         "packed": int(g.get("packing_enabled", False)),
+         "bed_void_fraction": g.get("bed_void_fraction", 1.0),
+         "selected": int(g is best or (g["length_m"] == best["length_m"]
+                          and g["diameter_m"] == best["diameter_m"]
+                          and g.get("packing_enabled")
+                          == best.get("packing_enabled"))),
+         **o} for g, o in table]
     return best
+
+
+def geometry_sizing_table(budget: int) -> List[Dict]:
+    """Every candidate the sizing considered, with the decomposed objective
+    (info, cost penalty, validity ratio, feasibility) - the audit trail for
+    WHY this reactor, written to geometry_sizing.csv by the runner."""
+    optimal_geometry(int(budget))          # ensure evaluated + cached
+    for k, v in _GEOMETRY_CACHE.items():
+        if isinstance(k, tuple) and k and k[0] == "table"                 and k[1] == int(budget):
+            return v
+    return []
 
 
 def active_geometry(budget: int) -> Dict:
@@ -1009,6 +1172,37 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
 
 
 # ------------------------------------------------------------------------- #
+def _rebridge(bridge: Layer1Bridge, geometry: Dict) -> Layer1Bridge:
+    """The same model configuration in a different reactor - used to move a
+    LEARNED model into the reference geometry for scoring.  Legitimate for
+    exactly the reason the user of this framework would state: a plug-flow
+    reactor changes tau(z), never the constants."""
+    return Layer1Bridge(geometry, bridge.t_ref_K,
+                        h_plus_model=bridge.h_plus_model,
+                        engine=bridge.engine,
+                        n_points=bridge.settings.n_points,
+                        reversible=bridge.reversible,
+                        catalyst=bridge.catalyst,
+                        ka2_model=bridge.ka2_model,
+                        activity_model=bridge.activity_model)
+
+
+def _scoring_bridge(bridge: Layer1Bridge) -> Layer1Bridge:
+    """Bridge used for BLIND SCORING: identical object when geometry
+    optimization is off (the bit-identical legacy path), the same model
+    rebuilt in the declared reference reactor when it is on."""
+    if not GEOMETRY_DESIGN.get("enabled", False):
+        return bridge
+    g = bridge.geometry
+    ref_void = (float(GEOMETRY.get("bed_void_fraction", 1.0))
+                if GEOMETRY.get("packing_enabled", False) else 1.0)
+    if (abs(g.length_m - GEOMETRY["length_m"]) < 1e-12
+            and abs(g.diameter_m - GEOMETRY["diameter_m"]) < 1e-12
+            and g.void_fraction == ref_void):
+        return bridge
+    return _rebridge(bridge, GEOMETRY)
+
+
 def _truth_prediction(truth: Dict[str, float], z_val: np.ndarray,
                       geometry: Optional[Dict] = None) -> np.ndarray:
     bridge = Layer1Bridge(geometry if geometry is not None else GEOMETRY,
@@ -1094,7 +1288,8 @@ def _round_metrics(spec: ScenarioSpec, strategy: str, res, lab, extra,
                 gov_p=float("nan"), stop_reason="",
                 probs_reliable=-1,              # n/a: no Bayesian evidence
                 evidence_reliable_by_model="", evidence_warning="",
-                blind_rmse_M=blind_rmse(inf.bridge, inf.space,
+                blind_rmse_M=blind_rmse(_scoring_bridge(inf.bridge),
+                                        inf.space,
                                         inf.space.to_vector(rec.theta_nat),
                                         z_val, y_true),
                 **{k: tot.get(k, 0.0) for k in ResourceMeter.TOTAL_KEYS}))
@@ -1134,7 +1329,7 @@ def _round_metrics(spec: ScenarioSpec, strategy: str, res, lab, extra,
                 f"{k}={int(v)}" for k, v in
                 sorted(rec.evidence_reliable_by_model.items())),
             evidence_warning=rec.evidence_warning[:200],
-            blind_rmse_M=blind_rmse(bridge, space,
+            blind_rmse_M=blind_rmse(_scoring_bridge(bridge), space,
                                     space.to_vector(rec.theta_nat),
                                     z_val, y_true),
             **{k: rec.resources.get(k, 0.0)
@@ -1196,14 +1391,15 @@ def campaign_task(scenario_name: str, strategy: str, seed: int, budget: int,
     """
     spec = SCENARIOS[scenario_name]
     budget = spec.budget_override or budget
-    # blind validation is evaluated in the reactor the campaign actually ran
-    # in; with geometry optimization ON that reactor differs, so blind RMSE
-    # stays comparable ACROSS strategies (same reactor) but not across runs
-    # with different geometry settings - the prediction target itself moved
-    geom_active = active_geometry(budget)
-    z_val = np.array([geom_active["length_m"] / 3.0,
-                      geom_active["length_m"]])
-    y_true = _truth_prediction(spec.truth, z_val, geometry=geom_active)
+    # Blind validation is ALWAYS scored in the DECLARED reference reactor,
+    # whatever reactor the campaign ran in.  This is well-defined because
+    # the estimated parameters are intrinsic - c(tau) depends on theta and
+    # tau only, never on which tube produced the data - so "how well does
+    # the learned model predict the reference reactor" is one fixed
+    # question, and blind RMSE stays comparable across strategies AND
+    # across runs with different geometry settings.
+    z_val = np.array([GEOMETRY["length_m"] / 3.0, GEOMETRY["length_m"]])
+    y_true = _truth_prediction(spec.truth, z_val, geometry=GEOMETRY)
     recorder = None
     if audit:
         from .audit import AuditRecorder
@@ -1224,7 +1420,8 @@ def campaign_task(scenario_name: str, strategy: str, seed: int, budget: int,
             strategy.startswith("F") else "fixed_equal")
         audit_bundle = aex.collect_campaign(
             spec, strategy, seed, res, lab, extra, recorder, z_val, y_true,
-            VALIDATION_CONDS, SPECIES, spatial_mode)
+            VALIDATION_CONDS, SPECIES, spatial_mode,
+            scoring_bridge=_scoring_bridge)
     return {
         "rows": [dict(x, seed=seed) for x in r],
         "prows": [dict(x, seed=seed) for x in p],

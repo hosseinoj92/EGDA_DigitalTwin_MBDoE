@@ -368,7 +368,8 @@ def identifiability_rows(spec, strategy: str, seed: int, res,
 def blind_prediction_rows(spec, strategy: str, seed: int, res,
                           conds: Sequence, z_val: np.ndarray,
                           species: Sequence[str],
-                          y_true: np.ndarray) -> List[Dict]:
+                          y_true: np.ndarray,
+                          scoring_bridge=None) -> List[Dict]:
     """Element-by-element blind validation at the final posterior.
 
     Uses the same predictor and the same pre-computed truth vector the
@@ -387,6 +388,11 @@ def blind_prediction_rows(spec, strategy: str, seed: int, res,
             space, bridge = cm.space, cm.bridge
         else:
             space, bridge = res.inference.space, res.inference.bridge
+    # the SAME scoring bridge blind_rmse_M used (reference-geometry when
+    # geometry optimization is on), so this table decomposes that number
+    # exactly rather than a subtly different one
+    if scoring_bridge is not None:
+        bridge = scoring_bridge(bridge)
     theta = space.to_natural(space.to_vector(rec.theta_nat))
     n_z, n_s = len(z_val), len(species)
     for ci, u in enumerate(conds):
@@ -472,7 +478,8 @@ def calibration_rows(spec, strategy: str, seed: int, lab) -> List[Dict]:
 def collect_campaign(spec, strategy: str, seed: int, res, lab, extra,
                      recorder, z_val: np.ndarray, y_true: np.ndarray,
                      conds: Sequence, species: Sequence[str],
-                     spatial_mode: str) -> Dict[str, List[Dict]]:
+                     spatial_mode: str,
+                     scoring_bridge=None) -> Dict[str, List[Dict]]:
     """Everything for ONE campaign, as plain dict rows ready to pickle."""
     out = _empty()
     if recorder is not None:
@@ -490,7 +497,8 @@ def collect_campaign(spec, strategy: str, seed: int, res, lab, extra,
     out["identifiability_summary"] = identifiability_rows(
         spec, strategy, seed, res, spec.truth)
     out["blind_predictions_long"] = blind_prediction_rows(
-        spec, strategy, seed, res, conds, z_val, species, y_true)
+        spec, strategy, seed, res, conds, z_val, species, y_true,
+        scoring_bridge=scoring_bridge)
     out["resource_events_long"] = resource_event_rows(spec, strategy, seed,
                                                       lab)
     out["nmr_calibration_by_seed"] = calibration_rows(spec, strategy, seed,

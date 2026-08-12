@@ -1,16 +1,16 @@
 # Graph Report - EGDA  (2026-08-12)
 
 ## Corpus Check
-- 116 files · ~546,623 words
+- 111 files · ~229,961 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1800 nodes · 4617 edges · 74 communities (71 shown, 3 thin omitted)
-- Extraction: 91% EXTRACTED · 9% INFERRED · 0% AMBIGUOUS · INFERRED: 407 edges (avg confidence: 0.61)
+- 1820 nodes · 4670 edges · 78 communities (75 shown, 3 thin omitted)
+- Extraction: 91% EXTRACTED · 9% INFERRED · 0% AMBIGUOUS · INFERRED: 410 edges (avg confidence: 0.61)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `aae1ef81`
+- Built from commit: `30a22875`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -24,15 +24,15 @@
 - build_readme_figures.py
 - sdl/reporting.py
 - self_test.py
-- expand
-- batch_simulation.py
+- speciation.py
+- plotting.py
 - NoiseModel
-- run_simulation.py
+- batch_simulation.py
 - pfr_twin/__init__.py
-- ModelEnsemble
-- test_comparison.py
+- Measurement
+- efficiency.py
 - Codex Graphify Feature Set
-- SpectralFitter
+- NMRSimulator
 - test_audit_regression.py
 - Claude Graphify Feature Set
 - PFR digital twin layer README
@@ -42,25 +42,25 @@
 - Detection, Cache and Update Flow
 - Extraction Spec and Honesty Rules
 - sim_nmr(2).py
-- KineticModel
-- _TextProgress
-- NMRSimulator
-- ._through_line
+- .effective_constants
+- progress
+- AcquisitionSettings
+- AuditRecorder
 - OperatingConditions
 - ParameterSpace
 - Batch Results Analysis CLI
 - AdequacyGovernor
-- run_one_campaign
+- run_scenario
 - test_design_space.py
 - Build, Cluster and Export Steps
 - Codex Subagent Dispatch
 - Auto-Rebuild Watch and Commit Hooks
 - Graphify Workflow Policy
 - Query, Path and Explain Flows
-- Layer1Bridge
+- observability.py
 - test_parallel.py
 - BatchSweep Package Init
-- sdl_advanced/__init__.py
+- AdvancedVirtualLaboratory
 - sdl_advanced/reporting.py
 - benchmark.py
 - ReactorGeometry
@@ -69,50 +69,54 @@
 - surrogate_validation
 - SpatialDesigner
 - test_truth_firewall.py
-- audit_summary.py
+- main
 - test_nmr_calibration.py
-- literature_guess
+- Layer1Bridge
 - create_figures
-- ResourceMeter
+- sdl_advanced/__init__.py
 - build_report
-- apply_config
-- calibrate_nmr
-- MBDoESelector
+- test_comparison.py
+- screen
+- run_temperature_study.py
 - .run_profile
 - PFRResult
-- main
+- test_measurement_fault.py
 - AdvancedSelector
-- ._assess_evidence_reliability
-- .reveal_truth
+- ModelEnsemble
+- campaign_task
+- test_calibration_governor.py
 - Literature-anchored kinetic parameter provenance
-- CandidateModel
-- reactor.py
+- .predict
+- Per-run self-verification block (PASS/FAIL residuals)
 - last_valid_rows
+- .concentrations_at
 - audit_export.py
+- _resource_lambdas
+- .c_cat0
 
 ## God Nodes (most connected - your core abstractions)
 1. `OperatingConditions` - 115 edges
-2. `Layer1Bridge` - 98 edges
+2. `Layer1Bridge` - 102 edges
 3. `NoiseModel` - 60 edges
 4. `InferenceModel` - 59 edges
 5. `ParameterSpace` - 59 edges
 6. `ModelEnsemble` - 59 edges
-7. `main()` - 53 edges
+7. `main()` - 55 edges
 8. `Measurement` - 52 edges
 9. `AdvancedVirtualLaboratory` - 51 edges
 10. `NMRSimulator` - 51 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `Coupled equilibrium solver (Gauss–Seidel + Brent)` --implements--> `equilibrium_state()`  [EXTRACTED]
+  README.md → PFR_H2SO4_digital_twin/pfr_twin/analytical.py
 - `graphify Pipeline (Codex)` --semantically_similar_to--> `graphify Pipeline (Claude Code)`  [INFERRED] [semantically similar]
   .codex/skills/graphify/SKILL.md → .claude/skills/graphify/SKILL.md
 - `Extraction Subagent Prompt (Compact)` --semantically_similar_to--> `Extraction Subagent Prompt`  [INFERRED] [semantically similar]
   .codex/skills/graphify/references/extraction-spec.md → .claude/skills/graphify/references/extraction-spec.md
-- `Coupled equilibrium solver (Gauss–Seidel + Brent)` --implements--> `equilibrium_state()`  [EXTRACTED]
-  README.md → PFR_H2SO4_digital_twin/pfr_twin/analytical.py
-- `test_packing_terminology_and_residence_time()` --calls--> `ReactorGeometry`  [INFERRED]
-  SDL_MBDoE/tests/test_nmr_calibration.py → PFR_H2SO4_digital_twin/pfr_twin/parameters.py
 - `Truth/inference firewall` --rationale_for--> `VirtualLaboratory`  [EXTRACTED]
   README.md → SDL_MBDoE/sdl/truth.py
+- `Codex spawn_agent Dispatch` --semantically_similar_to--> `Parallel Subagent Chunk Dispatch`  [INFERRED] [semantically similar]
+  .codex/skills/graphify/SKILL.md → .claude/skills/graphify/SKILL.md
 
 ## Import Cycles
 - None detected.
@@ -137,7 +141,7 @@
 - **Four-Factor Screening Design Space (Flow, EGDA Feed, Catalyst Feed, Temperature)** — batchsweep_analysis_docs_images_surrogate_validation_q_total_ml_min, batchsweep_analysis_docs_images_surrogate_validation_c_egda_feed_m, batchsweep_analysis_docs_images_surrogate_validation_c_catalyst_feed_m, batchsweep_analysis_docs_images_surrogate_validation_temp_c [EXTRACTED 1.00]
 - **Mutually Exclusive Primary Regime Taxonomy** — batchsweep_analysis_docs_images_regime_summary_egma_selective, batchsweep_analysis_docs_images_regime_summary_naoh_exhausted, batchsweep_analysis_docs_images_regime_summary_acid_equilibrium_limited, batchsweep_analysis_docs_images_regime_summary_interior_egma_peak, batchsweep_analysis_docs_images_regime_summary_intermediate, batchsweep_analysis_docs_images_regime_summary_low_conversion, batchsweep_analysis_docs_images_regime_summary_overreaction_to_eg [EXTRACTED 1.00]
 
-## Communities (74 total, 3 thin omitted)
+## Communities (78 total, 3 thin omitted)
 
 ### Community 0 - "pipeline.py"
 Cohesion: 0.17
@@ -156,8 +160,8 @@ Cohesion: 0.08
 Nodes (35): Regime Summary Figure (Mutually Exclusive Primary Regimes), acid_equilibrium_limited Regime, Catalyst/Geometry Case (H2SO4-A, H2SO4-B, NaOH-A, NaOH-B), regime_summary.csv (Data Source), EGMA_selective Regime, Finding: H2SO4 Cases Dominated by Low Conversion, interior_EGMA_peak Regime, intermediate Regime (+27 more)
 
 ### Community 4 - "InferenceModel"
-Cohesion: 0.16
-Nodes (10): covariance_from_fim(), InferenceModel, ndarray, Re-estimate theta from all accumulated data (warm start)., Central-difference S (m.size x p) in scaled parameter space., Expected FIM contribution of a candidate experiment, evaluated at the CURRENT…, V ~ F^-1, with uninformative directions given HUGE variance. np.linalg.pinv is…, THE expected-observation operator: what a measurement at (u, z) is predicted to… (+2 more)
+Cohesion: 0.10
+Nodes (17): GaussianPrior, LaplacePosterior, ndarray, Laplace-approximate Bayesian posterior for ONE kinetic-model hypothesis.…, Per-parameter Gaussian posterior mass lying OUTSIDE the box - the diagnostic…, n draws from the Laplace Gaussian PROPERLY truncated to the box. Strategy:…, Weak, documented prior in scaled space [ln k, Ea/kJ, ln K]. Defaults (see…, covariance_from_fim() (+9 more)
 
 ### Community 5 - "Design Coverage and Damkohler Figures"
 Cohesion: 0.10
@@ -168,52 +172,52 @@ Cohesion: 0.23
 Nodes (25): axial_egma_peaks(), consolidated_scenarios(), convert(), data_coverage(), derived_metrics(), duplicate_configs(), excluded_or_invalid_scenarios(), geometry_collapse_metrics() (+17 more)
 
 ### Community 7 - "sdl/reporting.py"
-Cohesion: 0.13
-Nodes (31): campaign_history.csv per-round record, final_report.txt human-readable campaign summary, StrategyResult, Short name of the scaled theta component for a natural key., theta_component_name(), campaign_score_pct(), log_mean_rel_error_pct(), mean_rel_error_pct() (+23 more)
+Cohesion: 0.08
+Nodes (44): campaign_history.csv per-round record, final_report.txt human-readable campaign summary, blind_rmse(), _entropy(), _param_rows(), ndarray, The same model configuration in a different reactor - used to move a LEARNED…, Bridge used for BLIND SCORING: identical object when geometry optimization is… (+36 more)
 
 ### Community 8 - "self_test.py"
-Cohesion: 0.11
-Nodes (29): Truth/inference firewall, Truth-only systematic effects (transfer_time_s, calibration_gain), build_candidates(), build_fixed_design(), Full-factorial candidate grid over the feasible design space., Conventional campaign: temperature ladder at nominal flow/catalyst. `budget`…, _make_loop(), _ports() (+21 more)
+Cohesion: 0.10
+Nodes (33): Truth/inference firewall, Truth-only systematic effects (transfer_time_s, calibration_gain), _geometry_score(), D-optimal information of a REFERENCE design in this reactor, under the PRIOR…, Pre-campaign identifiability screen (same code as run_sdl_campaign.py),…, screened_dropped_keys(), build_candidates(), build_fixed_design() (+25 more)
 
-### Community 9 - "expand"
-Cohesion: 0.16
-Nodes (17): BatchSweep Analysis methods and interpretation README, Read-only post-processing layer over saved sweeps, expand(), _fmt(), get_path(), index_rows(), Any, Batch-study plumbing: turn lists of parameter values into a list of configs. A… (+9 more)
+### Community 9 - "speciation.py"
+Cohesion: 0.13
+Nodes (21): bisulfate_equilibrium(), [H+] for total sulfate molarity c_total, ideal activities (back-compat alias…, aphi(), bisulfate_dilute(), bisulfate_pitzer(), _g(), h_plus_concentration(), ka2_clarke_glew() (+13 more)
 
-### Community 10 - "batch_simulation.py"
-Cohesion: 0.09
-Nodes (44): run_config.json + profiles.csv as the analysis input contract, _fmt_secs(), main(), _progress(), BATCH base-case runs of the PFR digital twin. Same physics and outputs as…, Yield items with a tqdm-style progress bar (count, %, elapsed, ETA). Uses tqdm…, Simulate every scenario, write per-scenario folders and the summary., Index table plus the cross-scenario comparison figures (each + CSV). (+36 more)
+### Community 10 - "plotting.py"
+Cohesion: 0.17
+Nodes (24): _end_label(), _legend(), _new_axes(), plot_concentration_profiles(), plot_conversion_yield(), plot_profile_overlay(), plot_scenario_bars(), plot_temperature_sweep() (+16 more)
 
 ### Community 11 - "NoiseModel"
-Cohesion: 0.18
-Nodes (18): AssumedTransfer, INFERENCE-SIDE transfer knowledge: only COMMANDED / CALIBRATED quantities…, Back-compatible constructor for a plain mean-delay correction., InferenceModel whose expected-observation operator includes the…, TransportAwareInference, NoiseModel, ndarray, Tests of the common expected-observation operator (predict_at) and its use by… (+10 more)
+Cohesion: 0.17
+Nodes (19): AssumedTransfer, Multi-model Bayesian kinetic inference: p(M, theta | D) via a Laplace model…, INFERENCE-SIDE transfer knowledge: only COMMANDED / CALIBRATED quantities…, Back-compatible constructor for a plain mean-delay correction., InferenceModel whose expected-observation operator includes the…, TransportAwareInference, NoiseModel, ndarray (+11 more)
 
-### Community 12 - "run_simulation.py"
-Cohesion: 0.09
-Nodes (43): main(), BATCH temperature studies of the PFR digital twin. Same physics and outputs as…, Sweep every scenario, write per-scenario folders and the summary., run_batch(), SolverSettings, Integrate the plug-flow balances from x = 0 to x = L. u is the INTERSTITIAL…, simulate_pfr(), make_run_dir() (+35 more)
+### Community 12 - "batch_simulation.py"
+Cohesion: 0.06
+Nodes (56): BatchSweep Analysis methods and interpretation README, Read-only post-processing layer over saved sweeps, _fmt_secs(), main(), _progress(), BATCH base-case runs of the PFR digital twin. Same physics and outputs as…, Yield items with a tqdm-style progress bar (count, %, elapsed, ETA). Uses tqdm…, Simulate every scenario, write per-scenario folders and the summary. (+48 more)
 
 ### Community 13 - "pfr_twin/__init__.py"
-Cohesion: 0.07
-Nodes (44): flow_diagnostics(), Plug-flow validity diagnostics. A digital twin should say when its own…, Vogel-type correlation for liquid water, valid ~273-373 K., water_density_g_L(), water_viscosity_Pa_s(), pfr_twin - 1D deterministic digital twin of an isothermal plug flow reactor for…, Kinetic model of the two-step series ester cleavage, per catalyst system. Acid…, bisulfate_equilibrium() (+36 more)
+Cohesion: 0.06
+Nodes (55): analytical_profiles(), _bracketed_root(), equilibrium_state(), max_relative_error(), ndarray, Algebraic reference solutions used to verify the numerical integrator. 1.…, Composition at simultaneous chemical equilibrium of both steps. Solves for the…, Largest |numerical - analytical| across species, relative to `scale`. (+47 more)
 
-### Community 14 - "ModelEnsemble"
-Cohesion: 0.12
-Nodes (35): AdequacyReport, GovernorState, Model-inadequacy governor: distinguishes "my parameters are uncertain" from "my…, AdvancedDesignConfig, DesignDecision, NoiseSurrogate, Bayesian expected-information-gain (EIG) active learning with a FIM pre-screen…, Expected observation-covariance model LEARNED from the campaign's own… (+27 more)
-
-### Community 15 - "test_comparison.py"
+### Community 14 - "Measurement"
 Cohesion: 0.11
-Nodes (32): _agg(), _at_or_before(), budget_to_target_rows(), _first_reaching(), headline_rows(), matched_resource_rows(), Conventional-vs-optimized comparison: how much does the methodology actually…, What accuracy had each method reached by the time it had spent what the… (+24 more)
+Nodes (31): AdequacyReport, NoiseSurrogate, Expected observation-covariance model LEARNED from the campaign's own…, _adaptive_profile_bayes(), AdvancedStrategyResult, AdvRoundRecord, _combine_positions(), _field_for_model() (+23 more)
+
+### Community 15 - "efficiency.py"
+Cohesion: 0.11
+Nodes (29): _agg(), _at_or_before(), budget_to_target_rows(), _first_reaching(), headline_rows(), matched_resource_rows(), Conventional-vs-optimized comparison: how much does the methodology actually…, What accuracy had each method reached by the time it had spent what the… (+21 more)
 
 ### Community 16 - "Codex Graphify Feature Set"
 Cohesion: 0.12
 Nodes (16): URL Ingest via /graphify add (Codex), Folder Watch Auto-Rebuild (Codex), FalkorDB Cypher Export (Codex), graphify MCP stdio Server (Codex), Neo4j Cypher Export (Codex), GitHub Repo Clone (Codex), Cross-Repo Graph Merge (Codex), Native CLAUDE.md Integration (Codex) (+8 more)
 
-### Community 17 - "SpectralFitter"
-Cohesion: 0.08
-Nodes (30): _figure_d(), Advanced-layer demonstration campaign: Reacnostics CPR (one moving sampling…, # NOTE: with this on, blind RMSE is computed in the CHOSEN reactor, so, Truth vs deconvolved concentration over random compositions., calibrate_empirical(), calibrate_responses(), _default_standards(), QuantificationResult (+22 more)
+### Community 17 - "NMRSimulator"
+Cohesion: 0.07
+Nodes (51): _figure_d(), Advanced-layer demonstration campaign: Reacnostics CPR (one moving sampling…, # NOTE: with this on, blind RMSE is computed in the CHOSEN reactor, so, Truth vs deconvolved concentration over random compositions., bootstrap_coverage(), calibrate_empirical(), calibrate_nmr(), calibrate_responses() (+43 more)
 
 ### Community 18 - "test_audit_regression.py"
-Cohesion: 0.06
-Nodes (40): AuditRecorder, Passive audit recorder for the publication workflow. DESIGN RULE, and the whole…, `part` is the controller's per-position view of one acquisition: {"z", "y",…, Whole-profile convenience for the ungated (direct-observation) path, where…, Wall-clock only. Reading a clock cannot change a result, and these columns are…, Picklable primitives only, for the trip back from a worker., Append-only sink. Holds plain Python/NumPy scalars so the payload is cheap to…, `screened` is the selector's own sorted list of (screen_score, u, z_positions,… (+32 more)
+Cohesion: 0.14
+Nodes (21): _compare(), _first_difference(), Regression guard for the publication audit trail. THE CLAIM UNDER TEST: turning…, A-D run unchanged sdl.campaign code and are audited entirely post-campaign, so…, E adds spatial optimization and per-round timing calls., The one that matters: F exercises the EIG selector (RNG), the QC gate and the…, S3 turns on the NMR pathway, the transfer line and the QC gate, so the…, S5 removes the correct model, so the governor fires and the selector switches… (+13 more)
 
 ### Community 19 - "Claude Graphify Feature Set"
 Cohesion: 0.18
@@ -247,29 +251,25 @@ Nodes (13): Confidence Score Rubric, DEEP_MODE Aggressive Inference, Hyperedge E
 Cohesion: 0.07
 Nodes (60): area_under_curve(), averaged_exchange_peak(), build_group_records(), build_species_records(), build_spectrum(), concentrations_at(), _draw_labels(), emit_zooms() (+52 more)
 
-### Community 27 - "KineticModel"
-Cohesion: 0.11
-Nodes (13): KineticModel, kappa_i = k_i(T) * c_cat, the forward time-scale constants. c_cat is [H+] on…, Net rates (positive = ester-cleavage direction) for the state vector c in…, ArrheniusStep, EquilibriumStep, k(T) = A * exp(-Ea / (R T)) with A in L/(mol s) and Ea in J/mol., Concentration-based hydrolysis equilibrium constant of one step, K(T) = (…, ndarray (+5 more)
+### Community 28 - "progress"
+Cohesion: 0.23
+Nodes (6): progress(), Any, Small tqdm wrapper with a no-dependency text fallback., Minimal progress reporter used only when tqdm is unavailable., Return tqdm when installed, otherwise a basic percentage reporter., _TextProgress
 
-### Community 28 - "_TextProgress"
-Cohesion: 0.33
-Nodes (3): Any, Minimal progress reporter used only when tqdm is unavailable., _TextProgress
+### Community 29 - "AcquisitionSettings"
+Cohesion: 0.10
+Nodes (29): generate(), ndarray, Three deterministic representative NMR examples for the publication figures.…, (label, ppm, observed, fitted, residual, components) per example., Per-species (plus pool and baseline) contribution to the FITTED spectrum.…, Simulate, deconvolve and export the three examples. Returns one summary row per…, _species_components(), spectra_for_plot() (+21 more)
 
-### Community 29 - "NMRSimulator"
-Cohesion: 0.09
-Nodes (34): bootstrap_coverage(), Parametric bootstrap: simulate n_boot noisy spectra of a KNOWN composition,…, flow_response(), NMRSimulator, Reusable 1H NMR forward model of the EGDA hydrolysis mixture at 80 MHz.…, TRUE instrument imperfections (owned by the virtual instrument only). All…, Phenomenological incomplete-relaxation / flow response factor in [0,1]. E = 1 -…, Forward model: molar concentrations -> 80 MHz 1H spectrum. `simulate` is the… (+26 more)
-
-### Community 30 - "._through_line"
-Cohesion: 0.29
-Nodes (3): Propagator, Composition arriving at the NMR cell for a sample drawn at z. Applies (in…, (taus, weights) of the residence-time quadrature.
+### Community 30 - "AuditRecorder"
+Cohesion: 0.13
+Nodes (8): AuditRecorder, Passive audit recorder for the publication workflow. DESIGN RULE, and the whole…, `part` is the controller's per-position view of one acquisition: {"z", "y",…, Whole-profile convenience for the ungated (direct-observation) path, where…, Wall-clock only. Reading a clock cannot change a result, and these columns are…, Picklable primitives only, for the trip back from a worker., Append-only sink. Holds plain Python/NumPy scalars so the payload is cheap to…, `screened` is the selector's own sorted list of (screen_score, u, z_positions,…
 
 ### Community 31 - "OperatingConditions"
-Cohesion: 0.09
-Nodes (36): The inverse problem — kinetics from noisy measurements, Reference-temperature (k_ref, Ea) reparameterization, Seven-step self-driving closed loop, noise_true vs noise_assumed misspecification study hook, Recommended study extensions (Monte Carlo, cost-aware, ablation), main(), Layer 2 showcase: virtual self-driving laboratory around the Layer 1 PFR twin.…, resolve_outdir() (+28 more)
+Cohesion: 0.10
+Nodes (30): The inverse problem — kinetics from noisy measurements, Reference-temperature (k_ref, Ea) reparameterization, Seven-step self-driving closed loop, noise_true vs noise_assumed misspecification study hook, Recommended study extensions (Monte Carlo, cost-aware, ablation), main(), Layer 2 showcase: virtual self-driving laboratory around the Layer 1 PFR twin.…, resolve_outdir() (+22 more)
 
 ### Community 32 - "ParameterSpace"
-Cohesion: 0.08
-Nodes (22): check_truth_in_domain(), design_for_budget(), _geometry_score(), D-optimal information of a REFERENCE design in this reactor, under the PRIOR…, Is every hidden true parameter inside the candidate model's domain? Returns a…, DESIGN with a conventional temperature ladder long enough for the requested…, ParameterSpace, ndarray (+14 more)
+Cohesion: 0.09
+Nodes (20): check_truth_in_domain(), Is every hidden true parameter inside the candidate model's domain? Returns a…, ParameterSpace, ndarray, Estimated components merged with the held-fixed ones, so the forward model…, Keys whose estimate is resting on its box constraint. A bounded least-squares…, Approximate 95% relative confidence half-widths, %, per parameter. For ln-…, Copy of this space with `keys` moved out of theta and pinned at their initial-… (+12 more)
 
 ### Community 33 - "Batch Results Analysis CLI"
 Cohesion: 0.31
@@ -279,13 +279,13 @@ Nodes (8): main(), parse_args(), load_config(), _merge(), Any, Path, Large-sweep
 Cohesion: 0.16
 Nodes (8): AdequacyGovernor, ndarray, Max standardized mean residual over (experiment x species) CELLS, Sidak-…, (component p-values, combined Sidak min-p, species bias, chi2/dof score, pooled…, THE single definition of which diagnostics enter the decision. Used identically…, Sidak-combined min-p over the DECISION components., B must satisfy 1/(B+1) <= alpha or the bootstrap p-value can never reach the…, Parametric-bootstrap empirical p-value of the DECISION statistic (same…
 
-### Community 35 - "run_one_campaign"
-Cohesion: 0.20
-Nodes (10): _figure_a(), True profile + equal vs optimized positions + information density., Pre-campaign identifiability screen (same code as run_sdl_campaign.py),…, One (scenario, strategy, seed) campaign. Returns (result, lab, extra).…, run_one_campaign(), screened_dropped_keys(), _spatial_cfg(), param_keys_for() (+2 more)
+### Community 35 - "run_scenario"
+Cohesion: 0.14
+Nodes (16): Returns (round rows, per-parameter rows, per-campaign status rows). NO campaign…, run_scenario(), runtime_s measures the RUN, not the chemistry: it is the one field a worker…, Plain `==` is unusable here: legitimate NaNs (p_correct for a non-Bayesian…, Guard the guard: the NaN-tolerant comparator must not be so forgiving that the…, Only primitives may cross the process boundary - never a laboratory, a…, The whole point, end to end: a real registered scenario with all six of its…, A scenario object that is not the one in SCENARIOS cannot be sent to a worker… (+8 more)
 
 ### Community 36 - "test_design_space.py"
 Cohesion: 0.05
-Nodes (56): Leave-one-factor-level-out surrogate validation, A/B/C/D four-strategy showcase, Franceschini & Macchietto (2008) MBDoE review, D-optimal Model-Based Design of Experiments, A-optimal design criterion, Four-axis coarse candidate design grid, Bounded continuous Powell refinement of the best candidate, Equal-experiment-budget fairness caveat (+48 more)
+Nodes (55): Leave-one-factor-level-out surrogate validation, A/B/C/D four-strategy showcase, Franceschini & Macchietto (2008) MBDoE review, D-optimal Model-Based Design of Experiments, A-optimal design criterion, Four-axis coarse candidate design grid, Bounded continuous Powell refinement of the best candidate, Equal-experiment-budget fairness caveat (+47 more)
 
 ### Community 37 - "Build, Cluster and Export Steps"
 Cohesion: 0.25
@@ -307,37 +307,37 @@ Nodes (6): Dirty graphify-out files are expected, Query-first policy for codebas
 Cohesion: 0.50
 Nodes (5): Explain a Single Node, Inline NetworkX Traversal Fallback, save-result Feedback Loop, Shortest Path Between Concepts, Token-Budget Aware Output
 
-### Community 42 - "Layer1Bridge"
-Cohesion: 0.09
-Nodes (29): domain_scan(), k_sensitivity(), phi_profiles(), plot_phi_profiles(), ndarray, Equilibrium observability of the reversible EGDA hydrolysis. The reversible…, One diagnostic row per operating condition over the reachable domain: residence…, Domain-level verdict on equilibrium identifiability. phi_threshold: below this… (+21 more)
+### Community 42 - "observability.py"
+Cohesion: 0.13
+Nodes (19): domain_scan(), k_sensitivity(), phi_profiles(), plot_phi_profiles(), ndarray, Equilibrium observability of the reversible EGDA hydrolysis. The reversible…, One diagnostic row per operating condition over the reachable domain: residence…, Domain-level verdict on equilibrium identifiability. phi_threshold: below this… (+11 more)
 
 ### Community 43 - "test_parallel.py"
-Cohesion: 0.07
-Nodes (46): ProcessPoolExecutor, merge(), governor_mc_validation(), governor_task(), Returns (round rows, per-parameter rows, per-campaign status rows). NO campaign…, First round at which the governor declares MODEL_INADEQUATE, or None. The…, Monte Carlo validation of the governor (#calibration honesty): * correct-family…, run_scenario() (+38 more)
+Cohesion: 0.12
+Nodes (25): ProcessPoolExecutor, describe_workers(), make_executor(), ordered_map(), pin_numerical_threads(), Cross-platform, determinism-preserving process parallelism for the benchmark.…, Apply `fn(*args)` to every tuple, returning results in SUBMISSION order. `fn`…, Pin every numerical backend to `n_threads`. Call this BEFORE importing… (+17 more)
 
-### Community 45 - "sdl_advanced/__init__.py"
+### Community 45 - "AdvancedVirtualLaboratory"
 Cohesion: 0.07
-Nodes (59): GovernorConfig, make_lab(), ScenarioSpec, sdl_advanced - Layer 2+ : realistic CPR + Fourier-80 virtual instrument and…, AdvancedVirtualLaboratory, InstrumentConfig, AdvancedVirtualLaboratory: the hidden-truth side of the advanced system. Owns…, build_egda_family() (+51 more)
+Nodes (44): Propagator, GovernorConfig, make_lab(), ScenarioSpec, AdvancedVirtualLaboratory, InstrumentConfig, POST-CAMPAIGN benchmarking only., build_egda_family() (+36 more)
 
 ### Community 46 - "sdl_advanced/reporting.py"
 Cohesion: 0.09
 Nodes (40): _csv(), figure_a_spatial_value(), figure_b_position_rounds(), figure_c_spectrum(), figure_convergence_band(), figure_d_truth_vs_recovered(), figure_design_trajectory(), figure_e_convergence() (+32 more)
 
 ### Community 47 - "benchmark.py"
-Cohesion: 0.09
-Nodes (22): _assumed_transfer_from(), BaselineLabAdapter, blind_rmse(), _entropy(), _geometry_candidates(), optimal_geometry(), _param_rows(), ndarray (+14 more)
+Cohesion: 0.08
+Nodes (31): GovernorState, Model-inadequacy governor: distinguishes "my parameters are uncertain" from "my…, AdvancedDesignConfig, Bayesian expected-information-gain (EIG) active learning with a FIM pre-screen…, _assumed_transfer_from(), BaselineLabAdapter, campaign_cost_units(), continuous_kwargs() (+23 more)
 
 ### Community 48 - "ReactorGeometry"
 Cohesion: 0.09
-Nodes (12): Straight cylindrical tube, optionally filled with INERT packing. Defaults match…, epsilon actually used by the hydrodynamics (1 when unpacked)., Empty-tube cross-section (geometric)., Cross-section carrying flowing liquid; sets the INTERSTITIAL velocity u = Q /…, Total (empty-tube) reactor volume., Flowing-liquid holdup: epsilon * V_tube., tau = epsilon A L / Q (= A L / Q for an unpacked tube)., ReactorGeometry (+4 more)
+Nodes (13): Straight cylindrical tube, optionally filled with INERT packing. Defaults match…, epsilon actually used by the hydrodynamics (1 when unpacked)., Empty-tube cross-section (geometric)., Cross-section carrying flowing liquid; sets the INTERSTITIAL velocity u = Q /…, Total (empty-tube) reactor volume., Flowing-liquid holdup: epsilon * V_tube., tau = epsilon A L / Q (= A L / Q for an unpacked tube)., ReactorGeometry (+5 more)
 
 ### Community 49 - "io.py"
-Cohesion: 0.30
-Nodes (13): configuration_key(), _csv_value(), discover(), flatten_run_config(), _number(), Any, Path, read_profile() (+5 more)
+Cohesion: 0.39
+Nodes (11): configuration_key(), _csv_value(), discover(), flatten_run_config(), _number(), Any, Path, read_profile() (+3 more)
 
 ### Community 50 - "SpatialDesignConfig"
-Cohesion: 0.18
-Nodes (17): fixed_equal_positions(), Spatial measurement design for the moving-capillary CPR. The sampling position…, Exact legacy layout of run_sdl_campaign.py: z_i = i L/N, i=1..N., SpatialDesignConfig, test_positions_rescale_with_configured_length(), _field_and_designer(), Tests of optimal spatial sampling (sdl_advanced.spatial_design). Runnable…, TRUE closed-loop requirement: changing the FIRST measured result must be able… (+9 more)
+Cohesion: 0.15
+Nodes (20): _figure_a(), True profile + equal vs optimized positions + information density., _spatial_cfg(), fixed_equal_positions(), Spatial measurement design for the moving-capillary CPR. The sampling position…, Exact legacy layout of run_sdl_campaign.py: z_i = i L/N, i=1..N., SpatialDesignConfig, test_positions_rescale_with_configured_length() (+12 more)
 
 ### Community 51 - "surrogate_validation"
 Cohesion: 0.22
@@ -351,77 +351,97 @@ Nodes (11): _logdet_floored(), ndarray, (y (n_species,), S (n_species x p)) line
 Cohesion: 0.24
 Nodes (12): _mini_campaign(), Truth/inference firewall tests for the advanced system, exercised through a…, STRONG invariant: starting from everything the controller owns (ensemble,…, The observation operator must be built from COMMANDED/ASSUMED transfer…, All Python objects reachable from `roots` via attributes and containers (id-…, _reachable_objects(), test_full_campaign_never_reveals_truth(), test_lab_unreachable_from_controller_object_graph() (+4 more)
 
-### Community 54 - "audit_summary.py"
-Cohesion: 0.17
-Nodes (14): _boot_ci_median(), _checksums(), convergence_summary_rows(), _git_commit(), _package_versions(), parameter_domain_check_rows(), ndarray, Run-level audit artifacts: convergence summaries that survive failed campaigns,… (+6 more)
+### Community 54 - "main"
+Cohesion: 0.10
+Nodes (26): _finals(), main(), _mean_curves(), Main EGDA advanced benchmark (corrected framework, v3 outputs). Runs the…, resolve_outdir(), _write_rows(), _boot_ci_median(), _checksums() (+18 more)
 
 ### Community 55 - "test_nmr_calibration.py"
 Cohesion: 0.09
-Nodes (24): NMRCalibration, ndarray, DESIGN-TIME predictor of the deconvolution covariance for a CANDIDATE…, PUBLIC calibration artifact: everything a real Fourier-80 campaign would obtain…, Predicted Sigma_y for ONE position's species concentrations., Species-major covariance for a whole candidate profile., No-op: this model is analytic, not data-fitted (interface parity with…, Guard used by the firewall test: the artifact must expose only calibration… (+16 more)
+Nodes (21): NMRCalibration, DESIGN-TIME predictor of the deconvolution covariance for a CANDIDATE…, PUBLIC calibration artifact: everything a real Fourier-80 campaign would obtain…, Predicted Sigma_y for ONE position's species concentrations., Species-major covariance for a whole candidate profile., No-op: this model is analytic, not data-fitted (interface parity with…, Guard used by the firewall test: the artifact must expose only calibration…, SpectralCovarianceModel (+13 more)
 
-### Community 56 - "literature_guess"
-Cohesion: 0.13
-Nodes (18): Multi-model Bayesian kinetic inference: p(M, theta | D) via a Laplace model…, GaussianPrior, LaplacePosterior, ndarray, Laplace-approximate Bayesian posterior for ONE kinetic-model hypothesis.…, Per-parameter Gaussian posterior mass lying OUTSIDE the box - the diagnostic…, n draws from the Laplace Gaussian PROPERLY truncated to the box. Strategy:…, Weak, documented prior in scaled space [ln k, Ea/kJ, ln K]. Defaults (see… (+10 more)
+### Community 56 - "Layer1Bridge"
+Cohesion: 0.11
+Nodes (25): Layer1Bridge, Configured gateway to the Layer 1 simulator., Per mole of catalyst, saponification must be orders of magnitude faster.…, Sub-stoichiometric NaOH: acetate released must equal the OH- consumed, the…, The bridge must speciate at each experiment's own temperature: with the default…, ODE and analytical forward engines must match in the irreversible limit (there…, At long residence time the reversible PFR must (i) conserve the three linear…, test_bridge_engines_agree() (+17 more)
 
 ### Community 57 - "create_figures"
 Cohesion: 0.52
 Nodes (6): create_figures(), _finish(), Any, Figure, Path, _study_groups()
 
-### Community 58 - "ResourceMeter"
-Cohesion: 0.10
-Nodes (20): ndarray, Capillary move + flush + one NMR acquisition at position z. retry=True marks a…, A position whose data was rejected by the QC gate (not assimilated); auditable,…, Scalar penalty term of the resource-aware utility for a HYPOTHETICAL experiment…, Accumulates the campaign's physical cost from logged events., Reactor condition set + stabilization to steady state. Idempotent for an…, ResourceEvent, ResourceMeter (+12 more)
+### Community 58 - "sdl_advanced/__init__.py"
+Cohesion: 0.09
+Nodes (25): sdl_advanced - Layer 2+ : realistic CPR + Fourier-80 virtual instrument and…, AdvancedVirtualLaboratory: the hidden-truth side of the advanced system. Owns…, ndarray, Campaign resource accounting and the resource-aware utility terms. Every…, Capillary move + flush + one NMR acquisition at position z. retry=True marks a…, A position whose data was rejected by the QC gate (not assimilated); auditable,…, Scalar penalty term of the resource-aware utility for a HYPOTHETICAL experiment…, Assumed cost/rate parameters (simulation proxies; CAL where the real plant will… (+17 more)
 
 ### Community 59 - "build_report"
 Cohesion: 0.47
 Nodes (5): build_report(), _fmt(), Any, Path, Independent regime flags and primary regime priority
 
-### Community 60 - "apply_config"
-Cohesion: 0.14
-Nodes (18): main(), resolve_outdir(), active_geometry(), apply_config(), Apply a runner's CONFIG knobs to this module's configuration blocks. The…, Every knob's CURRENT value - what the run actually used., The reactor this campaign runs in: the declared GEOMETRY, or the prior-optimal…, Initializer for a parallel worker process. Two jobs. First, silence the per-… (+10 more)
+### Community 60 - "test_comparison.py"
+Cohesion: 0.10
+Nodes (32): main(), resolve_outdir(), active_geometry(), apply_config(), _geometry_candidates(), geometry_sizing_table(), optimal_geometry(), Apply a runner's CONFIG knobs to this module's configuration blocks. The… (+24 more)
 
-### Community 61 - "calibrate_nmr"
-Cohesion: 0.12
-Nodes (23): generate(), ndarray, Three deterministic representative NMR examples for the publication figures.…, (label, ppm, observed, fitted, residual, components) per example., Per-species (plus pool and baseline) contribution to the FITTED spectrum.…, Simulate, deconvolve and export the three examples. Returns one summary row per…, _species_components(), spectra_for_plot() (+15 more)
+### Community 61 - "screen"
+Cohesion: 0.24
+Nodes (11): greedy_d_optimal(), information_matrices(), _logdet_floored(), ndarray, Pre-campaign identifiability screen. Before a single experiment is spent, ask…, Per-condition information M_e = S_e' Sigma_e^-1 S_e at `theta_vec` (default:…, log det F with eigenvalues floored, so a rank-deficient F still ranks sensibly…, FIM of the greedy D-optimal `budget`-experiment design over `mats`. (+3 more)
 
-### Community 62 - "MBDoESelector"
-Cohesion: 0.43
-Nodes (4): MBDoESelector, ndarray, Design score with FLOORED eigenvalues. `slogdet` returns -inf for any singular…, _selector()
+### Community 62 - "run_temperature_study.py"
+Cohesion: 0.29
+Nodes (11): main(), Temperature sensitivity study of the PFR digital twin. Sweeps the (isothermal)…, Everything one temperature sweep produces., Run the configured temperature sweep. Writes nothing. The inlet is re-mixed at…, Write both figures with their paired CSVs, the sweep table, and the exact run…, Run one temperature sweep and write its hyperparameter-tagged folder., run_sweep(), simulate_sweep() (+3 more)
 
 ### Community 63 - ".run_profile"
 Cohesion: 0.18
 Nodes (6): ndarray, Hidden true composition (ALL Layer-1 species) at each z., Batch-reaction propagator at the transfer-line temperature, closed over the…, Set condition u, sample the requested positions in the given order (one moving…, Legacy-style observation: concentrations + NoiseModel noise. cov_y stays None…, Spectrum -> deconvolution. The fitter sees only the spectrum.
 
 ### Community 64 - "PFRResult"
-Cohesion: 0.17
-Nodes (8): nu_matrix(), PFRResult, ndarray, Stoichiometric matrix of the chosen catalyst system., Axial profiles plus the scalars needed to interpret them., Fractional EGDA conversion X(x)., Yield of EGMA or EG on a diol-backbone basis: (C_i - C_i0)/C_EGDA0., Outlet selectivity of EGMA among converted EGDA.
+Cohesion: 0.20
+Nodes (6): PFRResult, ndarray, Axial profiles plus the scalars needed to interpret them., Fractional EGDA conversion X(x)., Yield of EGMA or EG on a diol-backbone basis: (C_i - C_i0)/C_EGDA0., Outlet selectivity of EGMA among converted EGDA.
 
-### Community 65 - "main"
-Cohesion: 0.14
-Nodes (17): _finals(), main(), _mean_curves(), Main EGDA advanced benchmark (corrected framework, v3 outputs). Runs the…, # NOTE: with this on, blind RMSE is computed in the CHOSEN reactor, so, resolve_outdir(), _write_rows(), campaign_cost_units() (+9 more)
+### Community 65 - "test_measurement_fault.py"
+Cohesion: 0.29
+Nodes (9): _Corruptor, _lab(), Tests of the MEASUREMENT_FAULT control state: QC gating BEFORE assimilation,…, Wraps the truth simulator: corrupts the spectrum for the first `n_bad`…, Persistent instrument failure must pause the campaign - never update the…, test_bad_spectrum_rejected_then_recovered_by_reacquisition(), test_campaign_pauses_safely_and_posterior_untouched(), test_gate_disabled_passes_everything_through() (+1 more)
 
 ### Community 66 - "AdvancedSelector"
 Cohesion: 0.12
-Nodes (15): AdvancedSelector, expected_information_gain(), _logdet_floored(), ndarray, Sigma for ONE position's species vector., Species-major covariance for a whole profile (block per z)., (EIG_total, EIG_model) in nats, from cached particle predictions. preds: (N,…, Hierarchical (u, Z) selector for strategy F. (+7 more)
+Nodes (16): AdvancedSelector, DesignDecision, expected_information_gain(), _logdet_floored(), ndarray, Sigma for ONE position's species vector., Species-major covariance for a whole profile (block per z)., (EIG_total, EIG_model) in nats, from cached particle predictions. preds: (N,… (+8 more)
+
+### Community 67 - "ModelEnsemble"
+Cohesion: 0.29
+Nodes (3): ModelEnsemble, Minimal boundary diagnostic for the Laplace evidence. The Laplace approximation…, n joint (M, theta) posterior draws; model counts multinomial in the model…
+
+### Community 68 - "campaign_task"
+Cohesion: 0.18
+Nodes (11): campaign_task(), ONE campaign, as a picklable pure function of its four labels. This is the unit…, The EIG is Monte-Carlo and consumes the selector's RNG. The audit may report…, A QC-rejected spectrum never reaches the posterior, so it exists in no…, The cumulative columns are re-derived from raw events, so they must land on the…, F is a Laplace posterior: its curvature includes the prior, so the eigenvalues…, test_audit_tables_are_populated_and_self_consistent(), test_identifiability_labels_which_matrix_it_used() (+3 more)
+
+### Community 69 - "test_calibration_governor.py"
+Cohesion: 0.24
+Nodes (10): _calibrated_fitter(), Stage-1 regression tests for: NMR calibration/validation independence and PSD…, assess(), the analytical combination and the bootstrap must all use the SAME…, The validation spectra must not be the calibration spectra: the calibration RNG…, Sigma_eff = Sigma_fit + Sigma_empirical; the ASSUMED surrogate floor terms must…, test_calibrated_covariance_replaces_surrogate_floor(), test_calibration_and_validation_use_independent_seeds(), test_decision_components_are_one_shared_definition() (+2 more)
 
 ### Community 70 - "Literature-anchored kinetic parameter provenance"
 Cohesion: 0.40
 Nodes (5): Berthelot & Péan de Saint-Gilles (1862) esterification equilibrium, A. J. Kirby, Comprehensive Chemical Kinetics Vol. 10, Literature-anchored kinetic parameter provenance, Ethyl acetate + NaOH conductometric saponification benchmarks, Statistical factors for equivalent acetate groups
 
-### Community 71 - "CandidateModel"
-Cohesion: 0.19
-Nodes (7): _posterior_diag(), Per-parameter posterior diagnostics for reporting (#13): scaled sigmas, active…, CandidateModel, ndarray, The candidate's expected-observation operator - the ONE way any controller-side…, Current MAP if fitted, else the initial guess (for pre-data design)., Particle prediction through the candidate's expected-observation operator (NOT…
+### Community 71 - ".predict"
+Cohesion: 0.31
+Nodes (4): ndarray, The candidate's expected-observation operator - the ONE way any controller-side…, Current MAP if fitted, else the initial guess (for pre-data design)., Particle prediction through the candidate's expected-observation operator (NOT…
 
-### Community 72 - "reactor.py"
-Cohesion: 0.13
-Nodes (17): analytical_profiles(), _bracketed_root(), equilibrium_state(), max_relative_error(), ndarray, Algebraic reference solutions used to verify the numerical integrator. 1.…, Composition at simultaneous chemical equilibrium of both steps. Solves for the…, Largest |numerical - analytical| across species, relative to `scale`. (+9 more)
+### Community 72 - "Per-run self-verification block (PASS/FAIL residuals)"
+Cohesion: 0.50
+Nodes (4): Legacy irreversible limit as verification reference, Coupled equilibrium solver (Gauss–Seidel + Brent), Linear conservation invariants, Per-run self-verification block (PASS/FAIL residuals)
 
 ### Community 73 - "last_valid_rows"
 Cohesion: 0.31
 Nodes (9): _boot_ci(), last_valid_rows(), paired_comparison(), One row per SEED: that seed's LAST COMPLETED round. Using the per-seed last…, Last-valid-round distributional summary per strategy: median, IQR, mean,…, Common-random-number PAIRED comparison of two strategies at the final round:…, summarize_final(), A seed that stops early keeps its LAST VALID round in the summary (n_seeds… (+1 more)
 
+### Community 74 - ".concentrations_at"
+Cohesion: 0.33
+Nodes (5): nu_matrix(), Stoichiometric matrix of the chosen catalyst system., ndarray, Concentrations (mol/L) at axial positions z_m, flattened species-major: y[i*Nz…, Advance each position's composition by dt_s of batch reaction (the batch time…
+
 ### Community 75 - "audit_export.py"
-Cohesion: 0.13
-Nodes (27): blind_prediction_rows(), calibration_rows(), collect_campaign(), design_history_rows(), _empty(), empty_bundle(), _f(), governor_rows() (+19 more)
+Cohesion: 0.12
+Nodes (28): blind_prediction_rows(), calibration_rows(), collect_campaign(), design_history_rows(), _empty(), empty_bundle(), _f(), governor_rows() (+20 more)
+
+### Community 76 - "_resource_lambdas"
+Cohesion: 0.50
+Nodes (4): The S6 lambda sweep: one base weight vector x a scale factor. The base values…, _resource_lambdas(), One information-resource exchange rate for the whole framework: the sizing…, test_sizing_lambdas_are_the_s6_exchange_rate()
 
 ## Ambiguous Edges - Review These
 - `Feed / Catalyst Concentration Combinations (bubble area)` → `R_OH Hydroxide Ratio`  [AMBIGUOUS]
@@ -457,5 +477,5 @@ _Questions this graph is uniquely positioned to answer:_
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **What is the exact relationship between `NaOH_exhausted Regime` and `Finding: NaOH Surrogate Error ~4x Larger Than H2SO4`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `OperatingConditions` connect `OperatingConditions` to `InferenceModel`, `sdl/reporting.py`, `self_test.py`, `NoiseModel`, `pfr_twin/__init__.py`, `ModelEnsemble`, `SpectralFitter`, `KineticModel`, `ParameterSpace`, `run_one_campaign`, `test_design_space.py`, `Layer1Bridge`, `sdl_advanced/__init__.py`, `benchmark.py`, `SpatialDesignConfig`, `test_truth_firewall.py`, `literature_guess`, `calibrate_nmr`, `MBDoESelector`, `.run_profile`, `main`, `AdvancedSelector`, `CandidateModel`?**
-  _High betweenness centrality (0.084) - this node is a cross-community bridge._
+- **Why does `OperatingConditions` connect `OperatingConditions` to `InferenceModel`, `sdl/reporting.py`, `self_test.py`, `NoiseModel`, `pfr_twin/__init__.py`, `Measurement`, `NMRSimulator`, `ParameterSpace`, `test_design_space.py`, `observability.py`, `AdvancedVirtualLaboratory`, `benchmark.py`, `SpatialDesignConfig`, `test_truth_firewall.py`, `main`, `Layer1Bridge`, `sdl_advanced/__init__.py`, `screen`, `.run_profile`, `test_measurement_fault.py`, `AdvancedSelector`, `ModelEnsemble`, `test_calibration_governor.py`, `.predict`, `.concentrations_at`?**
+  _High betweenness centrality (0.088) - this node is a cross-community bridge._

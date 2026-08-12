@@ -115,10 +115,28 @@ KNOBS = {
         "mode": "per_campaign",       # "per_experiment" raises: not implemented
         "bounds": {"length_m": [0.05, 0.60],
                    "diameter_m": [0.002, 0.012]},
-        "levels": {"length_m": [0.10, 0.20, 0.40],
+        "levels": {"length_m": [0.10, 0.20, 0.40, 0.60],
                    "diameter_m": [0.004, 0.007, 0.010]},
         "resolution": {"length_m": 0.005, "diameter_m": 0.0005},
         "switch_cost_s": 1800.0,
+        # Ideality: an open laminar tube violates plug flow when
+        # t_rad/tau = Q/(pi D L eps) exceeds max_radial_ratio (Layer 1's own
+        # advisory boundary; the bore cancels - only length/flow/holdup
+        # help).  Infeasible candidates are rejected; "auto" also offers
+        # every geometry as a PACKED bed (spherical beads, eps ~ 0.4), the
+        # standard engineering fix, which is treated as plug-flow valid
+        # under the documented d_p <= d/10, L/d_p >= 100 assumption.
+        "packing": "auto",            # "auto" | True | False
+        "bed_void_fraction": 0.40,
+        "max_radial_ratio": 10.0,
+        # sizing objective = logdet F(reference design) - resource penalty
+        # of that campaign in that reactor; the weights are S6's 1x vector
+        # (one information-resource exchange rate for the whole framework).
+        # All zeros -> pure information ("bigger is better" warning applies).
+        "objective_lambdas": {"lambda_time_per_s": 2e-3,
+                              "lambda_material_per_mol": 50.0,
+                              "lambda_waste_per_mL": 5e-3,
+                              "lambda_energy_per_kJ": 0.05},
     },
 
     # ---- conventional-vs-optimized comparison ---------------------------- #

@@ -1877,26 +1877,67 @@ Two different questions, one switch:
 },
 ```
 
-With it enabled the reactor is sized **once, before round 1**, by maximizing
-the D-optimal information of the conventional reference design under the
-**prior** (literature) parameters — never the hidden truth, since sizing a
-reactor is something you do before you know the kinetics. Discrete mode
-screens the declared levels; continuous mode then refines inside `bounds`,
-snapped to what you could actually order a tube to (5 mm length, 0.5 mm
-bore), under the same never-worse rule as the operating-condition design.
+With it enabled the reactor is sized **once, before round 1**, under the
+combined objective
+
+$$\text{score} = \underbrace{\log\det F(\text{reference design})}_{\text{information, prior-based}} \;-\; \underbrace{\textstyle\sum_r \lambda_r \cdot \text{resource}_r}_{\text{what that campaign costs in that reactor}}$$
+
+evaluated under the **prior** (literature) parameters — never the hidden
+truth, since sizing a reactor is something you do before you know the
+kinetics. The λ's are **S6's 1× exchange rate**, so the reactor and the
+campaign are optimized against the same economy (a test pins them equal);
+all-zero λ's recover pure information, which runs to the biggest reactor
+your bounds allow — the run warns when an optimum rests on a bound. The
+resource side is replayed through the same `ResourceMeter` that meters real
+campaigns: stabilization scales with liquid volume, which is what stops
+"bigger is always better".
+
+**Ideality is a constraint, not a footnote.** The kinetics are intrinsic —
+geometry never changes the constants — but it decides whether the plug-flow
+model is *valid*. For an open laminar tube the radial-mixing ratio is
+
+$$t_{rad}/\tau = \frac{R^2/D}{\varepsilon V/Q} = \frac{Q}{\pi D L \varepsilon}$$
+
+— note the **bore cancels**: only length, flow and holdup help, and at 1
+mL/min an open tube needs ≥ 0.53 m just to reach the "moderate deviation"
+regime. Candidates whose ratio exceeds `max_radial_ratio` (default 10.0,
+Layer 1's own advisory boundary between "moderate" and "radially
+segregated") are **infeasible** — an optimizer must not select a reactor in
+which the model it fits does not apply. The shipped 20 cm demo tube itself
+fails this standard (ratio ≈ 26 at nominal flow), which is consistent with
+the advisory Layer 1 has always printed for it.
+
+`packing` is the engineering fix: `"auto"` offers every geometry both open
+and as a **packed bed** (random spherical beads, ε ≈ 0.40), which breaks up
+the laminar streamlines and is treated as plug-flow valid under the
+documented assumption d_p ≤ d/10 and L/d_p ≥ 100 (bed RTD itself is not
+simulated — future work). Packing costs holdup — τ_liquid = εV/Q, so a
+packed bed needs ~2.5× the volume for the same residence time — and the
+optimizer sees that automatically through Layer 1's ε-aware residence time.
+With beads forbidden **and** a threshold below every open tube's ratio, the
+sizing **raises** with guidance rather than quietly picking an invalid
+reactor. Every candidate's decomposed objective (info, cost, validity
+ratio, feasibility) is written to `geometry_sizing.csv`.
+
+In the shipped configuration the winner is a **small packed bed** (10 cm ×
+7 mm, ε = 0.4): at the S6 exchange rate, equilibrium information is not
+worth its feedstock. That is a statement about the λ's, not the chemistry —
+lower them and the optimum grows. The sizing table makes the whole frontier
+visible so the choice is auditable.
 
 `mode: "per_experiment"` **raises** rather than running silently: changing
 the reactor between rounds needs a swap-cost model in `ResourceMeter` and a
 per-round geometry in the truth-side laboratory, neither of which exists.
 
-Two things to know when reading the results:
-
-- If the optimum lands **on a bound**, the run says so. That means the
-  constraint is binding — the answer is the edge of your box, not the
-  chemistry. Widen the bounds to find the real optimum.
-- Blind RMSE is evaluated in the reactor the campaign actually ran in, so it
-  stays comparable *across strategies* (same reactor) but **not across runs
-  with different geometry settings** — the prediction target itself moved.
+**Blind RMSE stays comparable everywhere.** Scoring is always done in the
+*declared reference reactor*, whatever reactor the campaign ran in. This is
+well-defined precisely because the parameters are intrinsic: c(τ) depends
+on θ and τ only, never on which tube produced the data, so "how well does
+the learned model predict the reference reactor" is one fixed question —
+across strategies *and* across runs with different geometry settings. The
+audit's `blind_predictions_long.csv` uses the same scoring bridge, so it
+decomposes exactly the reported number. With geometry design off, the
+scoring bridge is the identical object and the legacy path is untouched.
 
 #### The publication audit trail
 
@@ -1979,7 +2020,7 @@ cd SDL_MBDoE
 for f in tests/*.py; do python $f; done      # 18 files, all standalone
 ```
 
-**179 tests across 18 files, all standalone-runnable and pytest-compatible.**
+**171 tests across 18 files, all standalone-runnable and pytest-compatible.**
 The acceptance criteria they pin down include: existing Layer 1/2 tests unchanged;
 `fixed_equal` ≡ the legacy port layout; reactor-length rescaling; optimized
 positions in-bounds/spaced/unique/deterministic; zero-noise deconvolution
@@ -2007,7 +2048,7 @@ boundary-aware evidence reliability; and survivorship-free aggregation.
 | `test_transfer.py` | 7 | `test_truth_firewall.py` | 5 |
 | `test_resource_accounting.py` | 7 | `test_measurement_fault.py` | 4 |
 | `test_parallel.py` | 13 | `test_audit_regression.py` | 13 |
-| `test_design_space.py` | 16 | `test_comparison.py` | 13 |
+| `test_design_space.py` | 16 | `test_comparison.py` | 18 |
 
 ### 7.7 Troubleshooting
 
@@ -2127,7 +2168,7 @@ SDL_MBDoE/
 ├── run_advanced_campaign.py       Layer 3 demo (Figures A–D)
 ├── run_advanced_benchmark.py      Monte Carlo benchmark (smoke/demo/publication)
 ├── results_advanced_v3/publication/   the §6 run: 40 seeds x budget 8 x 11 scenarios
-└── tests/                             179 tests, 18 files
+└── tests/                             171 tests, 18 files
     ├── self_test.py               20 baseline tests (unchanged)
     ├── test_geometry_packing.py   geometry/packing/observability/ladder (12)
     ├── test_nmr_calibration.py    one public calibration artifact + gate (12)
@@ -2145,7 +2186,7 @@ SDL_MBDoE/
     ├── test_parallel.py           parallel == serial, byte for byte (13)
     ├── test_audit_regression.py   audit ON == audit OFF, exactly (13)
     ├── test_design_space.py       continuous design + knobs + T_line (16)
-    └── test_comparison.py         efficiency analysis + geometry design (13)
+    └── test_comparison.py         efficiency analysis + geometry design (18)
 
 EGDA_NMR_sim/sim_nmr(2).py         standalone spectrum visualization tool
                                    (NOT used inside the campaign loop)

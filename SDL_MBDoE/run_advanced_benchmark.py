@@ -188,18 +188,36 @@ KNOBS = {
     #                   geometry AND what experiments?"  The reactor is
     #                   sized once from the PRIOR before round 1, honouring
     #                   DESIGN_SPACE["continuous"] for the refinement.
-    # NOTE: with this on, blind RMSE is computed in the CHOSEN reactor, so
-    # it stays comparable across strategies but not across runs with
-    # different geometry settings - the prediction target itself moves.
+    # Blind RMSE stays comparable even with this on: scoring is always done
+    # in the DECLARED reference reactor (the learned parameters are
+    # intrinsic - geometry changes tau(z), never the constants).
     "GEOMETRY_DESIGN": {
         "enabled": False,
         "mode": "per_campaign",       # "per_experiment" raises: not implemented
         "bounds": {"length_m": [0.05, 0.60],
                    "diameter_m": [0.002, 0.012]},
-        "levels": {"length_m": [0.10, 0.20, 0.40],
+        "levels": {"length_m": [0.10, 0.20, 0.40, 0.60],
                    "diameter_m": [0.004, 0.007, 0.010]},
         "resolution": {"length_m": 0.005, "diameter_m": 0.0005},
         "switch_cost_s": 1800.0,
+        # Ideality: an open laminar tube violates plug flow when
+        # t_rad/tau = Q/(pi D L eps) exceeds max_radial_ratio (Layer 1's own
+        # advisory boundary; the bore cancels - only length/flow/holdup
+        # help).  Infeasible candidates are rejected; "auto" also offers
+        # every geometry as a PACKED bed (spherical beads, eps ~ 0.4), the
+        # standard engineering fix, which is treated as plug-flow valid
+        # under the documented d_p <= d/10, L/d_p >= 100 assumption.
+        "packing": "auto",            # "auto" | True | False
+        "bed_void_fraction": 0.40,
+        "max_radial_ratio": 10.0,
+        # sizing objective = logdet F(reference design) - resource penalty
+        # of that campaign in that reactor; the weights are S6's 1x vector
+        # (one information-resource exchange rate for the whole framework).
+        # All zeros -> pure information ("bigger is better" warning applies).
+        "objective_lambdas": {"lambda_time_per_s": 2e-3,
+                              "lambda_material_per_mol": 50.0,
+                              "lambda_waste_per_mL": 5e-3,
+                              "lambda_energy_per_kJ": 0.05},
     },
 
     # ---- conventional-vs-optimized comparison ---------------------------- #
@@ -473,7 +491,17 @@ def main() -> None:
     from sdl import Layer1Bridge, OperatingConditions, literature_guess
     t_ref_K = bm.T_REF_C + 273.15
     guess = literature_guess(t_ref_K)
-    diag_bridge = Layer1Bridge(bm.GEOMETRY, t_ref_K, activity_model="pitzer")
+    geom_scan = bm.active_geometry(budget)
+    if bm.GEOMETRY_DESIGN.get("enabled", False):
+        say(f"    geometry design ON: campaigns run in the sized reactor "
+            f"(L={geom_scan['length_m'] * 100:.1f} cm, "
+            f"ID={geom_scan['diameter_m'] * 1e3:.1f} mm, "
+            f"{'packed' if geom_scan.get('packing_enabled') else 'open'}); "
+            f"blind scoring stays in the declared "
+            f"{bm.GEOMETRY['length_m'] * 100:.0f} cm reference reactor")
+        _write_rows(bm.geometry_sizing_table(budget),
+                    os.path.join(outdir, "geometry_sizing.csv"))
+    diag_bridge = Layer1Bridge(geom_scan, t_ref_K, activity_model="pitzer")
     scan_conds = [OperatingConditions(T, q / 2, q / 2, 1.0, c)
                   for T in (40.0, 100.0, 160.0)
                   for q in (0.5, 2.0, 8.0) for c in (0.5, 1.0)]
@@ -482,8 +510,8 @@ def main() -> None:
                                           "equilibrium_observability.csv"))
     verdict = obs.verdict(scan)
     print("\nEquilibrium observability over the admissible domain "
-          f"(geometry {bm.GEOMETRY['length_m']*100:.0f} cm x "
-          f"{bm.GEOMETRY['diameter_m']*1e3:.0f} mm ID, "
+          f"(geometry {geom_scan['length_m']*100:.0f} cm x "
+          f"{geom_scan['diameter_m']*1e3:.0f} mm ID, "
           f"V_liq={diag_bridge.geometry.liquid_volume_mL:.2f} mL):")
     print(f"  max phi1={verdict['max_phi1']:.3g}  max phi2="
           f"{verdict['max_phi2']:.3g}  "

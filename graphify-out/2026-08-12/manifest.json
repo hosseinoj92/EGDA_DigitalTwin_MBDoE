@@ -330,8 +330,8 @@
     "semantic_hash": "e482f36bc966704211f79b44861f7d96"
   },
   "README.md": {
-    "mtime": 1786532461.9145105,
-    "ast_hash": "d900a162704a3ca52b07efc7b46075c3",
+    "mtime": 1786533313.341281,
+    "ast_hash": "149c4ddbd6e2752268184d9add4f1675",
     "semantic_hash": ""
   },
   "SDL_MBDoE/README.md": {
@@ -440,8 +440,8 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/run_advanced_campaign.py": {
-    "mtime": 1786528094.7723615,
-    "ast_hash": "b3cd6c06bd42737cdf2582da344a82d8",
+    "mtime": 1786533160.5655959,
+    "ast_hash": "4cb0b13f41647133e5062af26bdb851a",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/__init__.py": {
@@ -650,8 +650,8 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_design_space.py": {
-    "mtime": 1786527371.3542268,
-    "ast_hash": "7202dc714c0f73cfe06671b93ad32e20",
+    "mtime": 1786533175.2345233,
+    "ast_hash": "e7ab2860861625ac7fd573663d196a98",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v4/publication/strategy_table.txt": {
@@ -1027,6 +1027,31 @@
   "SDL_MBDoE/tests/test_comparison.py": {
     "mtime": 1786531996.4577663,
     "ast_hash": "98fceffa7426586f9803bef0bc015561",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v4/campaign/config_used.json": {
+    "mtime": 1786533205.4232588,
+    "ast_hash": "622b8ef9ada3d1c2bd24aac8af0a7246",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v4/campaign/figure_A_spatial.png": {
+    "mtime": 1786533202.559875,
+    "ast_hash": "3f24b2e95279669ac5218bf76838d71b",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v4/campaign/figure_B_positions.png": {
+    "mtime": 1786533202.6240747,
+    "ast_hash": "8c8554ae672a5c0ddd4ab7c098de43b8",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v4/campaign/figure_C_spectra.png": {
+    "mtime": 1786533202.8603404,
+    "ast_hash": "b4de48f58d5f20ba9eb9101c0c84be8d",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v4/campaign/figure_D_recovery.png": {
+    "mtime": 1786533205.4215412,
+    "ast_hash": "50c2b8d26d77b9d7e562e11bee42eae6",
     "semantic_hash": ""
   }
 }

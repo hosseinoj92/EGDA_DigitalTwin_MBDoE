@@ -165,8 +165,13 @@ def test_geometry_optimization_picks_from_the_declared_space():
         lv = bm.GEOMETRY_DESIGN["levels"]
         assert g["length_m"] in lv["length_m"]
         assert g["diameter_m"] in lv["diameter_m"]
-        # the reactor changed, and the non-geometry fields survived
-        assert g["packing_enabled"] == bm.GEOMETRY["packing_enabled"]
+        # packing is now part of the decision ("auto"); whichever state won,
+        # it must be a coherent ReactorGeometry with the declared epsilon
+        if g["packing_enabled"]:
+            assert g["bed_void_fraction"] == \
+                bm.GEOMETRY_DESIGN["bed_void_fraction"]
+        else:
+            assert g["bed_void_fraction"] == 1.0
         # reporting metadata must not leak into ReactorGeometry kwargs
         assert not any(k.startswith("_") for k in g)
         from pfr_twin.parameters import ReactorGeometry
@@ -174,6 +179,145 @@ def test_geometry_optimization_picks_from_the_declared_space():
         # deterministic: the same configuration gives the same reactor
         bm._GEOMETRY_CACHE.clear()
         assert bm.active_geometry(8) == g
+    finally:
+        bm.apply_config(before)
+        bm._GEOMETRY_CACHE.clear()
+
+
+def test_open_tube_validity_the_bore_cancels():
+    """t_rad/tau = Q/(pi D L eps): only length, flow and holdup enter, so
+    changing the bore must not move the ratio - the physical fact the
+    whole packing story rests on."""
+    r7 = bm._radial_ratio({"length_m": 0.2, "diameter_m": 0.007})
+    r4 = bm._radial_ratio({"length_m": 0.2, "diameter_m": 0.004})
+    assert abs(r7 - r4) < 1e-12
+    # twice the length halves the ratio; packing zeroes it by assumption
+    assert abs(bm._radial_ratio({"length_m": 0.4, "diameter_m": 0.007})
+               - r7 / 2.0) < 1e-9
+    assert bm._radial_ratio({"length_m": 0.2, "diameter_m": 0.007,
+                             "packing_enabled": True,
+                             "bed_void_fraction": 0.4}) == 0.0
+    # the shipped 20 cm open demo tube exceeds the advisory boundary at
+    # nominal flow - which is WHY the sizing must not pick reactors like it
+    assert r7 > bm.GEOMETRY_DESIGN["max_radial_ratio"]
+
+
+def test_sizing_rejects_invalid_open_tubes_and_packing_rescues():
+    before = bm.resolved_config()
+    try:
+        bm._GEOMETRY_CACHE.clear()
+        bm.apply_config({"GEOMETRY_DESIGN": {"enabled": True,
+                                             "packing": "auto"}})
+        rows = bm.geometry_sizing_table(6)
+        open_bad = [r for r in rows if not r["packed"]
+                    and r["radial_ratio"]
+                    > bm.GEOMETRY_DESIGN["max_radial_ratio"]]
+        assert open_bad, "expected some infeasible open tubes in the grid"
+        assert all(not r["feasible"] for r in open_bad)
+        assert all(r["score"] == float("-inf") or r["score"] != r["score"]
+                   or not np.isfinite(r["score"]) for r in open_bad)
+        packed = [r for r in rows if r["packed"]]
+        assert packed and all(r["feasible"] for r in packed)
+        chosen = [r for r in rows if r["selected"]]
+        assert len(chosen) >= 1 and chosen[0]["feasible"]
+        # with beads forbidden AND a threshold below every open tube's
+        # ratio, the sizing must REFUSE rather than quietly pick an invalid
+        # reactor
+        bm._GEOMETRY_CACHE.clear()
+        bm.apply_config({"GEOMETRY_DESIGN": {"packing": False,
+                                             "max_radial_ratio": 5.0}})
+        try:
+            bm.active_geometry(6)
+        except ValueError as exc:
+            assert "packed" in str(exc) or "packing" in str(exc)
+        else:
+            raise AssertionError("all-infeasible sizing must raise")
+    finally:
+        bm.apply_config(before)
+        bm._GEOMETRY_CACHE.clear()
+
+
+def test_cost_term_prevents_runaway_size():
+    """With the resource penalty OFF the objective is monotone in
+    information and runs to the biggest reactor; with the S6 exchange rate
+    ON the optimum is interior - paying some cost for information but not
+    every cost.  Both directions are asserted so the lambda knob is shown
+    to be live, not decorative."""
+    before = bm.resolved_config()
+    try:
+        bm._GEOMETRY_CACHE.clear()
+        bm.apply_config({"GEOMETRY_DESIGN": {
+            "enabled": True, "packing": True,
+            "objective_lambdas": {"lambda_time_per_s": 0.0,
+                                  "lambda_material_per_mol": 0.0,
+                                  "lambda_waste_per_mL": 0.0,
+                                  "lambda_energy_per_kJ": 0.0}}})
+        g_free = bm.active_geometry(6)
+        bm._GEOMETRY_CACHE.clear()
+        bm.apply_config({"GEOMETRY_DESIGN": {
+            "objective_lambdas": {"lambda_time_per_s": 2e-3,
+                                  "lambda_material_per_mol": 50.0,
+                                  "lambda_waste_per_mL": 5e-3,
+                                  "lambda_energy_per_kJ": 0.05}}})
+        g_paid = bm.active_geometry(6)
+        v = lambda g: g["length_m"] * g["diameter_m"] ** 2
+        assert v(g_free) > v(g_paid), (g_free, g_paid)
+        # free-information mode picks the largest declared reactor
+        assert g_free["length_m"] == max(
+            bm.GEOMETRY_DESIGN["levels"]["length_m"])
+        # the paid optimum is NOT simply the cheapest candidate either
+        rows = bm.geometry_sizing_table(6)
+        feas = [r for r in rows if r["feasible"]]
+        cheapest = min(feas, key=lambda r: r["cost_penalty_nats"])
+        chosen = next(r for r in feas if r["selected"])
+        assert chosen["info_nats"] >= cheapest["info_nats"]
+    finally:
+        bm.apply_config(before)
+        bm._GEOMETRY_CACHE.clear()
+
+
+def test_sizing_lambdas_are_the_s6_exchange_rate():
+    """One information-resource exchange rate for the whole framework: the
+    sizing weights must equal the S6 resource controller's 1x vector, so
+    the reactor and the campaign are optimized against the same economy."""
+    s6 = bm._resource_lambdas(1.0)
+    lam = bm.GEOMETRY_DESIGN["objective_lambdas"]
+    assert lam["lambda_time_per_s"] == s6.lambda_time_per_s
+    assert lam["lambda_material_per_mol"] == s6.lambda_material_per_mol
+    assert lam["lambda_waste_per_mL"] == s6.lambda_waste_per_mL
+    assert lam["lambda_energy_per_kJ"] == s6.lambda_energy_per_kJ
+
+
+def test_blind_scoring_always_in_the_declared_reference_reactor():
+    """theta is intrinsic: c(tau) never depends on which tube produced the
+    data, so 'predict the reference reactor' is one fixed question and
+    blind RMSE stays comparable across geometry settings."""
+    from sdl import Layer1Bridge
+    before = bm.resolved_config()
+    try:
+        # OFF: the scoring bridge is the SAME OBJECT - zero-risk legacy path
+        br = Layer1Bridge(bm.GEOMETRY, bm.T_REF_C + 273.15,
+                          activity_model="pitzer")
+        assert bm._scoring_bridge(br) is br
+        # ON: a model living in the sized reactor is scored in the declared
+        bm._GEOMETRY_CACHE.clear()
+        bm.apply_config({"GEOMETRY_DESIGN": {"enabled": True}})
+        g = bm.active_geometry(6)
+        br_act = Layer1Bridge(g, bm.T_REF_C + 273.15,
+                              activity_model="pitzer", reversible=True)
+        sb = bm._scoring_bridge(br_act)
+        assert sb is not br_act
+        assert abs(sb.geometry.length_m - bm.GEOMETRY["length_m"]) < 1e-12
+        assert abs(sb.geometry.diameter_m
+                   - bm.GEOMETRY["diameter_m"]) < 1e-12
+        # the model configuration travels with it
+        assert sb.reversible == br_act.reversible
+        assert sb.activity_model == br_act.activity_model
+        # and the audit decomposition still reproduces the reported number
+        out = bm.campaign_task("S1_ideal", "F", 1, 3, audit=True)
+        bp = out["audit"]["blind_predictions_long"]
+        rmse = float(np.sqrt(np.mean([r["squared_error_M2"] for r in bp])))
+        assert abs(rmse - float(out["rows"][-1]["blind_rmse_M"])) < 1e-9
     finally:
         bm.apply_config(before)
         bm._GEOMETRY_CACHE.clear()
