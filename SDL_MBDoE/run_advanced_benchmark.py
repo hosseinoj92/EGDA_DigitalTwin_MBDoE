@@ -68,6 +68,7 @@ except ImportError:                     # pragma: no cover - fallback
 from sdl_advanced import audit_export as aex                      # noqa: E402
 from sdl_advanced import audit_summary as asum                   # noqa: E402
 from sdl_advanced import benchmark as bm                         # noqa: E402
+from sdl_advanced import efficiency as eff                       # noqa: E402
 from sdl_advanced import nmr_examples as nex                     # noqa: E402
 from sdl_advanced import parallel as par                         # noqa: E402
 from sdl_advanced import reporting as rep                        # noqa: E402
@@ -76,9 +77,11 @@ from sdl_advanced import observability as obs                    # noqa: E402
 
 CONFIG = {
     "mode": "publication",                 # "smoke" | "demo" | "publication"
-    # NEW directory: the v3 publication run stays exactly where it is, so
-    # the results the README currently reports are never overwritten.
-    "outdir": "results_advanced_v4/publication",
+    # NEW directory per configuration change: results_advanced_v4 holds the
+    # completed discrete / reactor-temperature-line run and must not be
+    # overwritten.  v5 is the first run with the configurable transfer-line
+    # temperature (25 C) and the optional continuous design space.
+    "outdir": "results_advanced_v5/publication",
     # optional overrides of the mode defaults (None -> use MODES[mode]):
     "seeds": None,
     "budget": None,
@@ -118,6 +121,211 @@ CONFIG = {
     # nmr_measurements_long.csv and posterior_covariance_long.csv.
     "audit": True,
     "audit_examples": True,     # the three representative NMR spectra
+}
+
+# ========================================================================= #
+# EVERY SCIENTIFIC KNOB, in one place
+# ========================================================================= #
+# These are applied to sdl_advanced.benchmark by `apply_config` at start-up
+# and replayed inside every worker process, so CONFIG is the authority for a
+# run and the module constants are only library defaults.  An unknown block
+# or field RAISES rather than being ignored - a silently-dropped knob is
+# indistinguishable from one that had no effect.
+#
+# Delete a key to keep the library default; the resolved values of ALL of
+# them are written to benchmark_config.json regardless.
+KNOBS = {
+    # ---- reactor ------------------------------------------------------- #
+    "GEOMETRY": {
+        "length_m": 0.20,
+        "diameter_m": 0.007,
+        "packing_enabled": False,     # True -> inert-packed bed
+        "bed_void_fraction": 1.0,     # epsilon; only used when packed
+    },
+    "T_REF_C": 60.0,                  # Arrhenius reference temperature
+    "N_PORTS": 10,                    # axial samples per profile
+
+    # ---- hidden truth (benchmark scoring only) -------------------------- #
+    "TRUTH": {"k1_ref": 1.00e-3, "Ea1_J": 40_000.0,
+              "k2_ref": 6.50e-4, "Ea2_J": 48_000.0,
+              "K1_ref": 0.90, "K2_ref": 0.07},
+
+    # ---- design space --------------------------------------------------- #
+    # The factorial grid the classical campaign walks, and the bounds the
+    # continuous optimizer is allowed to roam inside.
+    "DESIGN": {
+        "T_C_levels": [40, 60, 80, 100, 120, 140, 160],
+        "Q_total_mL_min_levels": [0.5, 2.0, 8.0],
+        "C_cat_M_levels": [0.5, 1.0],
+        "C_EGDA_M_levels": [1.0],
+        "C_EGDA_M": 1.0,
+        "fixed_design_T_C": [40, 60, 80, 100, 120, 140, 160],
+        "nominal_Q_total_mL_min": 1.0,
+        "nominal_C_cat_M": 0.5,
+        "continuous_bounds": {"T_C": [40.0, 160.0],
+                              "Q_total_mL_min": [0.5, 8.0],
+                              "C_cat_M": [0.5, 1.0],
+                              "C_EGDA_M": [1.0, 1.0]},   # lo == hi -> fixed
+    },
+    # CONTINUOUS vs DISCRETE design.  False = the classical grid-only
+    # campaign (the published v3 behaviour).  True = the optimizer may
+    # propose any point inside continuous_bounds, snapped to the resolution
+    # the hardware can actually command, and accepted only when it strictly
+    # beats the best grid point - so it can never do worse.
+    "DESIGN_SPACE": {
+        "continuous": False,
+        "resolution": {"T_C": 0.1,             # deg C
+                       "Q_total_mL_min": 0.1,   # mL/min
+                       "C_cat_M": 1.0e-4,       # 0.1 mM
+                       "C_EGDA_M": 1.0e-4},     # 0.1 mM
+        "continuous_maxiter": 40,
+        "continuous_restarts": 2,
+    },
+
+    # ---- reactor geometry as a DESIGN VARIABLE (optional) --------------- #
+    # enabled=False -> "I have this reactor, what experiments?"  (default)
+    # enabled=True  -> "I am building a reactor for this chemistry, what
+    #                   geometry AND what experiments?"  The reactor is
+    #                   sized once from the PRIOR before round 1, honouring
+    #                   DESIGN_SPACE["continuous"] for the refinement.
+    # NOTE: with this on, blind RMSE is computed in the CHOSEN reactor, so
+    # it stays comparable across strategies but not across runs with
+    # different geometry settings - the prediction target itself moves.
+    "GEOMETRY_DESIGN": {
+        "enabled": False,
+        "mode": "per_campaign",       # "per_experiment" raises: not implemented
+        "bounds": {"length_m": [0.05, 0.60],
+                   "diameter_m": [0.002, 0.012]},
+        "levels": {"length_m": [0.10, 0.20, 0.40],
+                   "diameter_m": [0.004, 0.007, 0.010]},
+        "resolution": {"length_m": 0.005, "diameter_m": 0.0005},
+        "switch_cost_s": 1800.0,
+    },
+
+    # ---- conventional-vs-optimized comparison ---------------------------- #
+    # Which strategy plays "the conventional method" the methodology must
+    # beat, and the accuracy ladders used for the budget-to-target analysis.
+    "COMPARISON": {
+        "reference_strategy": {"S1_ideal": "A", "S2_nmr": "B",
+                               "S3_transport": "D", "S3ab_delay": "D",
+                               "S3ab_rtd": "D", "S4a_ambiguity": "D",
+                               "S4b_identifiable": "D",
+                               "S4c_out_of_domain": "F",
+                               "S5_inadequacy": "D", "S6_resources": "D",
+                               "S7_spatial_modes": "F-zfixed"},
+        "default_reference": "A",
+        "targets": {"param_err_pct": [50.0, 30.0, 20.0, 10.0, 5.0],
+                    "blind_rmse_M": [1.0e-2, 5.0e-3, 2.0e-3, 1.0e-3]},
+        "trajectory_seed": 1,
+    },
+
+    # ---- sample transfer line ------------------------------------------- #
+    # The line is COOLED before the NMR flow cell: T_line_C is the commanded
+    # line temperature, NOT the reactor's.  It is a large effect - a sample
+    # leaving a 160 C reactor into a 25 C line barely reacts on the way,
+    # whereas at reactor temperature it keeps converting.  None means "stays
+    # at reactor temperature" (the old assumption).
+    "TRANSFER_TRUE": {
+        "enabled": True,
+        "T_line_C": 25.0,
+        "Q_sample_mL_min": 0.5,
+        "V_fixed_mL": 0.15,
+        "geometry": "constant",        # "constant" | "linear"
+        "v_per_m_mL": 0.0,
+        "rtd": "gamma",                # "delta" (plug) | "gamma"
+        "n_tanks": 4.0,
+        "n_quad": 5,
+        "react_in_line": True,
+        "carryover": True,
+        "flush_volumes": 3.0,
+    },
+
+    # ---- NMR instrument -------------------------------------------------- #
+    "ACQ": {
+        "spectrometer_MHz": 80.168,
+        "nmr_temperature_C": 27.0,
+        "n_points": 2048,
+        "acquisition_time_s": 4.096,
+        "repetition_time_s": 15.0,
+        "n_scans": 1,
+        "engine": "analytic",          # "analytic" | "fid"
+    },
+    # ASSUMED nuisances of the synthetic spectrum - not measured Fourier-80
+    # properties.  These are the truth side; the fitter never sees them.
+    "NMR_NUISANCE_TRUE": {
+        "enabled": True,
+        "noise_sigma": 0.10,
+        "shift_drift_ppm": 0.004,
+        "shift_jitter_ppm": 0.001,
+        "linewidth_rel_sigma": 0.08,
+        "baseline_offset": 0.02,
+        "baseline_curve": 0.03,
+        "phase_error_deg": 2.0,
+        "gain_drift_rel_sigma": 0.01,
+    },
+    # assumed direct-observation noise for the A-E baselines
+    "NOISE_DIRECT": {"sigma_abs_M": 0.004, "sigma_rel": 0.02,
+                     "rho_overlap": 0.3},
+
+    # ---- spatial sampling ------------------------------------------------ #
+    "SPATIAL": {
+        "candidate_grid_size": 41,
+        "z_min_fraction": 0.02,
+        "z_max_fraction": 1.0,
+        "min_spacing_fraction": 0.02,
+        "continuous_refinement": False,
+    },
+
+    # ---- Bayesian design (strategy F) ------------------------------------ #
+    "ADVANCED_DESIGN": {
+        "top_k": 3,                    # candidates surviving the FIM screen
+        "n_particles": 16,             # posterior particles per EIG estimate
+        "n_outer": 24,                 # outer MC samples per EIG estimate
+        "alpha_param": 1.0,            # weight on parameter EIG
+        "beta_model": 1.0,             # weight on model-discrimination EIG
+        "beta_model_discrimination": 4.0,
+    },
+
+    # ---- model-inadequacy governor --------------------------------------- #
+    "GOVERNOR": {
+        "alpha_campaign": 0.05,
+        "discrimination_prob": 0.90,
+        "qc_fail_fraction": 0.25,
+        "chi2_dof_ratio_override": 25.0,
+        # kappa: DERIVED FROM CONTROL DATA (validation.derive_systematic_
+        # allowance), never tuned on benchmark performance.  Re-derive it
+        # whenever the NMR calibration changes.
+        "systematic_allowance_nmr": 0.47,
+        "systematic_allowance_direct": 0.0,
+    },
+
+    # ---- measurement-fault QC gate ---------------------------------------- #
+    "QC_GATE": {
+        "enabled_for_nmr": True,
+        "max_retries": 1,              # reacquisitions per failing position
+        "max_reject_fraction": 0.5,    # above this per round -> pause
+    },
+
+    # ---- resource model ---------------------------------------------------- #
+    # lambda_* = 0 recovers pure information maximization; S6 sweeps them.
+    "RESOURCE_COSTS": {
+        "stabilization_volumes": 3.0,
+        "temp_change_s_per_K": 20.0,
+        "temp_ambient_C": 25.0,
+        "nmr_acquisition_s": 60.0,
+        "capillary_speed_m_s": 0.002,
+        "flush_time_s": 30.0,
+        "sample_volume_mL": 0.3,
+        "flush_volume_mL": 0.45,
+        "rho_cp_J_per_mL_K": 4.18,
+        "energy_ramp_J_per_K": 500.0,
+        "lambda_time_per_s": 0.0,
+        "lambda_material_per_mol": 0.0,
+        "lambda_waste_per_mL": 0.0,
+        "lambda_energy_per_kJ": 0.0,
+        "lambda_switch": 0.0,
+        "lambda_motion_per_m": 0.0,
+    },
 }
 
 #: audit tables grouped into subdirectories so the trail stays navigable
@@ -193,6 +401,12 @@ def _finals(rows, scenario):
 
 def main() -> None:
     cfg = dict(CONFIG)
+    # CONFIG is the authority for this run: apply every knob to the
+    # benchmark module BEFORE anything reads it (MODES, scenarios and the
+    # observability scan all consume GEOMETRY/DESIGN).  Strict - an unknown
+    # knob raises here rather than being silently ignored.
+    knobs = dict(KNOBS)
+    resolved_knobs = bm.apply_config(knobs)
     mode = bm.MODES[cfg["mode"]]
     seeds = cfg["seeds"] or mode["seeds"]
     budget = cfg["budget"] or mode["budget"]
@@ -237,6 +451,22 @@ def main() -> None:
             "sums in a nondeterministic order, so bit-identical agreement "
             "with a serial run is no longer guaranteed.")
     say(f"    audit trail: {'ON -> ' + os.path.join(outdir, 'audit') if audit_on else 'off'}")
+    ds = bm.DESIGN_SPACE
+    if ds.get("continuous"):
+        r = ds["resolution"]
+        say(f"    design space: CONTINUOUS within bounds, snapped to "
+            f"{r['T_C']} C / {r['Q_total_mL_min']} mL/min / "
+            f"{r['C_cat_M'] * 1e3:.1f} mM cat / {r['C_EGDA_M'] * 1e3:.1f} mM EGDA")
+    else:
+        say("    design space: DISCRETE factorial grid (classical)")
+    tl = bm.TRANSFER_TRUE.T_line_C
+    if not bm.TRANSFER_TRUE.enabled:
+        line_note = "disabled"
+    elif tl is None:
+        line_note = "sample stays at REACTOR temperature"
+    else:
+        line_note = f"cooled to T_line = {tl:.1f} C"
+    say(f"    transfer line: {line_note}")
 
     # ---- (0B) equilibrium-observability diagnostic, BEFORE any campaign - #
     # uses ASSUMED (literature) parameters only: firewall-clean
@@ -295,9 +525,11 @@ def main() -> None:
     # single time.
     all_rows, all_prows, all_status, runtimes = [], [], [], {}
     audit_all = aex.empty_bundle() if audit_on else None
+    # workers re-import the module and start from DEFAULTS, so the same
+    # knobs are replayed inside every process (see bm.worker_init)
     executor = par.make_executor(cfg.get("n_workers", "auto"),
                                  initializer=bm.worker_init,
-                                 initargs=(budget,))
+                                 initargs=(budget, knobs))
     try:
         for scen in scenarios:
             spec = bm.SCENARIOS[scen]
@@ -507,6 +739,45 @@ def main() -> None:
             rep.figure_pareto_labeled(
                 {k: v for k, v in f6.items() if "blind_rmse_M" in v},
                 os.path.join(fdir, "figure_pareto_S6_labeled.png"))
+        # -- conventional vs optimized: the "what did it buy" analysis ---- #
+        cdir = os.path.join(adir, "comparison")
+        os.makedirs(cdir, exist_ok=True)
+        btt_all, mr_all, traj_all = [], [], []
+        for scen in scenarios:
+            spec = bm.SCENARIOS[scen]
+            ref = bm.reference_strategy(scen)
+            strats = [x for x in spec.strategies]
+            btt = eff.budget_to_target_rows(all_rows, scen, strats, ref,
+                                            seeds, bm.COMPARISON["targets"])
+            mr = eff.matched_resource_rows(all_rows, scen, strats, ref, seeds)
+            traj = eff.trajectory_rows(
+                all_rows, audit_all.get("design_history", []), scen, ref)
+            btt_all += btt
+            mr_all += mr
+            traj_all += traj
+        btt_sum = eff.summarize_budget_to_target(btt_all)
+        mr_sum = eff.summarize_matched_resource(mr_all)
+        _write_rows(btt_all, os.path.join(cdir, "budget_to_target.csv"))
+        _write_rows(btt_sum, os.path.join(cdir, "budget_to_target_summary.csv"))
+        _write_rows(mr_all, os.path.join(cdir, "accuracy_at_matched_resource.csv"))
+        _write_rows(mr_sum, os.path.join(cdir,
+                                         "accuracy_at_matched_resource_summary.csv"))
+        _write_rows(traj_all, os.path.join(cdir, "design_trajectory.csv"))
+        _write_rows(eff.headline_rows(btt_sum, mr_sum),
+                    os.path.join(cdir, "headline_comparison.csv"))
+        for scen in scenarios:
+            ref = bm.reference_strategy(scen)
+            rep.figure_efficiency(
+                all_rows, btt_sum, mr_sum, scen, ref,
+                os.path.join(fdir, f"figure_efficiency_{scen}.png"))
+            rep.figure_design_trajectory(
+                traj_all, scen, int(bm.COMPARISON["trajectory_seed"]), ref,
+                os.path.join(fdir, f"figure_trajectory_{scen}.png"))
+        if "S7_spatial_modes" in scenarios:
+            rep.figure_spatial_value(
+                all_rows, "S7_spatial_modes",
+                os.path.join(fdir, "figure_spatial_value.png"))
+
         # -- domain checks ------------------------------------------------- #
         _write_rows(
             asum.parameter_domain_check_rows(
@@ -549,6 +820,9 @@ def main() -> None:
             # file is reassembled in submission order and every campaign is
             # seeded from its own (scenario, strategy, seed), so these
             # numbers do not enter any reported quantity.
+            # every knob's RESOLVED value - what the run actually used,
+            # not what the defaults happen to be today
+            "knobs_resolved": resolved_knobs,
             "execution": {"n_workers_resolved": n_proc,
                           "threads_per_worker": threads,
                           "cpu_count": os.cpu_count(),

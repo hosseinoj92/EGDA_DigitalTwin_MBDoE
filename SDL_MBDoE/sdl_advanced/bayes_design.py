@@ -47,6 +47,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 from scipy.special import logsumexp
 
+from sdl.design_space import DesignResolution, refine
 from sdl.layer1_bridge import OperatingConditions
 from sdl.observation import Measurement
 
@@ -175,6 +176,18 @@ class AdvancedDesignConfig:
     #                  process prediction may be reachable before every
     #                  microscopic parameter is individually identifiable
     objective: str = "parameter"
+    # ---- continuous design space (optional) ---------------------------- #
+    # OFF by default, so an unchanged config reproduces the discrete
+    # benchmark exactly.  When on, the best grid candidate is refined inside
+    # `continuous_bounds` on the CHEAP SCREEN score, snapped to the
+    # instrument resolution, and then added to the shortlist so it competes
+    # against the grid candidates on the same full EIG utility.  Refining on
+    # the EIG directly would cost n_particles x n_outer forward solves per
+    # optimizer step; the screen is its smooth, affordable surrogate and the
+    # EIG remains the arbiter.
+    continuous: bool = False
+    continuous_maxiter: int = 40
+    continuous_restarts: int = 2       # extra starts, drawn from the design RNG
 
 
 @dataclass
@@ -202,7 +215,8 @@ class AdvancedSelector:
                  bounds: Optional[Dict[str, Sequence[float]]] = None,
                  seed: int = 0,
                  reference_conditions: Optional[Sequence] = None,
-                 recorder=None):
+                 recorder=None,
+                 resolution: Optional[DesignResolution] = None):
         # reference_conditions: [(u, z_array), ...] defining the PREDICTIVE
         # objective's reference grid.  Must be an internal documented grid -
         # NEVER the blind validation set (which stays invisible by design).
@@ -212,6 +226,8 @@ class AdvancedSelector:
         # decision; it is never consulted, and it never draws a random
         # number, so the decision sequence is identical with and without it.
         self.recorder = recorder
+        #: instrument resolution used when continuous refinement is on
+        self.resolution = resolution or DesignResolution()
         if not candidates:
             raise ValueError("Need at least one operating-condition candidate.")
         self.ensemble = ensemble
@@ -292,20 +308,11 @@ class AdvancedSelector:
         screened: List[Tuple[float, OperatingConditions, np.ndarray,
                              SensitivityField]] = []
         for u in self.candidates:
-            field = self._field_for(u)
-            zs = self.designer.positions(field, F0)
-            F = F0.copy()
-            for z in zs:
-                F = F + self.designer._fim_at(field, float(z))
-            cost = self.meter.cost_of_candidate(
-                u.T_C, u.Q1_mL_min + u.Q2_mL_min, u.C_EGDA_M, u.C_cat_M, zs)
-            if G is not None:            # predictive-variance reduction
-                score = pv0 - self._pred_var(G, F) - cost
-            else:                        # D-optimal information gain
-                score = _logdet_floored(F) - _logdet_floored(F0) - cost
-            screened.append((score, u, zs, field))
+            screened.append(self._screen(u, F0, G, pv0))
         screened.sort(key=lambda t: -t[0])
         top = screened[:max(cfg.top_k, 1)]
+        if cfg.continuous and self.bounds:
+            top = self._with_continuous_candidate(top, F0, G, pv0)
 
         if governor_state == GovernorState.MODEL_INADEQUATE:
             return self._select_diagnostic(top, screened, governor_state)
@@ -368,6 +375,56 @@ class AdvancedSelector:
             return
         self.recorder.record_candidates(governor_state, mode, screened,
                                         evaluated, chosen_rank, beta)
+
+    # ------------------------------------------------------------------ #
+    def _screen(self, u: OperatingConditions, F0: np.ndarray,
+                G: Optional[np.ndarray], pv0: float):
+        """Cheap screen of one candidate: (score, u, z_positions, field).
+
+        Deterministic - no RNG - so it is safe to call inside a continuous
+        optimizer without disturbing the EIG stream."""
+        field = self._field_for(u)
+        zs = self.designer.positions(field, F0)
+        F = F0.copy()
+        for z in zs:
+            F = F + self.designer._fim_at(field, float(z))
+        cost = self.meter.cost_of_candidate(
+            u.T_C, u.Q1_mL_min + u.Q2_mL_min, u.C_EGDA_M, u.C_cat_M, zs)
+        if G is not None:                # predictive-variance reduction
+            score = pv0 - self._pred_var(G, F) - cost
+        else:                            # D-optimal information gain
+            score = _logdet_floored(F) - _logdet_floored(F0) - cost
+        return (score, u, zs, field)
+
+    def _with_continuous_candidate(self, top, F0, G, pv0):
+        """Refine the best screened point inside the continuous bounds and
+        put the result at the head of the shortlist.
+
+        The refined point is SNAPPED to the instrument resolution and kept
+        only if it strictly beats the grid winner on the screen score, so
+        the shortlist can only improve.  It then faces the same EIG
+        evaluation as the grid candidates, which is what makes the final
+        decision comparable between discrete and continuous mode.
+
+        The restarts draw from `self._rng` - the design stream - so a
+        continuous run is reproducible but deliberately NOT bitwise equal to
+        a discrete one: it is a different algorithm exploring more points."""
+        if not top:
+            return top
+        best_score, best_u, _zs, _f = top[0]
+        u_ref, s_ref, improved = refine(
+            lambda u: self._screen(u, F0, G, pv0)[0],
+            best_u, best_score, self.bounds,
+            resolution=self.resolution,
+            maxiter=int(self.cfg.continuous_maxiter),
+            n_restarts=int(self.cfg.continuous_restarts),
+            rng=self._rng)
+        if not improved:
+            return top
+        entry = self._screen(u_ref, F0, G, pv0)
+        # keep the shortlist the configured length: the refined point
+        # replaces the WEAKEST member, never the grid winner it beat
+        return [entry] + list(top[:max(self.cfg.top_k, 1) - 1])
 
     # ------------------------------------------------------------------ #
     def _normalized_u(self, u: OperatingConditions) -> np.ndarray:

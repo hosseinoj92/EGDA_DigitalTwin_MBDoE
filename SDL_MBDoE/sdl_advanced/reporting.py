@@ -632,3 +632,232 @@ def figure_pareto_labeled(points: Dict[str, Dict[str, float]], path: str,
     _save(fig, path)
     _csv(path.replace(".png", ".csv"),
          ["strategy"] + [rk for rk, _ in axes_keys] + ["blind_rmse_M"], rows)
+
+
+# ========================================================================= #
+# Conventional-vs-optimized comparison figures
+# ========================================================================= #
+def figure_efficiency(rows: List[Dict], btt_summary: List[Dict],
+                      mr_summary: List[Dict], scenario: str, reference: str,
+                      path: str, resource: str = "egda_mol",
+                      resource_label: str = "EGDA consumed / mol",
+                      metric: str = "param_err_pct",
+                      metric_label: str = "parameter error / %") -> None:
+    """The headline figure: accuracy against CUMULATIVE RESOURCE, not round.
+
+    Plotting against rounds silently assumes a round costs the same for
+    every method, which is exactly the assumption under test - the
+    conventional ladder and an adaptive campaign buy different amounts of
+    information per gram.  With resource on the x-axis the comparison is
+    what an experimenter actually cares about, and the horizontal line at
+    the reference's FINAL accuracy turns the claim into a distance you can
+    read off: where each curve crosses it is what that accuracy cost.
+    """
+    sel = [r for r in rows if r["scenario"] == scenario]
+    if not sel:
+        return
+    strategies = sorted({r["strategy"] for r in sel})
+    fig, axes = plt.subplots(1, 2, figsize=(13.0, 5.0),
+                             gridspec_kw={"width_ratios": [1.35, 1.0]})
+    ax = axes[0]
+    ref_final = []
+    out_rows = []
+    for strat in strategies:
+        seeds = sorted({int(r["seed"]) for r in sel
+                        if r["strategy"] == strat})
+        # median trajectory over seeds, interpolated onto a common resource
+        # grid so seeds with different spends can be averaged honestly
+        curves = []
+        for sd in seeds:
+            h = sorted((r for r in sel if r["strategy"] == strat
+                        and int(r["seed"]) == sd),
+                       key=lambda r: int(r["round"]))
+            x = np.array([float(r.get(resource, np.nan)) for r in h])
+            y = np.array([float(r.get(metric, np.nan)) for r in h])
+            ok = np.isfinite(x) & np.isfinite(y)
+            if ok.sum() >= 2:
+                curves.append((x[ok], y[ok]))
+            if strat == reference and ok.sum():
+                ref_final.append(y[ok][-1])
+        if not curves:
+            continue
+        lo = max(c[0][0] for c in curves)
+        hi = min(c[0][-1] for c in curves)
+        if not np.isfinite(lo) or not np.isfinite(hi) or hi <= lo:
+            continue
+        grid = np.linspace(lo, hi, 60)
+        stack = np.vstack([np.interp(grid, cx, cy) for cx, cy in curves])
+        med = np.median(stack, axis=0)
+        q1, q3 = np.quantile(stack, 0.25, axis=0), np.quantile(stack, 0.75,
+                                                               axis=0)
+        c = STRAT_COLOR.get(strat, None)
+        is_ref = strat == reference
+        ax.plot(grid, med, "-" if not is_ref else "--", lw=2.4 if is_ref else 1.8,
+                color="0.35" if is_ref else c,
+                label=f"{strat}{'  (conventional reference)' if is_ref else ''}")
+        ax.fill_between(grid, q1, q3, color="0.35" if is_ref else c,
+                        alpha=0.15, lw=0)
+        out_rows.extend([[scenario, strat, resource, g, m, a, b]
+                         for g, m, a, b in zip(grid, med, q1, q3)])
+    target = float(np.median(ref_final)) if ref_final else None
+    if target is not None and np.isfinite(target):
+        ax.axhline(target, color="#a23b2e", lw=1.2, ls=":")
+        ax.annotate(f"accuracy the conventional method reached\n"
+                    f"after its FULL budget ({target:.3g})",
+                    xy=(ax.get_xlim()[1], target), xytext=(-6, 6),
+                    textcoords="offset points", ha="right", va="bottom",
+                    fontsize=8, color="#a23b2e")
+    ax.set_xlabel(resource_label)
+    ax.set_ylabel(metric_label)
+    ax.set_yscale("log")
+    ax.grid(alpha=0.25)
+    ax.set_axisbelow(True)
+    ax.legend(fontsize=8, frameon=False)
+    ax.set_title(f"{scenario}: accuracy per unit resource "
+                 f"(median over seeds, IQR band)", fontsize=10)
+
+    # ---- right panel: savings at matched accuracy ----------------------- #
+    ax2 = axes[1]
+    res_keys = ("egda_mol", "time_s", "energy_kJ", "nmr_acquisitions")
+    labels = ("EGDA", "time", "energy", "acquisitions")
+    cand = [r for r in btt_summary if r["scenario"] == scenario
+            and r["metric"] == "param_err_pct" and r["frac_reached"] >= 0.5
+            and r["n_paired"] >= 2 and r["strategy"] != reference]
+    if cand:
+        tgt = min(r["target"] for r in cand)
+        shown = [r for r in cand if r["target"] == tgt]
+        x = np.arange(len(res_keys))
+        w = 0.8 / max(len(shown), 1)
+        for i, r in enumerate(shown):
+            vals = [100.0 * (1.0 - r[f"ratio_{k}_median"])
+                    if np.isfinite(r[f"ratio_{k}_median"]) else 0.0
+                    for k in res_keys]
+            ax2.bar(x + (i - (len(shown) - 1) / 2) * w, vals, w,
+                    color=STRAT_COLOR.get(r["strategy"], None),
+                    label=f"{r['strategy']}  (n={r['n_paired']})")
+        ax2.axhline(0.0, color="0.3", lw=1.0)
+        ax2.set_xticks(x)
+        ax2.set_xticklabels(labels)
+        ax2.set_ylabel(f"resource SAVED vs {reference} / %\n"
+                       f"(positive = cheaper)")
+        ax2.set_title(f"cost to reach {tgt:g}% parameter error", fontsize=10)
+        ax2.legend(fontsize=8, frameon=False)
+        ax2.grid(axis="y", alpha=0.25)
+        ax2.set_axisbelow(True)
+    else:
+        ax2.text(0.5, 0.5, "no target reached by at least half the seeds\n"
+                           "in both methods - nothing to compare",
+                 ha="center", va="center", fontsize=9, color="0.4",
+                 transform=ax2.transAxes)
+        ax2.set_axis_off()
+    fig.tight_layout()
+    _save(fig, path)
+    _csv(path.replace(".png", ".csv"),
+         ["scenario", "strategy", "resource_axis", "resource", "median",
+          "q25", "q75"], out_rows)
+
+
+def figure_spatial_value(rows: List[Dict], scenario: str, path: str,
+                         modes: Sequence[str] = ("F-zfixed", "F-zbatch",
+                                                 "F-zadaptive")) -> None:
+    """What does CHOOSING the sampling positions buy over equal spacing?
+
+    Same scenario, same seeds, same acquisition budget - the only
+    difference is how z is chosen, so the gap is attributable to the
+    spatial design alone.  Plotted against acquisitions rather than rounds
+    because that is the quantity held equal."""
+    sel = [r for r in rows if r["scenario"] == scenario
+           and r["strategy"] in modes]
+    if not sel:
+        return
+    fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.4))
+    out = []
+    for j, (metric, lab) in enumerate((("param_err_pct",
+                                        "parameter error / %"),
+                                       ("blind_rmse_M", "blind RMSE / M"))):
+        for strat in modes:
+            h = [r for r in sel if r["strategy"] == strat]
+            if not h:
+                continue
+            rounds = sorted({int(r["round"]) for r in h})
+            xs, ys, q1, q3 = [], [], [], []
+            for rnd in rounds:
+                rr = [r for r in h if int(r["round"]) == rnd]
+                acq = np.median([float(r["nmr_acquisitions"]) for r in rr])
+                v = np.array([float(r[metric]) for r in rr])
+                v = v[np.isfinite(v)]
+                if not v.size:
+                    continue
+                xs.append(acq)
+                ys.append(float(np.median(v)))
+                q1.append(float(np.quantile(v, 0.25)))
+                q3.append(float(np.quantile(v, 0.75)))
+            if not xs:
+                continue
+            style = "--" if "fixed" in strat else "-"
+            axes[j].plot(xs, ys, style, marker="o", ms=4, lw=1.8,
+                         label=strat.replace("F-z", ""))
+            axes[j].fill_between(xs, q1, q3, alpha=0.14, lw=0)
+            if j == 0:
+                out.extend([[scenario, strat, a, b, c, d]
+                            for a, b, c, d in zip(xs, ys, q1, q3)])
+        axes[j].set_xlabel("NMR acquisitions (the matched budget)")
+        axes[j].set_ylabel(lab)
+        axes[j].set_yscale("log")
+        axes[j].grid(alpha=0.25)
+        axes[j].set_axisbelow(True)
+    axes[0].legend(fontsize=8, frameon=False, title="axial positions",
+                   title_fontsize=8)
+    fig.suptitle(f"{scenario}: value of CHOOSING the sampling positions "
+                 f"(equal spacing vs optimized vs adaptive, equal budget)",
+                 fontsize=10)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    _save(fig, path)
+    _csv(path.replace(".png", ".csv"),
+         ["scenario", "mode", "nmr_acquisitions", "median_param_err_pct",
+          "q25", "q75"], out)
+
+
+def figure_design_trajectory(traj: List[Dict], scenario: str, seed: int,
+                             reference: str, path: str) -> None:
+    """What each method actually DID, round by round, for one seed.
+
+    The conventional ladder walks a protocol; the optimizer moves around the
+    design space.  Showing the decisions next to the accuracy they produced
+    is what makes the mechanism legible - a reader can see that the
+    optimizer went hot-and-slow early because that is where the equilibrium
+    information is."""
+    sel = [r for r in traj if r["scenario"] == scenario
+           and int(r["seed"]) == seed]
+    if not sel:
+        return
+    strategies = sorted({r["strategy"] for r in sel})
+    panels = (("T_C", "temperature / C"),
+              ("Q_total_mL_min", "total flow / mL/min"),
+              ("z_over_L_max", "deepest sample z/L"),
+              ("param_err_pct", "parameter error / %"))
+    fig, axes = plt.subplots(1, len(panels), figsize=(4.3 * len(panels), 3.9))
+    for j, (key, lab) in enumerate(panels):
+        for strat in strategies:
+            h = sorted((r for r in sel if r["strategy"] == strat),
+                       key=lambda r: int(r["round"]))
+            x = [int(r["round"]) for r in h]
+            y = [float(r.get(key, np.nan)) for r in h]
+            if not any(np.isfinite(v) for v in y):
+                continue
+            is_ref = strat == reference
+            axes[j].plot(x, y, "--" if is_ref else "-", marker="s" if is_ref
+                         else "o", ms=4, lw=2.2 if is_ref else 1.6,
+                         color="0.35" if is_ref else STRAT_COLOR.get(strat),
+                         label=strat)
+        axes[j].set_xlabel("campaign round")
+        axes[j].set_ylabel(lab)
+        axes[j].grid(alpha=0.25)
+        axes[j].set_axisbelow(True)
+        if key == "param_err_pct":
+            axes[j].set_yscale("log")
+    axes[0].legend(fontsize=8, frameon=False)
+    fig.suptitle(f"{scenario}, seed {seed}: the decisions each method made "
+                 f"({reference} = conventional protocol)", fontsize=10)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    _save(fig, path)

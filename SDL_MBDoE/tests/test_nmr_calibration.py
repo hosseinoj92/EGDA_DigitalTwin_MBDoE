@@ -165,19 +165,28 @@ def test_allowance_is_derived_from_control_data_not_benchmark():
     CONTROL data, and the benchmark's configured value must agree with it -
     it may not be a number chosen from kinetic-benchmark performance."""
     import inspect
-    import re
     from sdl_advanced import validation as val
     # the derivation routine exists and works on CONTROL data
     assert hasattr(val, "derive_systematic_allowance")
     dsrc = inspect.getsource(val.derive_systematic_allowance)
     assert "CONTROL" in dsrc and "rms" in dsrc
     assert "blind" not in dsrc and "param_err" not in dsrc   # not benchmark
-    src = inspect.getsource(bm.run_one_campaign)
-    assert "derive_systematic_allowance" in src              # documented
-    # the ACTIVE value (not historical commentary) is the control-derived one
-    m = re.search(r"systematic_allowance=\(([0-9.]+)\s+if", src)
-    assert m, "could not find the active systematic_allowance assignment"
-    assert abs(float(m.group(1)) - 0.47) < 1e-9, m.group(1)
+    # kappa now lives in the GOVERNOR knob block so a runner can reach it;
+    # the ACTIVE value must still be the control-derived one, and its
+    # provenance must still be recorded next to it
+    assert abs(bm.GOVERNOR["systematic_allowance_nmr"] - 0.47) < 1e-9, \
+        bm.GOVERNOR["systematic_allowance_nmr"]
+    assert bm.GOVERNOR["systematic_allowance_direct"] == 0.0
+    gsrc = inspect.getsource(bm)
+    block = gsrc[gsrc.index("GOVERNOR = {"):gsrc.index("QC_GATE = {")]
+    assert "derive_systematic_allowance" in block   # provenance documented
+    assert "CONTROL DATA" in block
+    assert "never from kinetic-benchmark" in block
+    # and the governor is actually CONSTRUCTED from that block, so the
+    # documented value is the one the campaign uses
+    csrc = inspect.getsource(bm.run_one_campaign)
+    assert 'GOVERNOR["systematic_allowance_nmr"]' in csrc
+    assert 'GOVERNOR["systematic_allowance_direct"]' in csrc
 
 
 def test_evidence_reliability_is_snapshotted_per_round():

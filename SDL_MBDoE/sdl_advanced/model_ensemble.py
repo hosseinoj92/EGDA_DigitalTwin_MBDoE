@@ -52,6 +52,10 @@ class AssumedTransfer:
     geometry: str = "constant"          # "constant" | "linear"
     v_per_m_mL: float = 0.0
     length_m: float = 0.0               # reactor length for the linear model
+    #: COMMANDED transfer-line temperature (deg C).  The line is cooled for
+    #: the NMR cell, so the sample does NOT keep reacting at reactor
+    #: temperature; None reproduces the legacy assumption that it does.
+    T_line_C: Optional[float] = None
 
     @classmethod
     def from_scalar_tau(cls, tau_s: float) -> "AssumedTransfer":
@@ -99,8 +103,10 @@ class TransportAwareInference(InferenceModel):
         tau = self.assumed_transfer.tau_s(z)
         if not np.any(tau > 0.0):
             return self.bridge.concentrations_at(nat, u, z, tuple(species))
-        return self.bridge.concentrations_at(nat, u, z, tuple(species),
-                                             extra_tau_s=tau)
+        return self.bridge.concentrations_at(
+            nat, u, z, tuple(species), extra_tau_s=tau,
+            T_extra_K=(None if self.assumed_transfer.T_line_C is None
+                       else self.assumed_transfer.T_line_C + 273.15))
 
 
 @dataclass

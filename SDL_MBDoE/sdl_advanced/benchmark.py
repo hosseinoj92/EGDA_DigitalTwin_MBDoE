@@ -48,7 +48,10 @@ import json
 import math
 import os
 import time
-from dataclasses import dataclass, field, replace
+from dataclasses import (asdict as dataclasses_asdict,
+                         dataclass, field, fields as dataclasses_fields,
+                         is_dataclass as dataclasses_is_dataclass,
+                         replace)
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -69,6 +72,7 @@ from .model_ensemble import (AssumedTransfer, ModelEnsemble,
                              build_egda_family)
 from . import parallel as par
 from .resources import ResourceCosts, ResourceMeter
+from sdl.design_space import DesignResolution
 from .spatial_design import SpatialDesignConfig, fixed_equal_positions
 from .spectral import AcquisitionSettings, SpectralNuisance
 from .spectral_fit import SpectralCovarianceModel, SpectralFitter
@@ -105,6 +109,394 @@ DESIGN = {
                           "C_EGDA_M": [1.0, 1.0]},
 }
 
+# ------------------------------------------------------------------------- #
+# DESIGN SPACE MODE: discrete grid (classical) or continuous within bounds
+# ------------------------------------------------------------------------- #
+# A real platform sets a thermostat, not a grid corner.  With
+# `continuous=True` the design optimizer may propose ANY point inside
+# `DESIGN["continuous_bounds"]`, snapped to the resolution the hardware can
+# actually command.  It is OFF by default so an unchanged configuration
+# reproduces the published discrete benchmark exactly.
+#
+# The refinement is accepted only when it strictly beats the best grid point
+# on the same criterion (sdl/design_space.py), so continuous mode cannot be
+# worse than discrete mode by that criterion - it is a superset of the
+# search, not a replacement for it.
+DESIGN_SPACE = {
+    "continuous": False,
+    # smallest commandable change per variable; a real instrument limit,
+    # not a modelling choice
+    "resolution": {"T_C": 0.1,            # deg C
+                   "Q_total_mL_min": 0.1,  # mL/min
+                   "C_cat_M": 1.0e-4,      # 0.1 mM
+                   "C_EGDA_M": 1.0e-4},    # 0.1 mM
+    "continuous_maxiter": 40,   # Powell iterations per refinement
+    "continuous_restarts": 2,   # extra random starts (advanced selector only)
+}
+
+
+# ------------------------------------------------------------------------- #
+# CONTROLLER / INSTRUMENT KNOBS
+# ------------------------------------------------------------------------- #
+# Previously constructed inline inside run_one_campaign, which meant a runner
+# could not change them without editing this file.  They live here so
+# `apply_config` (and therefore the runner's CONFIG) can reach every one.
+GOVERNOR = {
+    "alpha_campaign": 0.05,          # campaign-level false-alarm target
+    "discrimination_prob": 0.90,     # below this -> discriminate models
+    "qc_fail_fraction": 0.25,        # assimilated FAIL fraction -> fault state
+    "chi2_dof_ratio_override": 25.0,  # gross-misfit emergency trip
+    # MEASUREMENT-SYSTEMATIC ALLOWANCE kappa.  DERIVED FROM WELL-SPECIFIED
+    # CONTROL DATA, never from kinetic-benchmark performance:
+    # validation.derive_systematic_allowance() measures the standardized
+    # residual z of the CALIBRATED NMR pathway on an independent control
+    # stream and returns kappa = sqrt(rms(z)^2 - 1).  With the shared
+    # calibration artifact rms(z) = 1.11 and a bounded residual BIAS survives
+    # in the overlapped resonances (z-mean EGMA -0.72, AcOH -0.52), hence
+    # kappa = 0.47 (down from 1.25 when the governor was compensating for a
+    # broken Sigma_y).  Re-derive whenever the NMR calibration changes.
+    # SEE: tests/test_calibration_governor.py::test_allowance_is_derived...
+    "systematic_allowance_nmr": 0.47,
+    # direct observation: Sigma is exact by construction -> exact nulls
+    "systematic_allowance_direct": 0.0,
+}
+
+QC_GATE = {
+    "enabled_for_nmr": True,     # QC gate active whenever observation is NMR
+    "max_retries": 1,            # reacquisitions per failing position
+    "max_reject_fraction": 0.5,  # above this per round -> pause the campaign
+}
+
+ADVANCED_DESIGN = {
+    "top_k": 3,                  # candidates surviving the FIM screen
+    "n_particles": 16,           # posterior particles per EIG estimate
+    "n_outer": 24,               # outer MC samples per EIG estimate
+    "alpha_param": 1.0,          # weight on parameter EIG
+    "beta_model": 1.0,           # weight on model-discrimination EIG
+    "beta_model_discrimination": 4.0,   # boost while discriminating
+}
+
+SPATIAL = {
+    "candidate_grid_size": 41,
+    "z_min_fraction": 0.02,
+    "z_max_fraction": 1.0,
+    "min_spacing_fraction": 0.02,
+    "continuous_refinement": False,
+    "marginal_information_threshold": None,   # None -> SpatialDesignConfig default
+}
+
+
+# ------------------------------------------------------------------------- #
+# One entry point for a runner to set EVERY knob above
+# ------------------------------------------------------------------------- #
+#: name -> the module-level object a runner may override.  Dicts are updated
+#: key by key; frozen dataclasses are rebuilt with dataclasses.replace.
+_OVERRIDABLE = ("GEOMETRY", "GEOMETRY_DESIGN", "COMPARISON",
+                "TRUTH", "DESIGN", "DESIGN_SPACE", "GOVERNOR",
+                "QC_GATE", "ADVANCED_DESIGN", "SPATIAL", "TRANSFER_TRUE",
+                "NMR_NUISANCE_TRUE", "ACQ", "NOISE_DIRECT", "RESOURCE_COSTS",
+                "T_REF_C", "N_PORTS")
+
+
+def apply_config(overrides: Optional[Dict]) -> Dict:
+    """Apply a runner's CONFIG knobs to this module's configuration blocks.
+
+    The runner's CONFIG is the authority for a run; the constants above are
+    library defaults for tests and direct API use.  Applying them here -
+    rather than duplicating values in the runner - is what keeps the two
+    from drifting apart.
+
+    STRICT BY DESIGN: an unknown block or field raises instead of being
+    ignored, because a silently-dropped knob is indistinguishable from a
+    knob that had no effect, and that is exactly the failure mode that
+    wastes a nine-hour run.  Returns the resolved state for the
+    reproducibility record.
+
+    NOTE for parallel runs: worker processes re-import this module and get
+    the DEFAULTS, so a runner that overrides anything must pass the same
+    overrides to the pool initializer (`worker_init`).  run_advanced_benchmark
+    does this; a custom driver must too.
+    """
+    if not overrides:
+        return resolved_config()
+    for name, value in overrides.items():
+        if name not in _OVERRIDABLE:
+            raise KeyError(
+                f"Unknown configuration block '{name}'. Overridable blocks: "
+                + ", ".join(_OVERRIDABLE))
+        current = globals()[name]
+        if isinstance(current, dict):
+            unknown = [k for k in value if k not in current]
+            if unknown:
+                raise KeyError(f"{name}: unknown field(s) {unknown}. "
+                               f"Known: {sorted(current)}")
+            if name == "DESIGN_SPACE" and "resolution" in value:
+                res_unknown = [k for k in value["resolution"]
+                               if k not in current["resolution"]]
+                if res_unknown:
+                    raise KeyError(f"DESIGN_SPACE.resolution: unknown field(s) "
+                                   f"{res_unknown}")
+                current["resolution"].update(value["resolution"])
+                value = {k: v for k, v in value.items() if k != "resolution"}
+            current.update(value)
+        elif dataclasses_is_dataclass(current):
+            fields = {f.name for f in dataclasses_fields(current)}
+            unknown = [k for k in value if k not in fields]
+            if unknown:
+                raise KeyError(f"{name}: unknown field(s) {unknown}. "
+                               f"Known: {sorted(fields)}")
+            globals()[name] = replace(current, **value)
+        else:                                   # plain scalar (T_REF_C, ...)
+            globals()[name] = value
+    return resolved_config()
+
+
+def resolved_config() -> Dict:
+    """Every knob's CURRENT value - what the run actually used."""
+    out = {}
+    for name in _OVERRIDABLE:
+        v = globals()[name]
+        if isinstance(v, dict):
+            out[name] = {k: (dict(x) if isinstance(x, dict) else x)
+                         for k, x in v.items()}
+        elif dataclasses_is_dataclass(v):
+            out[name] = dataclasses_asdict(v)
+        else:
+            out[name] = v
+    return out
+
+
+# ------------------------------------------------------------------------- #
+# REACTOR GEOMETRY AS A DESIGN VARIABLE (optional)
+# ------------------------------------------------------------------------- #
+# Two different questions the framework can answer:
+#
+#   enabled=False  "I HAVE this reactor - what experiments should I run in
+#                   it?"  GEOMETRY is a fixed constant.  (Default: this is
+#                   the question the published benchmark answers.)
+#   enabled=True   "I am going to BUILD a reactor for this chemistry - what
+#                   geometry, and what experiments?"  Length and diameter
+#                   join the design vector.
+#
+# `mode` matters physically and is not a detail:
+#
+#   "per_campaign"    ONE geometry is chosen and then every experiment runs
+#                     in it.  This is what designing a reactor means, and it
+#                     is the default.  The choice is made once, from the
+#                     prior, before the first experiment.
+#   "per_experiment"  the geometry may change between rounds - only
+#                     meaningful for a modular/rack setup, and expensive:
+#                     `switch_cost_s` is charged whenever it changes, since
+#                     swapping a reactor is not free the way changing a
+#                     setpoint is.
+GEOMETRY_DESIGN = {
+    "enabled": False,
+    "mode": "per_campaign",          # "per_campaign" | "per_experiment"
+    "bounds": {"length_m": [0.05, 0.60],
+               "diameter_m": [0.002, 0.012]},
+    # discrete levels used when DESIGN_SPACE["continuous"] is False
+    "levels": {"length_m": [0.10, 0.20, 0.40],
+               "diameter_m": [0.004, 0.007, 0.010]},
+    # commandable resolution: you cannot order a tube to the micron
+    "resolution": {"length_m": 0.005,      # 5 mm
+                   "diameter_m": 0.0005},  # 0.5 mm
+    "switch_cost_s": 1800.0,         # per geometry change (per_experiment)
+}
+
+
+# ------------------------------------------------------------------------- #
+# CONVENTIONAL-VS-OPTIMIZED COMPARISON
+# ------------------------------------------------------------------------- #
+# Which strategy plays "the conventional method" in each scenario - the
+# thing the methodology has to beat.  A is the classical temperature ladder
+# at nominal flow read out at the outlet; where a scenario has no A (the
+# transport and resource scenarios start at D) the naive spatial MBDoE is
+# the incumbent.
+COMPARISON = {
+    "reference_strategy": {"S1_ideal": "A", "S2_nmr": "B",
+                           "S4b_identifiable": "D", "S4a_ambiguity": "D",
+                           "S3_transport": "D", "S3ab_delay": "D",
+                           "S3ab_rtd": "D", "S5_inadequacy": "D",
+                           "S6_resources": "D", "S7_spatial_modes": "F-zfixed",
+                           "S4c_out_of_domain": "F"},
+    "default_reference": "A",
+    # accuracy ladders for the budget-to-target analysis.  Deliberately
+    # spanning loose to tight: a target every method reaches says nothing,
+    # and one nobody reaches says nothing either.
+    "targets": {"param_err_pct": [50.0, 30.0, 20.0, 10.0, 5.0],
+                "blind_rmse_M": [1.0e-2, 5.0e-3, 2.0e-3, 1.0e-3]},
+    # seed whose decision trajectory is drawn for the "what did it do"
+    # figure; fixed so the figure is reproducible
+    "trajectory_seed": 1,
+}
+
+
+#: pre-campaign geometry choices, cached per budget (a pure function of the
+#: configuration, so a worker process re-derives the same answer)
+_GEOMETRY_CACHE: Dict[Tuple, Dict] = {}
+
+
+def _geometry_candidates() -> List[Dict]:
+    """Discrete geometry grid, from the declared levels."""
+    import itertools as _it
+    lv = GEOMETRY_DESIGN["levels"]
+    return [{**GEOMETRY, "length_m": float(L), "diameter_m": float(d)}
+            for L, d in _it.product(lv["length_m"], lv["diameter_m"])]
+
+
+def _geometry_score(geom: Dict, budget: int) -> float:
+    """D-optimal information of a REFERENCE design in this reactor, under
+    the PRIOR (literature) parameters.
+
+    Firewall-clean: it reads `literature_guess`, never the hidden truth -
+    sizing a reactor is something you do BEFORE you know the kinetics, and
+    letting the truth in here would be the purest form of inverse crime.
+
+    The reference design is the declared conventional ladder at nominal
+    flow, sampled at equally spaced positions - i.e. "what would a
+    standard campaign in this reactor tell me?"."""
+    t_ref_K = T_REF_C + 273.15
+    try:
+        bridge = Layer1Bridge(geom, t_ref_K, activity_model="pitzer")
+        space = ParameterSpace(t_ref_K=t_ref_K,
+                               initial_guess=dict(literature_guess(t_ref_K)))
+        inf = InferenceModel(space, bridge, NOISE_DIRECT)
+        z = fixed_equal_positions(geom["length_m"], N_PORTS)
+        F = np.zeros((space.n_params,) * 2)
+        for u in build_fixed_design(design_for_budget(budget), budget=budget):
+            F = F + inf.candidate_information(u, z, SPECIES)
+        sign, logdet = np.linalg.slogdet(
+            F + 1e-12 * np.eye(space.n_params))
+        return float(logdet) if sign > 0 else float("-inf")
+    except (ValueError, RuntimeError, FloatingPointError,
+            np.linalg.LinAlgError):
+        return float("-inf")
+
+
+def optimal_geometry(budget: int) -> Dict:
+    """Pre-campaign reactor sizing.
+
+    Discrete mode screens the declared level grid; continuous mode then
+    refines inside `bounds`, snapped to a resolution you could actually
+    order a tube to (5 mm length, 0.5 mm bore) and accepted only when it
+    strictly beats the grid winner - the same never-worse rule the
+    operating-condition design uses.
+
+    Deterministic in (budget, configuration), so every worker process
+    re-derives the same reactor."""
+    if GEOMETRY_DESIGN["mode"] != "per_campaign":
+        raise NotImplementedError(
+            "GEOMETRY_DESIGN['mode'] = 'per_experiment' is declared but not "
+            "implemented: changing the reactor between rounds needs a "
+            "swap-cost model in ResourceMeter and a per-round geometry in "
+            "the truth-side laboratory.  Use 'per_campaign' (choose the "
+            "reactor once, then run the campaign in it), which is what "
+            "'design a reactor for this chemistry' means.")
+    key = (int(budget), tuple(sorted(GEOMETRY.items())),
+           tuple(sorted((k, tuple(v)) for k, v in
+                        GEOMETRY_DESIGN["bounds"].items())),
+           tuple(sorted((k, tuple(v)) for k, v in
+                        GEOMETRY_DESIGN["levels"].items())),
+           bool(DESIGN_SPACE["continuous"]))
+    if key in _GEOMETRY_CACHE:
+        return _GEOMETRY_CACHE[key]
+    cands = _geometry_candidates()
+    best = max(cands, key=lambda g: _geometry_score(g, budget))
+    best_s = _geometry_score(best, budget)
+    if DESIGN_SPACE["continuous"]:
+        from scipy.optimize import minimize as _minimize
+        b = GEOMETRY_DESIGN["bounds"]
+        res = GEOMETRY_DESIGN["resolution"]
+        lo = [float(b["length_m"][0]), float(b["diameter_m"][0])]
+        hi = [float(b["length_m"][1]), float(b["diameter_m"][1])]
+
+        def _snap(x):
+            out = []
+            for v, step, l, h in zip(x, (res["length_m"], res["diameter_m"]),
+                                     lo, hi):
+                v = round(float(v) / step) * step if step > 0 else float(v)
+                out.append(min(max(v, l), h))
+            return out
+
+        def _neg(x):
+            L, d = _snap(x)
+            sc = _geometry_score({**GEOMETRY, "length_m": L,
+                                  "diameter_m": d}, budget)
+            return -sc if np.isfinite(sc) else 1e100
+
+        try:
+            sol = _minimize(_neg, [best["length_m"], best["diameter_m"]],
+                            method="Powell", bounds=list(zip(lo, hi)),
+                            options={"maxiter": 30, "xtol": 1e-3,
+                                     "ftol": 1e-6})
+            L, d = _snap(np.atleast_1d(sol.x))
+            cand = {**GEOMETRY, "length_m": L, "diameter_m": d}
+            if _geometry_score(cand, budget) > best_s:
+                best = cand
+        except (ValueError, RuntimeError, np.linalg.LinAlgError):
+            pass
+    # An optimum sitting ON a bound means the bound is binding, not that an
+    # interior optimum was found: within this box "bigger is better" and the
+    # answer is the box, not the chemistry.  Say so rather than presenting a
+    # boundary as a design result.
+    on_bound = []
+    for k in ("length_m", "diameter_m"):
+        lo, hi = (float(v) for v in GEOMETRY_DESIGN["bounds"][k])
+        step = float(GEOMETRY_DESIGN["resolution"].get(k, 0.0)) or 1e-12
+        if abs(best[k] - lo) <= step or abs(best[k] - hi) <= step:
+            on_bound.append(k)
+    if _SCREEN_VERBOSE:
+        print(f"  reactor sizing: L = {best['length_m'] * 100:.1f} cm, "
+              f"ID = {best['diameter_m'] * 1e3:.1f} mm "
+              f"({'continuous' if DESIGN_SPACE['continuous'] else 'grid'}"
+              f", prior-based)")
+        if on_bound:
+            print(f"    NOTE: optimum rests on the {', '.join(on_bound)} "
+                  f"bound - the constraint is binding, so this is the edge "
+                  f"of the declared box rather than an interior optimum. "
+                  f"Widen GEOMETRY_DESIGN['bounds'] to find the real one.")
+    best = dict(best)
+    best["_on_bound"] = tuple(on_bound)
+    _GEOMETRY_CACHE[key] = best
+    return best
+
+
+def active_geometry(budget: int) -> Dict:
+    """The reactor this campaign runs in: the declared GEOMETRY, or the
+    prior-optimal one when geometry is part of the design problem.
+
+    Strips the diagnostic `_on_bound` marker, which is reporting metadata
+    and not a ReactorGeometry field."""
+    if not GEOMETRY_DESIGN.get("enabled", False):
+        return GEOMETRY
+    g = optimal_geometry(int(budget))
+    return {k: v for k, v in g.items() if not k.startswith("_")}
+
+
+def reference_strategy(scenario: str) -> str:
+    spec = SCENARIOS[scenario]
+    ref = COMPARISON["reference_strategy"].get(
+        scenario, COMPARISON["default_reference"])
+    return ref if ref in spec.strategies else spec.strategies[0]
+
+
+def design_resolution() -> DesignResolution:
+    return DesignResolution(**DESIGN_SPACE["resolution"])
+
+
+def continuous_kwargs() -> Dict:
+    """Keyword arguments for the BASELINE MBDoESelector (strategies C/D/E).
+
+    Empty when continuous mode is off, so the selector is constructed
+    exactly as it was before this option existed."""
+    if not DESIGN_SPACE.get("continuous", False):
+        return {}
+    return {"continuous": True,
+            "continuous_bounds": DESIGN["continuous_bounds"],
+            "continuous_maxiter": int(DESIGN_SPACE["continuous_maxiter"]),
+            "resolution": design_resolution()}
+
+
 # predetermined BLIND validation set - never visible to any controller
 VALIDATION_CONDS = [
     OperatingConditions(70.0, 0.35, 0.35, 1.0, 0.8),
@@ -113,9 +505,14 @@ VALIDATION_CONDS = [
     OperatingConditions(50.0, 3.0, 3.0, 1.0, 1.0),
 ]
 
+# The transfer line is COOLED on the way to the NMR flow cell - it does not
+# sit at reactor temperature.  T_line_C is the commanded line temperature;
+# None would mean "sample stays at reactor T", which is not what the
+# hardware does.  25 C is the assumed ambient/cooled value.
 TRANSFER_TRUE = TransferConfig(
     enabled=True, Q_sample_mL_min=0.5, V_fixed_mL=0.15, geometry="constant",
     rtd="gamma", n_tanks=4.0, n_quad=5, react_in_line=True,
+    T_line_C=25.0,
     carryover=True, flush_volumes=3.0)
 
 # ASSUMED plausible imperfections of the synthetic 80 MHz NMR observation
@@ -129,6 +526,9 @@ NMR_NUISANCE_TRUE = SpectralNuisance(
     response_factors={"EGMA": 1.02})
 
 ACQ = AcquisitionSettings(n_points=2048, nmr_temperature_C=27.0)
+#: default per-campaign resource model; scenarios may override it (S6 sweeps
+#: the lambda weights) but this is the value every other scenario uses
+RESOURCE_COSTS = ResourceCosts()
 NOISE_DIRECT = NoiseModel(sigma_abs_M=0.004, sigma_rel=0.02, rho_overlap=0.3)
 
 #: benchmark modes (#14): reproducible seed lists, no cherry-picking
@@ -159,7 +559,10 @@ class ScenarioSpec:
     transfer: TransferConfig = TransferConfig(enabled=False)
     family: Tuple[str, ...] = ("rev-pitzer",)
     strategies: Tuple[str, ...] = ("A", "B", "C", "D", "E", "F")
-    resource_costs: ResourceCosts = ResourceCosts()
+    #: None -> the module-level RESOURCE_COSTS (which a runner's CONFIG can
+    #: override).  A scenario that needs its OWN cost model - S6 sweeps the
+    #: lambda weights - sets this explicitly and is unaffected.
+    resource_costs: Optional[ResourceCosts] = None
     baseline_bridge_kwargs: Dict = field(default_factory=dict)
     f_variants: Dict[str, Dict] = field(default_factory=dict)
     track_correct_model: Optional[str] = None
@@ -326,9 +729,11 @@ class BaselineLabAdapter:
 # ------------------------------------------------------------------------- #
 def make_lab(spec: ScenarioSpec, seed: int,
              store_spectra: bool = False,
-             costs: Optional[ResourceCosts] = None
+             costs: Optional[ResourceCosts] = None,
+             geometry: Optional[Dict] = None
              ) -> AdvancedVirtualLaboratory:
-    truth_bridge = Layer1Bridge(GEOMETRY, T_REF_C + 273.15,
+    geom = geometry if geometry is not None else GEOMETRY
+    truth_bridge = Layer1Bridge(geom, T_REF_C + 273.15,
                                 activity_model="pitzer")
     return AdvancedVirtualLaboratory(
         spec.truth, truth_bridge,
@@ -336,7 +741,9 @@ def make_lab(spec: ScenarioSpec, seed: int,
                          nmr_mode=spec.nmr_mode,
                          store_spectra=store_spectra),
         ACQ, NMR_NUISANCE_TRUE, spec.transfer,
-        costs if costs is not None else spec.resource_costs,
+        costs if costs is not None
+        else (spec.resource_costs if spec.resource_costs is not None
+              else RESOURCE_COSTS),
         seed=seed, noise_direct=NOISE_DIRECT)
 
 
@@ -367,7 +774,7 @@ def check_truth_in_domain(space: ParameterSpace, truth: Dict[str, float],
     return {"ok": ok, "detail": detail}
 
 
-_SCREEN_CACHE: Dict[int, Tuple[str, ...]] = {}
+_SCREEN_CACHE: Dict[Tuple, Tuple[str, ...]] = {}
 # Worker processes announce nothing: the screen is a deterministic function
 # of the budget, so every process computes the SAME answer and only the
 # parent should report it (set False by worker_init).
@@ -382,40 +789,51 @@ def screened_dropped_keys(budget: int) -> Tuple[str, ...]:
     Deterministic in `budget` alone, so a worker process re-deriving it
     reaches the same result as the parent - the per-process cache is a
     speed-up, never a source of divergence."""
-    if budget not in _SCREEN_CACHE:
+    geom = active_geometry(budget)
+    key = (int(budget), float(geom["length_m"]), float(geom["diameter_m"]))
+    if key not in _SCREEN_CACHE:
         t_ref_K = T_REF_C + 273.15
-        bridge = Layer1Bridge(GEOMETRY, t_ref_K, activity_model="pitzer")
+        bridge = Layer1Bridge(geom, t_ref_K, activity_model="pitzer")
         space = ParameterSpace(t_ref_K=t_ref_K,
                                initial_guess=literature_guess(t_ref_K))
-        ports = fixed_equal_positions(GEOMETRY["length_m"], N_PORTS)
+        ports = fixed_equal_positions(geom["length_m"], N_PORTS)
         sr = screen(space, bridge, NOISE_DIRECT,
                     build_candidates(DESIGN) + reference_design(DESIGN),
                     ports, SPECIES, budget=budget, max_rel_ci_pct=200.0)
-        _SCREEN_CACHE[budget] = sr.dropped
+        _SCREEN_CACHE[key] = sr.dropped
         if sr.dropped and _SCREEN_VERBOSE:
             print(f"  identifiability screen: holding fixed {sr.dropped}")
-    return _SCREEN_CACHE[budget]
+    return _SCREEN_CACHE[key]
 
 
-def worker_init(budget: Optional[int] = None) -> None:
+def worker_init(budget: Optional[int] = None,
+                overrides: Optional[Dict] = None) -> None:
     """Initializer for a parallel worker process.
 
-    Silences the per-process identifiability-screen announcement and warms
-    the screen cache once, so the first campaign a worker runs is not slower
-    than the rest.  It changes NO numerical result: the screen is a pure
-    function of the budget."""
+    Two jobs.  First, silence the per-process identifiability-screen
+    announcement and warm the screen cache once, so the first campaign a
+    worker runs is not slower than the rest - that changes no numerical
+    result, the screen being a pure function of the budget.
+
+    Second, and load-bearing: a spawned worker re-imports this module and
+    therefore starts from the DEFAULT configuration.  The runner's overrides
+    must be replayed here or the workers would silently run a different
+    configuration from the parent - the worst possible failure, because the
+    results would look plausible."""
     global _SCREEN_VERBOSE
     _SCREEN_VERBOSE = False
+    if overrides:
+        apply_config(overrides)
     if budget is not None:
         screened_dropped_keys(int(budget))
 
 
 def _spatial_cfg(mode: str) -> SpatialDesignConfig:
+    kw = {k: v for k, v in SPATIAL.items()
+          if k != "marginal_information_threshold" or v is not None}
     return SpatialDesignConfig(
-        mode=mode, n_positions=N_PORTS, candidate_grid_size=41,
-        z_min_fraction=0.02, z_max_fraction=1.0, min_spacing_fraction=0.02,
-        continuous_refinement=False,
-        allow_profile_early_stop=(mode == "adaptive_sequential"))
+        mode=mode, n_positions=N_PORTS,
+        allow_profile_early_stop=(mode == "adaptive_sequential"), **kw)
 
 
 def _assumed_transfer_from(cfg: TransferConfig,
@@ -428,7 +846,9 @@ def _assumed_transfer_from(cfg: TransferConfig,
                            Q_sample_mL_min=cfg.Q_sample_mL_min,
                            V_fixed_mL=cfg.V_fixed_mL,
                            geometry=cfg.geometry,
-                           v_per_m_mL=cfg.v_per_m_mL, length_m=length_m)
+                           v_per_m_mL=cfg.v_per_m_mL, length_m=length_m,
+                           # COMMANDED, so the controller is entitled to it
+                           T_line_C=cfg.T_line_C)
 
 
 def design_for_budget(budget: int) -> Dict:
@@ -468,8 +888,11 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
     unchanged sdl.campaign code and are audited entirely post-campaign."""
     t_ref_K = T_REF_C + 273.15
     variant = spec.f_variants.get(strategy, {})
+    # ONE geometry for the whole campaign: the declared reactor, or the
+    # prior-optimal one when geometry is part of the design problem
+    geom = active_geometry(budget)
     lab = make_lab(spec, seed, store_spectra=store_spectra,
-                   costs=variant.get("costs"))
+                   costs=variant.get("costs"), geometry=geom)
     ports = fixed_equal_positions(lab.length_m, N_PORTS)
     candidates = build_candidates(DESIGN)
     fixed = build_fixed_design(design_for_budget(budget),
@@ -479,7 +902,7 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
 
     if strategy in ("A", "B", "C", "D"):
         bkw = dict(activity_model="pitzer", **spec.baseline_bridge_kwargs)
-        bridge = Layer1Bridge(GEOMETRY, t_ref_K, **bkw)
+        bridge = Layer1Bridge(geom, t_ref_K, **bkw)
         pkeys = (("k1_ref", "Ea1_J", "k2_ref", "Ea2_J")
                  if not bridge.reversible else param_keys_for("H2SO4"))
         space = ParameterSpace(t_ref_K=t_ref_K, initial_guess=dict(guess),
@@ -493,20 +916,22 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
             inference=inference, candidates=candidates,
             spatial=strategy in ("B", "D"), ports_z_m=ports,
             outlet_z_m=np.array([lab.length_m]), species=SPECIES,
-            criterion="D") if strategy in ("C", "D") else None
+            criterion="D",
+            **continuous_kwargs()) if strategy in ("C", "D") else None
         res = run_strategy(strategy, adapter, inference, fixed, selector,
                            budget=budget, verbose=verbose)
         return res, lab, adapter
 
     if strategy == "E":
-        bridge = Layer1Bridge(GEOMETRY, t_ref_K, activity_model="pitzer")
+        bridge = Layer1Bridge(geom, t_ref_K, activity_model="pitzer")
         space = ParameterSpace(t_ref_K=t_ref_K, initial_guess=dict(guess))
         if dropped:
             space = space.holding_fixed(list(dropped))
         inference = InferenceModel(space, bridge, NOISE_DIRECT)
         res = run_strategy_e(lab, inference, candidates, fixed[0],
                              _spatial_cfg("optimized"), budget,
-                             verbose=verbose, recorder=recorder)
+                             verbose=verbose, recorder=recorder,
+                             **continuous_kwargs())
         return res, lab, None
 
     # F and its variants -------------------------------------------------- #
@@ -514,7 +939,7 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
                                   spec.transfer.enabled)
     assumed = (_assumed_transfer_from(spec.transfer, lab.length_m)
                if transport_aware else AssumedTransfer(enabled=False))
-    family = build_egda_family(GEOMETRY, t_ref_K, include=spec.family,
+    family = build_egda_family(geom, t_ref_K, include=spec.family,
                                noise_assumed=NOISE_DIRECT,
                                fixed={k: guess[k] for k in dropped},
                                assumed_transfer=assumed)
@@ -538,8 +963,14 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
     # SEE: tests/test_calibration_governor.py::test_allowance_is_derived...
     governor = AdequacyGovernor(GovernorConfig(
         n_rounds_planned=budget,
-        systematic_allowance=(0.47 if spec.observation_mode == "nmr"
-                              else 0.0)))
+        alpha_campaign=float(GOVERNOR["alpha_campaign"]),
+        discrimination_prob=float(GOVERNOR["discrimination_prob"]),
+        qc_fail_fraction=float(GOVERNOR["qc_fail_fraction"]),
+        chi2_dof_ratio_override=float(GOVERNOR["chi2_dof_ratio_override"]),
+        systematic_allowance=float(
+            GOVERNOR["systematic_allowance_nmr"]
+            if spec.observation_mode == "nmr"
+            else GOVERNOR["systematic_allowance_direct"])))
     cov_model = None
     if spec.observation_mode == "nmr" \
             and variant.get("expected_cov", "spectral") == "spectral":
@@ -551,23 +982,37 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
             SpectralFitter(ACQ), calibration=getattr(lab, "calibration", None))
     spatial_mode = variant.get("spatial_mode", "optimized")
     design_cfg = AdvancedDesignConfig(
-        top_k=3, n_particles=16, n_outer=24,
-        objective=variant.get("objective", "parameter"))
+        top_k=int(ADVANCED_DESIGN["top_k"]),
+        n_particles=int(ADVANCED_DESIGN["n_particles"]),
+        n_outer=int(ADVANCED_DESIGN["n_outer"]),
+        alpha_param=float(ADVANCED_DESIGN["alpha_param"]),
+        beta_model=float(ADVANCED_DESIGN["beta_model"]),
+        beta_model_discrimination=float(
+            ADVANCED_DESIGN["beta_model_discrimination"]),
+        objective=variant.get("objective", "parameter"),
+        continuous=bool(DESIGN_SPACE.get("continuous", False)),
+        continuous_maxiter=int(DESIGN_SPACE["continuous_maxiter"]),
+        continuous_restarts=int(DESIGN_SPACE["continuous_restarts"]))
     res = run_strategy_f(
         lab, ensemble, candidates, fixed[0], _spatial_cfg(spatial_mode),
         budget, design_cfg=design_cfg, governor=governor,
         use_governor=variant.get("use_governor", True),
         cov_model=cov_model,
-        qc=QCGateConfig(enabled=spec.observation_mode == "nmr"),
+        qc=QCGateConfig(
+            enabled=bool(QC_GATE["enabled_for_nmr"])
+            and spec.observation_mode == "nmr",
+            max_retries=int(QC_GATE["max_retries"]),
+            max_reject_fraction=float(QC_GATE["max_reject_fraction"])),
         bounds=DESIGN["continuous_bounds"], seed=seed, verbose=verbose,
-        key=strategy, recorder=recorder)
+        key=strategy, recorder=recorder, resolution=design_resolution())
     return res, lab, governor
 
 
 # ------------------------------------------------------------------------- #
-def _truth_prediction(truth: Dict[str, float],
-                      z_val: np.ndarray) -> np.ndarray:
-    bridge = Layer1Bridge(GEOMETRY, T_REF_C + 273.15, activity_model="pitzer")
+def _truth_prediction(truth: Dict[str, float], z_val: np.ndarray,
+                      geometry: Optional[Dict] = None) -> np.ndarray:
+    bridge = Layer1Bridge(geometry if geometry is not None else GEOMETRY,
+                          T_REF_C + 273.15, activity_model="pitzer")
     return np.concatenate([bridge.concentrations_at(truth, u, z_val, SPECIES)
                            for u in VALIDATION_CONDS])
 
@@ -751,8 +1196,14 @@ def campaign_task(scenario_name: str, strategy: str, seed: int, budget: int,
     """
     spec = SCENARIOS[scenario_name]
     budget = spec.budget_override or budget
-    z_val = np.array([GEOMETRY["length_m"] / 3.0, GEOMETRY["length_m"]])
-    y_true = _truth_prediction(spec.truth, z_val)
+    # blind validation is evaluated in the reactor the campaign actually ran
+    # in; with geometry optimization ON that reactor differs, so blind RMSE
+    # stays comparable ACROSS strategies (same reactor) but not across runs
+    # with different geometry settings - the prediction target itself moved
+    geom_active = active_geometry(budget)
+    z_val = np.array([geom_active["length_m"] / 3.0,
+                      geom_active["length_m"]])
+    y_true = _truth_prediction(spec.truth, z_val, geometry=geom_active)
     recorder = None
     if audit:
         from .audit import AuditRecorder

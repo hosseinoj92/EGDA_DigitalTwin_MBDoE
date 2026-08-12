@@ -13,12 +13,14 @@ MBDoE selection : D- or A-optimal.  A coarse, feasible candidate grid is
 from __future__ import annotations
 
 import itertools
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from scipy.optimize import minimize
 
+from .design_space import (DESIGN_VARIABLES, DesignResolution,
+                           bounds_vector, from_vector, refine, to_vector)
 from .inference import InferenceModel
 from .layer1_bridge import OperatingConditions
 
@@ -78,8 +80,11 @@ class MBDoESelector:
     continuous: bool = False
     continuous_bounds: Optional[Dict[str, Sequence[float]]] = None
     continuous_maxiter: int = 30
+    #: instrument resolution the refined point is SNAPPED to, so the design
+    #: that is scored is the design the platform can actually command
+    resolution: DesignResolution = field(default_factory=DesignResolution)
 
-    _VARIABLES = ("T_C", "Q_total_mL_min", "C_cat_M", "C_EGDA_M")
+    _VARIABLES = DESIGN_VARIABLES
 
     def __post_init__(self) -> None:
         if not self.candidates:
@@ -108,67 +113,38 @@ class MBDoESelector:
             raise RuntimeError("No feasible MBDoE candidate produced a finite score.")
         if not self.continuous:
             return best_u
-
-        bounds = self._validated_continuous_bounds()
-
-        def objective(x: np.ndarray) -> float:
-            try:
-                score = self._score_candidate(F0, self._from_vector(x), z)
-            except (ValueError, RuntimeError, FloatingPointError,
-                    np.linalg.LinAlgError):
-                return 1e100
-            return -score if np.isfinite(score) else 1e100
-
-        refined = minimize(
-            objective, self._to_vector(best_u), method="Powell", bounds=bounds,
-            options={"maxiter": int(self.continuous_maxiter),
-                     "xtol": 1e-4, "ftol": 1e-6})
-        refined_u = self._from_vector(refined.x)
-        refined_score = self._score_candidate(F0, refined_u, z)
-        if np.isfinite(refined_score) and refined_score > best_score:
-            return refined_u
-        return best_u
+        # Refinement is scored at SNAPPED points and accepted only when it
+        # strictly beats the grid winner, so continuous mode is never worse
+        # than discrete mode by this criterion (sdl/design_space.py).
+        u_ref, _score, _improved = refine(
+            lambda u: self._score_candidate(F0, u, z),
+            best_u, best_score, self.continuous_bounds,
+            resolution=self.resolution,
+            maxiter=int(self.continuous_maxiter))
+        return u_ref
 
     def _score_candidate(self, F0: np.ndarray, u: OperatingConditions,
                          z: np.ndarray) -> float:
         F = F0 + self.inference.candidate_information(u, z, self.species)
         return self._score(F)
 
-    @staticmethod
-    def _to_vector(u: OperatingConditions) -> np.ndarray:
-        return np.array([u.T_C, u.Q1_mL_min + u.Q2_mL_min,
-                         u.C_cat_M, u.C_EGDA_M], dtype=float)
-
-    @staticmethod
-    def _from_vector(x: Sequence[float]) -> OperatingConditions:
-        t, q, cat, egda = (float(v) for v in x)
-        return OperatingConditions(
-            T_C=t, Q1_mL_min=q / 2.0, Q2_mL_min=q / 2.0,
-            C_EGDA_M=egda, C_cat_M=cat)
+    _to_vector = staticmethod(to_vector)
+    _from_vector = staticmethod(from_vector)
 
     def _validated_continuous_bounds(self) -> Tuple[Tuple[float, float], ...]:
+        """Bounds in canonical order.
+
+        A DEGENERATE dimension (lo == hi) is accepted and simply held fixed
+        by the refiner: the shipped design space declares C_EGDA_M = [1, 1],
+        and rejecting that would make continuous mode unusable on the very
+        configuration the benchmark runs."""
         if self.continuous_bounds is None:
             raise ValueError(
                 "continuous=True requires continuous_bounds for T_C, "
                 "Q_total_mL_min, C_cat_M, and C_EGDA_M.")
-        missing = [key for key in self._VARIABLES
-                   if key not in self.continuous_bounds]
-        if missing:
-            raise ValueError("continuous_bounds is missing: " + ", ".join(missing))
-        out = []
-        for key in self._VARIABLES:
-            raw = self.continuous_bounds[key]
-            if len(raw) != 2:
-                raise ValueError(f"continuous_bounds['{key}'] must have [low, high].")
-            lo, hi = float(raw[0]), float(raw[1])
-            if not np.isfinite(lo) or not np.isfinite(hi) or lo >= hi:
-                raise ValueError(f"Invalid continuous bounds for {key}: {raw}.")
-            if key != "T_C" and lo <= 0.0:
-                raise ValueError(f"The lower bound for {key} must be positive.")
-            out.append((lo, hi))
         if self.continuous and int(self.continuous_maxiter) < 1:
             raise ValueError("continuous_maxiter must be at least 1.")
-        return tuple(out)
+        return bounds_vector(self.continuous_bounds)
 
     def _score(self, F: np.ndarray) -> float:
         """Design score with FLOORED eigenvalues.

@@ -274,7 +274,10 @@ def run_strategy_e(lab: AdvancedVirtualLaboratory,
                    spatial_cfg: SpatialDesignConfig,
                    budget: int,
                    mbdoe_criterion: str = "D",
+                   continuous: bool = False,
                    continuous_bounds: Optional[Dict] = None,
+                   continuous_maxiter: int = 30,
+                   resolution=None,
                    verbose: bool = True,
                    recorder=None) -> AdvancedStrategyResult:
     """E: baseline WLS/FIM inference + baseline condition MBDoE, but the
@@ -332,8 +335,10 @@ def run_strategy_e(lab: AdvancedVirtualLaboratory,
             inference=inference, candidates=candidates, spatial=True,
             ports_z_m=np.asarray(z_next), outlet_z_m=np.array([L]),
             species=lab.species, criterion=mbdoe_criterion,
-            continuous=continuous_bounds is not None,
-            continuous_bounds=continuous_bounds)
+            continuous=bool(continuous),
+            continuous_bounds=continuous_bounds,
+            continuous_maxiter=int(continuous_maxiter),
+            **({"resolution": resolution} if resolution is not None else {}))
         u_next = selector.select()
         if recorder is not None:
             recorder.record_timing(
@@ -361,7 +366,8 @@ def run_strategy_f(lab: AdvancedVirtualLaboratory,
                    seed: int = 0,
                    verbose: bool = True,
                    key: str = "F",
-                   recorder=None) -> AdvancedStrategyResult:
+                   recorder=None,
+                   resolution=None) -> AdvancedStrategyResult:
     """F: the full advanced loop (see module docstring).
 
     cov_model: optional measurement-aware expected-covariance model (e.g.
@@ -392,7 +398,7 @@ def run_strategy_f(lab: AdvancedVirtualLaboratory,
                                 lab.meter, lab.species, design_cfg,
                                 bounds=bounds, seed=seed,
                                 reference_conditions=ref_conds,
-                                recorder=recorder)
+                                recorder=recorder, resolution=resolution)
     state = GovernorState.NORMAL_LEARNING
     decision: Optional[DesignDecision] = None
     u_next = first_u

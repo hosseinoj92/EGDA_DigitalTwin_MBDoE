@@ -35,8 +35,216 @@ CONFIG = {
     "budget": 6,                  # reactor conditions per strategy
     "scenario": "S3_transport",   # the full-physics demonstration
     "strategies": ["D", "F"],
-    "outdir": "results_advanced_v2",   # v2: corrected framework outputs
+    "outdir": "results_advanced_v4/campaign",
     "n_recovery_mc": 120,         # Figure D Monte Carlo size
+}
+
+# ========================================================================= #
+# EVERY SCIENTIFIC KNOB for THIS campaign
+# ========================================================================= #
+# This runner owns its configuration outright - it does not import the
+# benchmark's.  The demonstration campaign is often the thing you want to
+# poke at (a different reactor, a hotter transfer line) without disturbing a
+# publication benchmark, and a script importing another script to borrow its
+# globals couples two entry points that have no reason to be coupled.
+#
+# The risk that buys back is DRIFT: figures produced here can end up
+# describing a different system from the numbers in the benchmark.  That is
+# handled by making divergence VISIBLE rather than impossible - the run
+# prints every knob that differs from the library default, and the complete
+# resolved configuration is written to <outdir>/config_used.json.
+KNOBS = {
+    # ---- reactor ------------------------------------------------------- #
+    "GEOMETRY": {
+        "length_m": 0.20,
+        "diameter_m": 0.007,
+        "packing_enabled": False,     # True -> inert-packed bed
+        "bed_void_fraction": 1.0,     # epsilon; only used when packed
+    },
+    "T_REF_C": 60.0,                  # Arrhenius reference temperature
+    "N_PORTS": 10,                    # axial samples per profile
+
+    # ---- hidden truth (benchmark scoring only) -------------------------- #
+    "TRUTH": {"k1_ref": 1.00e-3, "Ea1_J": 40_000.0,
+              "k2_ref": 6.50e-4, "Ea2_J": 48_000.0,
+              "K1_ref": 0.90, "K2_ref": 0.07},
+
+    # ---- design space --------------------------------------------------- #
+    # The factorial grid the classical campaign walks, and the bounds the
+    # continuous optimizer is allowed to roam inside.
+    "DESIGN": {
+        "T_C_levels": [40, 60, 80, 100, 120, 140, 160],
+        "Q_total_mL_min_levels": [0.5, 2.0, 8.0],
+        "C_cat_M_levels": [0.5, 1.0],
+        "C_EGDA_M_levels": [1.0],
+        "C_EGDA_M": 1.0,
+        "fixed_design_T_C": [40, 60, 80, 100, 120, 140, 160],
+        "nominal_Q_total_mL_min": 1.0,
+        "nominal_C_cat_M": 0.5,
+        "continuous_bounds": {"T_C": [40.0, 160.0],
+                              "Q_total_mL_min": [0.5, 8.0],
+                              "C_cat_M": [0.5, 1.0],
+                              "C_EGDA_M": [1.0, 1.0]},   # lo == hi -> fixed
+    },
+    # CONTINUOUS vs DISCRETE design.  False = the classical grid-only
+    # campaign (the published v3 behaviour).  True = the optimizer may
+    # propose any point inside continuous_bounds, snapped to the resolution
+    # the hardware can actually command, and accepted only when it strictly
+    # beats the best grid point - so it can never do worse.
+    "DESIGN_SPACE": {
+        "continuous": False,
+        "resolution": {"T_C": 0.1,             # deg C
+                       "Q_total_mL_min": 0.1,   # mL/min
+                       "C_cat_M": 1.0e-4,       # 0.1 mM
+                       "C_EGDA_M": 1.0e-4},     # 0.1 mM
+        "continuous_maxiter": 40,
+        "continuous_restarts": 2,
+    },
+
+    # ---- reactor geometry as a DESIGN VARIABLE (optional) --------------- #
+    # enabled=False -> "I have this reactor, what experiments?"  (default)
+    # enabled=True  -> "I am building a reactor for this chemistry, what
+    #                   geometry AND what experiments?"  The reactor is
+    #                   sized once from the PRIOR before round 1, honouring
+    #                   DESIGN_SPACE["continuous"] for the refinement.
+    # NOTE: with this on, blind RMSE is computed in the CHOSEN reactor, so
+    # it stays comparable across strategies but not across runs with
+    # different geometry settings - the prediction target itself moves.
+    "GEOMETRY_DESIGN": {
+        "enabled": False,
+        "mode": "per_campaign",       # "per_experiment" raises: not implemented
+        "bounds": {"length_m": [0.05, 0.60],
+                   "diameter_m": [0.002, 0.012]},
+        "levels": {"length_m": [0.10, 0.20, 0.40],
+                   "diameter_m": [0.004, 0.007, 0.010]},
+        "resolution": {"length_m": 0.005, "diameter_m": 0.0005},
+        "switch_cost_s": 1800.0,
+    },
+
+    # ---- conventional-vs-optimized comparison ---------------------------- #
+    # Which strategy plays "the conventional method" the methodology must
+    # beat, and the accuracy ladders used for the budget-to-target analysis.
+    "COMPARISON": {
+        "reference_strategy": {"S1_ideal": "A", "S2_nmr": "B",
+                               "S3_transport": "D", "S3ab_delay": "D",
+                               "S3ab_rtd": "D", "S4a_ambiguity": "D",
+                               "S4b_identifiable": "D",
+                               "S4c_out_of_domain": "F",
+                               "S5_inadequacy": "D", "S6_resources": "D",
+                               "S7_spatial_modes": "F-zfixed"},
+        "default_reference": "A",
+        "targets": {"param_err_pct": [50.0, 30.0, 20.0, 10.0, 5.0],
+                    "blind_rmse_M": [1.0e-2, 5.0e-3, 2.0e-3, 1.0e-3]},
+        "trajectory_seed": 1,
+    },
+
+    # ---- sample transfer line ------------------------------------------- #
+    # The line is COOLED before the NMR flow cell: T_line_C is the commanded
+    # line temperature, NOT the reactor's.  It is a large effect - a sample
+    # leaving a 160 C reactor into a 25 C line barely reacts on the way,
+    # whereas at reactor temperature it keeps converting.  None means "stays
+    # at reactor temperature" (the old assumption).
+    "TRANSFER_TRUE": {
+        "enabled": True,
+        "T_line_C": 25.0,
+        "Q_sample_mL_min": 0.5,
+        "V_fixed_mL": 0.15,
+        "geometry": "constant",        # "constant" | "linear"
+        "v_per_m_mL": 0.0,
+        "rtd": "gamma",                # "delta" (plug) | "gamma"
+        "n_tanks": 4.0,
+        "n_quad": 5,
+        "react_in_line": True,
+        "carryover": True,
+        "flush_volumes": 3.0,
+    },
+
+    # ---- NMR instrument -------------------------------------------------- #
+    "ACQ": {
+        "spectrometer_MHz": 80.168,
+        "nmr_temperature_C": 27.0,
+        "n_points": 2048,
+        "acquisition_time_s": 4.096,
+        "repetition_time_s": 15.0,
+        "n_scans": 1,
+        "engine": "analytic",          # "analytic" | "fid"
+    },
+    # ASSUMED nuisances of the synthetic spectrum - not measured Fourier-80
+    # properties.  These are the truth side; the fitter never sees them.
+    "NMR_NUISANCE_TRUE": {
+        "enabled": True,
+        "noise_sigma": 0.10,
+        "shift_drift_ppm": 0.004,
+        "shift_jitter_ppm": 0.001,
+        "linewidth_rel_sigma": 0.08,
+        "baseline_offset": 0.02,
+        "baseline_curve": 0.03,
+        "phase_error_deg": 2.0,
+        "gain_drift_rel_sigma": 0.01,
+    },
+    # assumed direct-observation noise for the A-E baselines
+    "NOISE_DIRECT": {"sigma_abs_M": 0.004, "sigma_rel": 0.02,
+                     "rho_overlap": 0.3},
+
+    # ---- spatial sampling ------------------------------------------------ #
+    "SPATIAL": {
+        "candidate_grid_size": 41,
+        "z_min_fraction": 0.02,
+        "z_max_fraction": 1.0,
+        "min_spacing_fraction": 0.02,
+        "continuous_refinement": False,
+    },
+
+    # ---- Bayesian design (strategy F) ------------------------------------ #
+    "ADVANCED_DESIGN": {
+        "top_k": 3,                    # candidates surviving the FIM screen
+        "n_particles": 16,             # posterior particles per EIG estimate
+        "n_outer": 24,                 # outer MC samples per EIG estimate
+        "alpha_param": 1.0,            # weight on parameter EIG
+        "beta_model": 1.0,             # weight on model-discrimination EIG
+        "beta_model_discrimination": 4.0,
+    },
+
+    # ---- model-inadequacy governor --------------------------------------- #
+    "GOVERNOR": {
+        "alpha_campaign": 0.05,
+        "discrimination_prob": 0.90,
+        "qc_fail_fraction": 0.25,
+        "chi2_dof_ratio_override": 25.0,
+        # kappa: DERIVED FROM CONTROL DATA (validation.derive_systematic_
+        # allowance), never tuned on benchmark performance.  Re-derive it
+        # whenever the NMR calibration changes.
+        "systematic_allowance_nmr": 0.47,
+        "systematic_allowance_direct": 0.0,
+    },
+
+    # ---- measurement-fault QC gate ---------------------------------------- #
+    "QC_GATE": {
+        "enabled_for_nmr": True,
+        "max_retries": 1,              # reacquisitions per failing position
+        "max_reject_fraction": 0.5,    # above this per round -> pause
+    },
+
+    # ---- resource model ---------------------------------------------------- #
+    # lambda_* = 0 recovers pure information maximization; S6 sweeps them.
+    "RESOURCE_COSTS": {
+        "stabilization_volumes": 3.0,
+        "temp_change_s_per_K": 20.0,
+        "temp_ambient_C": 25.0,
+        "nmr_acquisition_s": 60.0,
+        "capillary_speed_m_s": 0.002,
+        "flush_time_s": 30.0,
+        "sample_volume_mL": 0.3,
+        "flush_volume_mL": 0.45,
+        "rho_cp_J_per_mL_K": 4.18,
+        "energy_ramp_J_per_K": 500.0,
+        "lambda_time_per_s": 0.0,
+        "lambda_material_per_mol": 0.0,
+        "lambda_waste_per_mL": 0.0,
+        "lambda_energy_per_kJ": 0.0,
+        "lambda_switch": 0.0,
+        "lambda_motion_per_m": 0.0,
+    },
 }
 
 
@@ -110,6 +318,20 @@ def _figure_d(outdir: str, n_mc: int, seed: int) -> None:
 
 def main() -> None:
     cfg = CONFIG
+    # apply the shared knobs (plus any campaign-specific override) BEFORE
+    # anything reads the benchmark module's configuration
+    # announce anything that is not the library default, so a demo figure
+    # can never quietly describe a different system from the benchmark
+    defaults = bm.resolved_config()
+    resolved_knobs = bm.apply_config(dict(KNOBS))
+    drift = []
+    for name, cur in resolved_knobs.items():
+        base = defaults.get(name)
+        if isinstance(cur, dict) and isinstance(base, dict):
+            drift += [f"{name}.{k}={cur[k]!r}" for k in sorted(cur)
+                      if base.get(k) != cur[k]]
+        elif base != cur:
+            drift.append(f"{name}={cur!r}")
     outdir = resolve_outdir(cfg["outdir"])
     spec = bm.SCENARIOS[cfg["scenario"]]
     t0 = time.time()
@@ -119,6 +341,11 @@ def main() -> None:
           f"{spec.description}")
     print(f"  budget {cfg['budget']} conditions | strategies "
           f"{cfg['strategies']} | seed {cfg['seed']}")
+    if drift:
+        print("  non-default knobs: " + "; ".join(drift))
+    print(f"  design space: "
+          f"{'CONTINUOUS (snapped)' if bm.DESIGN_SPACE['continuous'] else 'DISCRETE grid'}"
+          f" | transfer line T: {bm.TRANSFER_TRUE.T_line_C}")
     print("=" * 74)
 
     histories, results, labs = {}, {}, {}
@@ -161,6 +388,7 @@ def main() -> None:
     # ---- reproducibility record ----------------------------------------- #
     with open(os.path.join(outdir, "config_used.json"), "w") as fh:
         json.dump({"CONFIG": cfg,
+                   "knobs_resolved": resolved_knobs,
                    "scenario": dataclasses.asdict(spec),
                    "truth": bm.TRUTH, "geometry": bm.GEOMETRY,
                    "design": bm.DESIGN,

@@ -1728,6 +1728,176 @@ Practical notes:
 - `threads_per_worker` ≠ 1 is allowed but prints a warning: bit-identical
   agreement with a serial run is no longer guaranteed.
 
+#### Continuous vs discrete design space
+
+The classical campaign picks conditions from a declared factorial grid (7
+temperatures × 3 flows × 2 acid levels). That is a modelling convenience,
+not a hardware limit — a thermostat accepts 97.3 °C as readily as 100 °C.
+`KNOBS["DESIGN_SPACE"]["continuous"] = True` lets the design optimizer
+propose any point inside `continuous_bounds` instead:
+
+```python
+"DESIGN_SPACE": {
+    "continuous": False,          # True -> continuous within bounds
+    "resolution": {"T_C": 0.1,            # deg C
+                   "Q_total_mL_min": 0.1,  # mL/min
+                   "C_cat_M": 1.0e-4,      # 0.1 mM
+                   "C_EGDA_M": 1.0e-4},    # 0.1 mM
+    "continuous_maxiter": 40,
+    "continuous_restarts": 2,
+},
+```
+
+Two properties make this safe to switch on, and both are tested in
+[`tests/test_design_space.py`](SDL_MBDoE/tests/test_design_space.py):
+
+1. **Snap before scoring, never after.** A proposal is rounded to the
+   resolution the platform can actually command *before* the objective is
+   evaluated, so the utility that drives the decision belongs to the
+   experiment that will really run. Scoring a continuous point and only
+   rounding the executed condition would report a utility for an experiment
+   the hardware never performs.
+2. **Never worse than the grid.** The refined point is accepted only if it
+   *strictly* beats the best grid candidate on the same criterion.
+   Continuous mode is therefore a superset of the discrete search, not a
+   replacement — if refinement finds nothing, the round is exactly the
+   discrete round.
+
+A dimension whose bounds coincide (the shipped `C_EGDA_M: [1.0, 1.0]`) is a
+declared constant of the campaign and is held fixed rather than handed to
+the optimizer.
+
+Where it applies: the baseline MBDoE selector (strategies C, D, E) refines
+its D-optimal choice directly. Strategy F refines on the *cheap screen
+score* and adds the result to the EIG shortlist, so it competes against the
+grid candidates on the same full utility — refining on the EIG itself would
+cost `n_particles × n_outer` forward solves per optimizer step.
+
+**Honest limits.** The guarantee is per round, on the design criterion. A
+greedy criterion improving at every round does *not* guarantee lower final
+parameter error: the campaign takes a different path through the design
+space, and paths can end better or worse. Expect a **~5× runtime increase**
+(a smoke run went 37 s → 194 s), so a 40-seed publication run moves from
+roughly 1 h to 5 h. Lower `continuous_maxiter`/`continuous_restarts` to
+trade refinement quality for time.
+
+#### The transfer line has its own temperature
+
+The line is cooled before the NMR flow cell — it does not sit at reactor
+temperature. `KNOBS["TRANSFER_TRUE"]["T_line_C"]` (default **25 °C**) is the
+commanded line temperature; `None` restores the old assumption that the
+sample keeps reacting at reactor temperature.
+
+This is a large effect, not a detail: a sample leaving a 160 °C reactor into
+a 25 °C line barely reacts on the way, whereas at reactor temperature it
+keeps converting for the whole transfer delay. Because the line temperature
+is *commanded*, the controller is entitled to know it, so it reaches the
+inference side too (`AssumedTransfer.T_line_C`) and the transport correction
+advances the sample at the line temperature rather than the reactor's.
+
+#### Every knob in one place
+
+`KNOBS` at the top of the runner exposes every scientific setting — reactor
+geometry, hidden truth, design grid and bounds, design-space mode, transfer
+line, NMR acquisition and nuisances, spatial sampling, Bayesian design
+weights, governor thresholds (including the control-derived κ), QC gate, and
+the resource-cost model. `bm.apply_config` writes them into the benchmark
+module before anything reads it, and replays them inside every worker
+process — a spawned worker re-imports the module and would otherwise start
+from the defaults.
+
+It is **strict**: an unknown block or field raises rather than being
+ignored, because a silently-dropped knob is indistinguishable from one that
+had no effect, and that is the failure mode that wastes a long run. The
+resolved value of every knob is written to `benchmark_config.json` under
+`knobs_resolved`. The demonstration campaign imports the same `KNOBS`, so
+the two entry points cannot drift apart.
+
+#### Is it actually better than the conventional method?
+
+Convergence curves answer the wrong question. A *round* is not a cost — one
+round of the conventional ladder and one round of an adaptive campaign
+consume different amounts of feedstock, time and instrument occupancy — so a
+curve that wins per round can lose per gram. And "our curve is lower" is not
+a number anyone can put in an abstract.
+
+[`sdl_advanced/efficiency.py`](SDL_MBDoE/sdl_advanced/efficiency.py) computes
+two paired quantities against a declared conventional reference, written to
+`audit/comparison/`:
+
+| Question | Table | Reads as |
+|---|---|---|
+| **Budget to target** — what did each method *spend* to first reach a given accuracy? | `budget_to_target.csv` + `_summary` | "reached 20 % parameter error with 0.34× the EGDA of the ladder" |
+| **Accuracy at matched resource** — at the reference's *total* spend, how accurate was each method? | `accuracy_at_matched_resource.csv` + `_summary` | "at the ladder's full material budget, error was 2.7× lower" |
+| **What it actually did** — the decision and its consequence, round by round, with the conventional protocol alongside | `design_trajectory.csv` | "at round 4 the ladder was still at 80 °C by protocol; the optimizer had moved to 150 °C at low flow" |
+| **One line per scenario** | `headline_comparison.csv` | the quotable summary |
+
+Every ratio is **paired on the same seed** under common random numbers, so
+it is a within-seed comparison rather than a difference of two averages. The
+conventional reference is declared per scenario in
+`KNOBS["COMPARISON"]["reference_strategy"]`.
+
+**Censoring is reported, not hidden.** A campaign that never reaches a
+target has no budget-to-target — it is right-censored. Every row carries
+`reached`, every aggregate carries `n_reached` and `n_paired` beside
+`n_seeds`, and the headline picks the *tightest target at least half the
+seeds reached* rather than the most flattering one available. A ratio over
+three lucky seeds out of forty is a different claim from one over forty, and
+the tables keep the difference visible.
+
+Figures: `figure_efficiency_<scenario>.png` puts accuracy against
+**cumulative resource** with a horizontal line at the accuracy the
+conventional method reached after its *entire* budget — where each curve
+crosses that line is what that accuracy cost. `figure_spatial_value.png`
+isolates the value of *choosing* the sampling positions (equal spacing vs
+optimized vs adaptive at equal acquisition budget), and
+`figure_trajectory_<scenario>.png` shows the decisions themselves.
+
+**One thing to decide before quoting these numbers.** Strategy A is
+outlet-only; B, D, E and F sample ten axial positions per round. Comparing a
+spatial method against A therefore mixes "smarter design" with "more data
+per round" — which is why B's acquisition count looks 7× worse against A
+even where its accuracy per gram is better. If the claim you want is *about
+the design algorithm*, set the S1 reference to `B` (spatial + fixed ladder)
+so only the design differs. `S2_nmr` already uses `B` for this reason.
+
+#### Reactor geometry as a design variable (optional)
+
+Two different questions, one switch:
+
+```python
+"GEOMETRY_DESIGN": {
+    "enabled": False,          # False: "I have this reactor, what experiments?"
+                               # True:  "I am building a reactor - what geometry?"
+    "mode": "per_campaign",
+    "bounds": {"length_m": [0.05, 0.60], "diameter_m": [0.002, 0.012]},
+    "levels": {"length_m": [0.10, 0.20, 0.40],
+               "diameter_m": [0.004, 0.007, 0.010]},
+    "resolution": {"length_m": 0.005, "diameter_m": 0.0005},
+},
+```
+
+With it enabled the reactor is sized **once, before round 1**, by maximizing
+the D-optimal information of the conventional reference design under the
+**prior** (literature) parameters — never the hidden truth, since sizing a
+reactor is something you do before you know the kinetics. Discrete mode
+screens the declared levels; continuous mode then refines inside `bounds`,
+snapped to what you could actually order a tube to (5 mm length, 0.5 mm
+bore), under the same never-worse rule as the operating-condition design.
+
+`mode: "per_experiment"` **raises** rather than running silently: changing
+the reactor between rounds needs a swap-cost model in `ResourceMeter` and a
+per-round geometry in the truth-side laboratory, neither of which exists.
+
+Two things to know when reading the results:
+
+- If the optimum lands **on a bound**, the run says so. That means the
+  constraint is binding — the answer is the edge of your box, not the
+  chemistry. Widen the bounds to find the real optimum.
+- Blind RMSE is evaluated in the reactor the campaign actually ran in, so it
+  stays comparable *across strategies* (same reactor) but **not across runs
+  with different geometry settings** — the prediction target itself moved.
+
 #### The publication audit trail
 
 `CONFIG["audit"] = True` adds a complete, publication-ready record of *how*
@@ -1806,10 +1976,10 @@ second would move the campaign.
 
 ```bash
 cd SDL_MBDoE
-for f in tests/*.py; do python $f; done      # 16 files, all standalone
+for f in tests/*.py; do python $f; done      # 18 files, all standalone
 ```
 
-**137 tests across 16 files, all standalone-runnable and pytest-compatible.**
+**179 tests across 18 files, all standalone-runnable and pytest-compatible.**
 The acceptance criteria they pin down include: existing Layer 1/2 tests unchanged;
 `fixed_equal` ≡ the legacy port layout; reactor-length rescaling; optimized
 positions in-bounds/spaced/unique/deterministic; zero-noise deconvolution
@@ -1837,6 +2007,7 @@ boundary-aware evidence reliability; and survivorship-free aggregation.
 | `test_transfer.py` | 7 | `test_truth_firewall.py` | 5 |
 | `test_resource_accounting.py` | 7 | `test_measurement_fault.py` | 4 |
 | `test_parallel.py` | 13 | `test_audit_regression.py` | 13 |
+| `test_design_space.py` | 16 | `test_comparison.py` | 13 |
 
 ### 7.7 Troubleshooting
 
@@ -1921,6 +2092,7 @@ PFR_H2SO4_digital_twin/                    LAYER 1 (unchanged)
 SDL_MBDoE/
 ├── sdl/                                   LAYER 2 (baseline, preserved)
 │   ├── layer1_bridge.py  the ONLY module importing Layer 1
+│   ├── design_space.py   instrument resolution + bounded continuous refinement
 │   ├── parameters.py     θ space, transforms, bounds, CI interpretation
 │   ├── observation.py    Measurement (now with optional cov_y/meta) + NoiseModel
 │   ├── truth.py          legacy VirtualLaboratory (hidden truth + noise)
@@ -1947,6 +2119,7 @@ SDL_MBDoE/
 │   ├── audit.py          passive recorder: candidate scores, timings, QC dispositions
 │   ├── audit_export.py   post-campaign long tables (design/inference/governor/...)
 │   ├── audit_summary.py  convergence (observed + LOCF), integrity, manifest
+│   ├── efficiency.py     budget-to-target + matched-resource vs conventional
 │   ├── nmr_examples.py   three representative spectra, own fixed seed
 │   ├── validation.py     held-out NMR suites, kappa derivation from control data
 │   └── reporting.py      figure set, strategy table, paired CSVs
@@ -1954,7 +2127,7 @@ SDL_MBDoE/
 ├── run_advanced_campaign.py       Layer 3 demo (Figures A–D)
 ├── run_advanced_benchmark.py      Monte Carlo benchmark (smoke/demo/publication)
 ├── results_advanced_v3/publication/   the §6 run: 40 seeds x budget 8 x 11 scenarios
-└── tests/                             137 tests, 16 files
+└── tests/                             179 tests, 18 files
     ├── self_test.py               20 baseline tests (unchanged)
     ├── test_geometry_packing.py   geometry/packing/observability/ladder (12)
     ├── test_nmr_calibration.py    one public calibration artifact + gate (12)
@@ -1970,7 +2143,9 @@ SDL_MBDoE/
     ├── test_truth_firewall.py     end-to-end firewall (5)
     ├── test_measurement_fault.py  QC-before-assimilation (4)
     ├── test_parallel.py           parallel == serial, byte for byte (13)
-    └── test_audit_regression.py   audit ON == audit OFF, exactly (13)
+    ├── test_audit_regression.py   audit ON == audit OFF, exactly (13)
+    ├── test_design_space.py       continuous design + knobs + T_line (16)
+    └── test_comparison.py         efficiency analysis + geometry design (13)
 
 EGDA_NMR_sim/sim_nmr(2).py         standalone spectrum visualization tool
                                    (NOT used inside the campaign loop)

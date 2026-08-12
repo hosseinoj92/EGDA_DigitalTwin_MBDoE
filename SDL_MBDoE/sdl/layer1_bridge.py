@@ -161,7 +161,8 @@ class Layer1Bridge:
     def concentrations_at(self, theta_nat: Dict[str, float],
                           u: OperatingConditions,
                           z_m: np.ndarray, species: Sequence[str],
-                          extra_tau_s=0.0) -> np.ndarray:
+                          extra_tau_s=0.0,
+                          T_extra_K: Optional[float] = None) -> np.ndarray:
         """Concentrations (mol/L) at axial positions z_m, flattened
         species-major:  y[i*Nz + k] = C_{species i}(z_k).
 
@@ -169,7 +170,17 @@ class Layer1Bridge:
         withdrawal (transfer-line effect).  It may be a SCALAR (same delay at
         every position - the legacy behaviour) or an ARRAY of len(z_m)
         (position-dependent transfer geometry, e.g. a capillary whose internal
-        path lengthens toward the inlet)."""
+        path lengthens toward the inlet).
+
+        T_extra_K sets the temperature of that post-withdrawal reaction.  It
+        matters: the line is COOLED before the NMR cell, so a sample leaving
+        a 160 C reactor into a 25 C line barely reacts on the way, whereas
+        assuming it stays at reactor temperature would over-correct badly.
+        None keeps the reactor temperature (the legacy behaviour).  The
+        catalyst speciation is carried over from the reactor inlet rather
+        than re-solved at the line temperature - the same simplification the
+        truth-side propagator makes, so the two stay structurally
+        comparable."""
         kin = self.kinetics_from_theta(theta_nat)
         model = KineticModel(kin)
         inlet = self._inlet(u, kin)
@@ -182,6 +193,7 @@ class Layer1Bridge:
         z_m = np.asarray(z_m, dtype=float)
         tau_extra = np.broadcast_to(np.asarray(extra_tau_s, dtype=float),
                                     z_m.shape).copy()
+        T_line_K = float(T_extra_K) if T_extra_K is not None else T_K
         if self.engine == "analytical":
             tau = z_m / u_vel + tau_extra
             prof = analytical_profiles(inlet, kappa1, kappa2, tau)
@@ -189,8 +201,8 @@ class Layer1Bridge:
             res = simulate_pfr(inlet, self.geometry, T_K, model, self.settings)
             prof = {sp: np.interp(z_m, res.x_m, res.conc[sp]) for sp in res.conc}
             if np.any(tau_extra > 0.0):
-                prof = self._advance_batch(prof, model, T_K, inlet.c_h_plus,
-                                           tau_extra)
+                prof = self._advance_batch(prof, model, T_line_K,
+                                           inlet.c_h_plus, tau_extra)
         return np.concatenate([np.atleast_1d(prof[sp]) for sp in species])
 
     def _advance_batch(self, port_conc: Dict[str, np.ndarray],
