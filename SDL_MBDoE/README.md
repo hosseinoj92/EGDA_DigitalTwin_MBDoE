@@ -1026,3 +1026,138 @@ All spectral/transport nuisance values are **simulation assumptions**
 (marked `CAL:` in the code) to be replaced by pure-component calibrations on
 the physical Fourier 80; swapping simulated for real spectra only requires
 replacing the instrument side of `sdl_advanced/instrument.py`.
+
+---
+
+# V6: what changed, and how to run it
+
+V6 is not a tuning pass over V5.  Three defects in V5 changed results rather
+than presentation, and the fixes change physics.  **V6 numbers are therefore
+not comparable to the `results_advanced_v5` archive**, which is kept
+read-only as the record of what the previous framework produced.
+
+## 1. Reactor validity now covers the whole design space
+
+V5 screened candidate geometries for plug-flow validity **at the nominal
+1 mL/min only**.  It selected a 60 cm open tube at `t_rad/tau = 8.8` and then
+ran it at up to 8 mL/min, where the same ratio is **70.7** against a limit of
+10.  The criterion is now evaluated at *every* flow the design space can
+command (`benchmark.permitted_flows()`), and the check is applied in
+`active_geometry()` and `make_lab()` - so the runner, every campaign, every
+scenario override and any direct API call go through it.
+
+`sdl_advanced/reactor_validity.py` holds the physics.  Two criteria, both
+from Layer 1's own diagnostics:
+
+* **radial mixing** `t_rad/tau <= 10`
+* **axial dispersion** `Bo = uL/D_ax >= 100`
+
+For an open tube these are *one* criterion: substituting the Taylor-Aris
+`D_ax` gives `Bo = 48/(t_rad/tau)`, and the bore cancels from both.  A packed
+bed is now **checked**, not assumed valid - `d_p = d/10`, `Pe_ax ~ 0.5`,
+`Pe_r ~ 10`, `L/d_p >= 100` - so it reports a finite ratio instead of the
+old hard-coded `0.0`.
+
+**Consequence:** no open tube of any practical length is admissible over
+0.5-8 mL/min (8 mL/min would need an 88 m tube).  The demonstration reactor
+is therefore **packed** by default.  That shortens `tau` by `eps` and changes
+every conversion; it is switched from `FEATURES["packed_bed_reactor"]` and
+recorded in every run.  When nothing is admissible the sizing **refuses** and
+names the bound to change - it never falls back on a nominally-feasible one.
+
+## 2. Governor recalibration
+
+V5 measured a **57.5 %** false-inadequacy rate on well-specified campaigns.
+Splitting the residual showed the kinetic model was fine (MAP within
+0.33-0.72 claimed sigma of truth) while the *measurement* sat 1.26-1.55 away:
+the prepared calibration standards (EGDA <= 0.40 M, AcOH <= 0.70 M) no longer
+spanned the widened V6 design space (EGDA to 1.0 M, AcOH to 1.7 M), so the
+regressed error model was extrapolated and `Sigma_y` was under-stated.
+
+Three fixes:
+
+1. **Standards are generated from a declared envelope** that tracks `DESIGN`
+   (`spectral_fit.CompositionEnvelope`), on the A->B->C mass-balance
+   manifold - a conversion series, as a laboratory would prepare.
+2. **kappa is derived at run time** (`GOVERNOR["systematic_allowance_nmr"] =
+   "auto"`) from control data spanning the same envelope, and the derivation
+   is archived.  A hard-coded kappa is a value that was right once.
+3. **The chi2 magnitude test no longer decides** under a declared
+   measurement systematic.  Its power against a *scale* error in `Sigma_y`
+   grows without bound in n, so it reads the measurement model rather than
+   the kinetic one.  The realized dispersion `phi = r'r/dof` is estimated and
+   used to standardize the structural components (species bias, worst cell,
+   T-trend), which is what actually distinguishes kinetic inadequacy.  The
+   gross-misfit override (`chi2_dof_ratio_override`) is unchanged.
+
+## 3. Single-measurement QC
+
+In `adaptive_sequential` mode a round contains one acquisition, so one
+rejected spectrum is a 100 % rejection fraction.  That paused **40 of 40**
+`F-zadaptive` campaigns in the V5 archive: S7 was measuring the QC gate, not
+the spatial policy.  The gate now applies four rules (`QCGateConfig`):
+batch total-loss, batch fraction (only for batches >= 4), and two
+**persistence** rules - consecutive rejections and a rolling window - that
+behave identically at any batch size.
+
+## Central feature control
+
+`KNOBS["FEATURES"]` in both runners is one True/False per optional effect,
+with an adjacent comment saying what it represents, what True does and what
+ideal behaviour False recovers.  `sdl_advanced/features.py` holds the
+catalogue and the routing; **False is a genuine bypass**, never a small
+parameter, and a switch declared True whose magnitude is zero is refused.
+Block fields that a switch owns (`GEOMETRY_DESIGN["enabled"]`,
+`TRANSFER_TRUE["rtd"]`, `ACQ["engine"]`, ...) raise if set directly and name
+the switch to use.  `KNOBS["MODEL_MISMATCH"]` is the only place truth and
+inference may differ; it is **off by default** and a divergence configured
+without enabling it raises.
+
+## Running
+
+```bash
+python tests/test_reactor_validity.py     # new: flow-envelope validity
+python tests/test_features.py             # new: central switch contract
+python tests/test_measurement_fault.py    # incl. single-measurement QC
+python tests/self_test.py                 # everything else, per file
+```
+
+Fast code validation (minutes), writes `results_advanced_v6/validation/smoke`:
+
+```python
+CONFIG = {"mode": "smoke", "run_kind": "validation", "run_label": "smoke",
+          "results_root": "results_advanced_v6"}
+```
+
+**The publication run** (40 seeds, budget 8, full scenario suite).  Edit
+`CONFIG` in `run_advanced_benchmark.py` to:
+
+```python
+CONFIG = {
+    "mode": "publication",
+    "results_root": "results_advanced_v6",
+    "run_kind": "publication",          # -> results_advanced_v6/publication/main
+    "run_label": "main",
+    "outdir": None,
+    "allow_overwrite": False,           # refuses to overwrite an existing run
+    "seeds": None, "budget": None, "scenarios": None,
+    "governor_mc_seeds": None,
+    "run_quant_validation": True,
+    "progress": True, "verbose_rounds": False,
+    "n_workers": "auto", "threads_per_worker": 1,
+    "audit": True, "audit_examples": True,
+}
+```
+
+then `python run_advanced_benchmark.py`.  **Commit first** - the run records
+the commit and flags a dirty tree, and a publication run from a dirty tree
+cannot be reproduced from the recorded commit alone.  Expect a few hundred MB
+of audit tables and appreciably longer than V5 per campaign: the calibration
+now measures a larger standard set and kappa is derived once per
+configuration.
+
+Every run writes `run_manifest.json` (commit, branch, dirty flag, Python and
+NumPy versions, seeds, full resolved knobs), `features_resolved.json` (every
+switch, its value and its explanation), `reactor_validity.csv` / `.txt`, and
+`benchmark_config.json` including the kappa derivation and the plug-flow
+criteria.

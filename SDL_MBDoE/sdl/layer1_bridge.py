@@ -103,7 +103,22 @@ class Layer1Bridge:
                  h_plus_model: str = "equilibrium",
                  engine: str = "ode", n_points: int = 101,
                  reversible: bool = True, catalyst: str = "H2SO4",
-                 ka2_model: str = "tdep", activity_model: str = "dilute"):
+                 ka2_model: str = "tdep", activity_model: str = "dilute",
+                 arrhenius: bool = True, van_t_hoff: bool = True):
+        """`arrhenius` and `van_t_hoff` are FEATURE GATES for the two
+        temperature dependences, and they are real bypasses rather than
+        small numbers:
+
+          arrhenius=False   Ea is not applied at all, so k(T) = k_ref
+                            everywhere - an ISOTHERMAL rate constant.  The
+                            estimation side must hold Ea fixed to match,
+                            which benchmark.py does through the same switch.
+          van_t_hoff=False  dH = 0, so K(T) = K_ref - a temperature-
+                            independent equilibrium constant.
+
+        Both default True (the physical model).  They exist so that "is the
+        temperature dependence doing any work here?" is a question the
+        framework can answer by construction instead of by argument."""
         if engine not in ("ode", "analytical"):
             raise ValueError(f"Unknown forward engine '{engine}'.")
         if catalyst not in ("H2SO4", "NaOH"):
@@ -123,23 +138,34 @@ class Layer1Bridge:
         self.catalyst = catalyst
         self.ka2_model = ka2_model
         self.activity_model = activity_model
+        self.arrhenius = bool(arrhenius)
+        self.van_t_hoff = bool(van_t_hoff)
         self.settings = SolverSettings(n_points=n_points, rtol=1e-8, atol=1e-11)
 
     # ------------------------------------------------------------------ #
     def kinetics_from_theta(self, theta_nat: Dict[str, float]) -> KineticParameters:
-        a1 = theta_nat["k1_ref"] * np.exp(theta_nat["Ea1_J"] / (R_GAS * self.t_ref_K))
-        a2 = theta_nat["k2_ref"] * np.exp(theta_nat["Ea2_J"] / (R_GAS * self.t_ref_K))
-        step1 = ArrheniusStep(A=float(a1), Ea=float(theta_nat["Ea1_J"]))
-        step2 = ArrheniusStep(A=float(a2), Ea=float(theta_nat["Ea2_J"]))
+        # FEATURE GATE: with arrhenius=False the activation energies are not
+        # applied at all (A = k_ref, Ea = 0), so every rate constant is the
+        # reference-temperature one - the ideal ISOTHERMAL-kinetics limit.
+        ea1 = float(theta_nat["Ea1_J"]) if self.arrhenius else 0.0
+        ea2 = float(theta_nat["Ea2_J"]) if self.arrhenius else 0.0
+        a1 = theta_nat["k1_ref"] * np.exp(ea1 / (R_GAS * self.t_ref_K))
+        a2 = theta_nat["k2_ref"] * np.exp(ea2 / (R_GAS * self.t_ref_K))
+        step1 = ArrheniusStep(A=float(a1), Ea=ea1)
+        step2 = ArrheniusStep(A=float(a2), Ea=ea2)
         if self.catalyst == "NaOH":
             return KineticParameters(step1=step1, step2=step2,
                                      catalyst="NaOH", reversible=False)
         return KineticParameters(
             step1=step1, step2=step2,
+            # FEATURE GATE: van_t_hoff=False sets dH = 0, i.e. a
+            # temperature-INDEPENDENT equilibrium constant K(T) = K_ref.
             eq1=EquilibriumStep(K_ref=float(theta_nat.get("K1_ref", _LIT.eq1.K_ref)),
-                                dH_J=DH1_J, T_ref_K=self.t_ref_K),
+                                dH_J=(DH1_J if self.van_t_hoff else 0.0),
+                                T_ref_K=self.t_ref_K),
             eq2=EquilibriumStep(K_ref=float(theta_nat.get("K2_ref", _LIT.eq2.K_ref)),
-                                dH_J=DH2_J, T_ref_K=self.t_ref_K),
+                                dH_J=(DH2_J if self.van_t_hoff else 0.0),
+                                T_ref_K=self.t_ref_K),
             reversible=self.reversible,
             h_plus_model=self.h_plus_model,
             ka2_model=self.ka2_model,

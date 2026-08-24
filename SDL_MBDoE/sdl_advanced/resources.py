@@ -121,8 +121,15 @@ class ResourceMeter:
     #: relative tolerance when deciding whether a condition actually changed
     _COND_RTOL = 1e-9
 
-    def __init__(self, costs: ResourceCosts, reactor_volume_mL: float):
+    def __init__(self, costs: ResourceCosts, reactor_volume_mL: float,
+                 enabled: bool = True):
+        """`enabled=False` is the FEATURE bypass for resource accounting
+        (FEATURES['resource_accounting']): no event is recorded, so the
+        totals are identically zero and nothing downstream can weight a
+        cost that was never measured.  It is a bypass, not a zero cost
+        model - the event log itself is empty."""
         self.costs = costs
+        self.enabled = bool(enabled)
         self.reactor_volume_mL = float(reactor_volume_mL)
         self.events: List[ResourceEvent] = []
         #: FULL last condition (T, Q_total, C_EGDA, C_cat) - a change in ANY
@@ -145,6 +152,8 @@ class ResourceMeter:
         same (T, Q, C_EGDA, C_cat) logs a zero-cost 'condition_hold' event
         (audit trail) and NO new stabilization - moving the capillary does
         not perturb the reactor."""
+        if not self.enabled:
+            return          # FEATURE bypass: nothing metered
         cond = (float(T_C), float(Q_total_mL_min), float(C_EGDA_M),
                 float(C_cat_M))
         if not self._cond_changed(cond):
@@ -181,6 +190,8 @@ class ResourceMeter:
                         C_cat_M: float, retry: bool = False) -> None:
         """Capillary move + flush + one NMR acquisition at position z.
         retry=True marks a QC-triggered reacquisition (separately counted)."""
+        if not self.enabled:
+            return          # FEATURE bypass: nothing metered
         c = self.costs
         travel = (abs(z_m - self._last_z_m)
                   if self._last_z_m is not None else 0.0)
@@ -209,6 +220,8 @@ class ResourceMeter:
         """A position whose data was rejected by the QC gate (not
         assimilated); auditable, no physical cost beyond the acquisitions
         already logged."""
+        if not self.enabled:
+            return          # FEATURE bypass: nothing metered
         self.events.append(ResourceEvent("qc_reject", {"qc_rejected": 1.0}))
 
     # ------------------------------------------------------------------ #

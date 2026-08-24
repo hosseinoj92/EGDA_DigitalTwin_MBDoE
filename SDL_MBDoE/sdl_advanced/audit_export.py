@@ -216,6 +216,13 @@ def governor_rows(spec, strategy: str, seed: int, res,
                for sp in species},
             "z_autocorr_r": _f(g.z_trend_r),
             "T_trend_r": _f(g.T_trend_r),
+            # phi = r'r/dof, the realized dispersion.  Recorded because it
+            # is the number that separates "the KINETIC model is wrong"
+            # from "the claimed measurement covariance is mis-scaled" - the
+            # distinction the governor's decision now rests on.
+            "dispersion_phi": _f(getattr(g, "dispersion", 1.0)),
+            "decision_components": ";".join(
+                getattr(g, "decision_components_used", ()) or ()),
             "affected_species": ";".join(g.affected_species or []),
             "affected_region": g.affected_region or "",
             "trigger_reasons": " | ".join(g.reasons or [])[:500],

@@ -50,6 +50,53 @@ from .resources import ResourceCosts, ResourceMeter              # noqa: E402
 
 
 @dataclass(frozen=True)
+class FaultModel:
+    """TRUTH-side hardware failures and quantification outliers.
+
+    Two DELIBERATELY DIFFERENT kinds, because they exercise different parts
+    of the system:
+
+      * `spectrum_faults` are DETECTABLE.  A lost lock, a gas bubble in the
+        flow cell or a failed shim produces a spectrum carrying a large
+        structured artifact that no lineshape model can fit, so the
+        deconvolution raises its residual-RMS FAIL flag and the QC gate
+        rejects the acquisition before it ever reaches the posterior.  This
+        is what the QC gate exists for, and what the retry policy is scored
+        against.
+      * `outliers` are NOT detectable from one spectrum: a mis-apportioned
+        overlapped integral gives a concentration that is wrong by many
+        claimed sigmas while the residual stays perfectly normal.  They test
+        the INFERENCE's robustness, not the gate's.
+
+    Both are OFF by default: they are additional physics, and switching them
+    on changes every downstream number.  `enabled` is the master gate."""
+    enabled: bool = False
+    #: per-acquisition probability of a gross, QC-detectable spectrum fault
+    spectrum_fault_prob: float = 0.02
+    #: amplitude of the structured artifact, in units of the spectral noise
+    #: sigma (large enough that the residual-RMS QC flag fires reliably)
+    spectrum_fault_amplitude_sigma: float = 400.0
+    #: per-acquisition probability of an UNDETECTABLE quantification outlier
+    outlier_prob: float = 0.0
+    #: outlier displacement, in multiples of the CLAIMED sigma
+    outlier_scale_sigma: float = 8.0
+
+    def __post_init__(self) -> None:
+        for name in ("spectrum_fault_prob", "outlier_prob"):
+            p = float(getattr(self, name))
+            if not 0.0 <= p <= 1.0:
+                raise ValueError(f"{name} must lie in [0, 1]; got {p}.")
+
+    @property
+    def spectrum_faults_active(self) -> bool:
+        return bool(self.enabled) and self.spectrum_fault_prob > 0.0
+
+    @property
+    def outliers_active(self) -> bool:
+        return bool(self.enabled) and self.outlier_prob > 0.0
+
+
+@dataclass(frozen=True)
 class InstrumentConfig:
     observation_mode: str = "nmr"        # "nmr" | "direct"
     nmr_mode: str = "realistic"          # "ideal" | "realistic"
@@ -79,7 +126,10 @@ class AdvancedVirtualLaboratory:
                  costs: ResourceCosts,
                  seed: int = 0,
                  noise_direct: Optional[NoiseModel] = None,
-                 calibration_gain: Optional[Dict[str, float]] = None):
+                 calibration_gain: Optional[Dict[str, float]] = None,
+                 faults: Optional[FaultModel] = None,
+                 fitter_kwargs: Optional[Dict[str, float]] = None,
+                 meter_enabled: bool = True):
         self._theta_true = dict(theta_true)            # hidden
         self._bridge = bridge
         self._rng = np.random.default_rng(seed)
@@ -88,12 +138,27 @@ class AdvancedVirtualLaboratory:
         nu = nuisance_true if config.nmr_mode == "realistic" \
             else nuisance_true.ideal()
         self._nmr = NMRSimulator(acq, nu)              # truth-side simulator
-        self._fitter = SpectralFitter(acq, config.species_measured)
+        # fitter_kwargs carries the QUANTIFICATION magnitudes (floors,
+        # coherent gain, shift-jitter propagation).  All zero = the pure
+        # within-spectrum covariance, which is the idealized limit of
+        # FEATURES['quantification_uncertainty'].
+        self.fitter_kwargs = dict(fitter_kwargs or {})
+        self._fitter = SpectralFitter(acq, config.species_measured,
+                                      **self.fitter_kwargs)
         self._transfer = TransferLine(transfer, bridge.geometry.length_m)
         self._noise_direct = noise_direct or NoiseModel()
+        self.faults = faults or FaultModel()
+        # DEDICATED fault RNG: whether a bubble passes the cell is not the
+        # same physical process as the receiver noise, and giving it its own
+        # stream keeps the measurement stream unperturbed when faults are
+        # off - so enabling faults cannot silently reshuffle everything else.
+        self._fault_rng = np.random.default_rng(seed + 600_004)
+        self.n_faults_injected = 0
+        self.n_outliers_injected = 0
         self.calibration_gain = calibration_gain or {}
         # stabilization is measured in FLOWING liquid volumes (epsilon-aware)
-        self.meter = ResourceMeter(costs, bridge.geometry.liquid_volume_mL)
+        self.meter = ResourceMeter(costs, bridge.geometry.liquid_volume_mL,
+                                   enabled=meter_enabled)
         self.species = tuple(config.species_measured)
         self.n_experiments_run = 0
         self.n_acquisitions = 0
@@ -232,13 +297,56 @@ class AdvancedVirtualLaboratory:
                  if np.any(np.diag(cov) > 0.0) else np.zeros(len(clean)))
         return clean + noise, cov, {"mode": "direct"}
 
+    def _inject_spectrum_fault(self, ppm: np.ndarray,
+                               spec: np.ndarray) -> Tuple[np.ndarray, bool]:
+        """Gross, QC-DETECTABLE corruption of one acquisition.
+
+        A rolling artifact spanning the whole window: no combination of the
+        fitter's Lorentzian basis, quadratic baseline and phase term can
+        absorb it, so the residual RMS blows past the FAIL threshold.  That
+        is the point - a fault the gate cannot see would be a silent data
+        corruption, not a fault."""
+        f = self.faults
+        if not f.spectrum_faults_active:
+            return spec, False
+        if self._fault_rng.uniform() >= f.spectrum_fault_prob:
+            return spec, False
+        amp = (f.spectrum_fault_amplitude_sigma
+               * max(self._nmr.nuisance.noise_sigma, 1e-6))
+        phase = self._fault_rng.uniform(0.0, 2.0 * np.pi)
+        self.n_faults_injected += 1
+        return spec + amp * np.abs(np.sin(3.0 * ppm + phase)), True
+
+    def _inject_outliers(self, est: np.ndarray,
+                         cov: np.ndarray) -> Tuple[np.ndarray, int]:
+        """UNDETECTABLE quantification outliers: displace a species by many
+        CLAIMED sigmas without touching the spectral residual, which is what
+        a mis-apportioned overlapped integral does."""
+        f = self.faults
+        if not f.outliers_active:
+            return est, 0
+        n = 0
+        out = est.copy()
+        sig = np.sqrt(np.maximum(np.diag(cov), 0.0))
+        for i in range(len(out)):
+            if self._fault_rng.uniform() < f.outlier_prob:
+                sign = 1.0 if self._fault_rng.uniform() < 0.5 else -1.0
+                out[i] = max(out[i] + sign * f.outlier_scale_sigma * sig[i],
+                             0.0)
+                n += 1
+        self.n_outliers_injected += n
+        return out, n
+
     def _observe_nmr(self, seen: Dict[str, float]):
         """Spectrum -> deconvolution.  The fitter sees only the spectrum."""
         ppm, spec, _rl = self._nmr.simulate(seen, self._rng)
+        spec, faulted = self._inject_spectrum_fault(ppm, spec)
         res = self._fitter.fit(ppm, spec)
         est = np.array([res.conc_M[list(res.species).index(sp)]
                         for sp in self.species])
+        est, n_out = self._inject_outliers(est, res.cov)
         meta = {"mode": "nmr", "qc_flags": list(res.qc_flags),
+                "hardware_fault": int(faulted), "n_outliers": int(n_out),
                 "censored": list(res.censored),
                 "residual_rms": res.residual_rms,
                 "condition_number": res.condition_number,

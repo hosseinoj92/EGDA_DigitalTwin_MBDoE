@@ -159,8 +159,8 @@ def test_geometry_is_fixed_unless_enabled():
 def test_geometry_optimization_picks_from_the_declared_space():
     before = bm.resolved_config()
     try:
-        bm._GEOMETRY_CACHE.clear()
-        bm.apply_config({"GEOMETRY_DESIGN": {"enabled": True}})
+        bm.apply_config({"FEATURES": {"geometry_optimization": True}})
+        bm.invalidate_caches()
         g = bm.active_geometry(8)
         lv = bm.GEOMETRY_DESIGN["levels"]
         assert g["length_m"] in lv["length_m"]
@@ -177,11 +177,11 @@ def test_geometry_optimization_picks_from_the_declared_space():
         from pfr_twin.parameters import ReactorGeometry
         ReactorGeometry(**g)
         # deterministic: the same configuration gives the same reactor
-        bm._GEOMETRY_CACHE.clear()
+        bm.invalidate_caches()
         assert bm.active_geometry(8) == g
     finally:
         bm.apply_config(before)
-        bm._GEOMETRY_CACHE.clear()
+        bm.invalidate_caches()
 
 
 def test_open_tube_validity_the_bore_cancels():
@@ -194,47 +194,51 @@ def test_open_tube_validity_the_bore_cancels():
     # twice the length halves the ratio; packing zeroes it by assumption
     assert abs(bm._radial_ratio({"length_m": 0.4, "diameter_m": 0.007})
                - r7 / 2.0) < 1e-9
-    assert bm._radial_ratio({"length_m": 0.2, "diameter_m": 0.007,
-                             "packing_enabled": True,
-                             "bed_void_fraction": 0.4}) == 0.0
+    # A packed bed no longer reports ZERO: it is CHECKED against the
+    # packed-bed dispersion criterion, so its ratio is small but finite.
+    packed = bm._radial_ratio({"length_m": 0.2, "diameter_m": 0.007,
+                               "packing_enabled": True,
+                               "bed_void_fraction": 0.4})
+    assert 0.0 < packed < r7 / 10.0
     # the shipped 20 cm open demo tube exceeds the advisory boundary at
     # nominal flow - which is WHY the sizing must not pick reactors like it
-    assert r7 > bm.GEOMETRY_DESIGN["max_radial_ratio"]
+    assert r7 > bm.validity_criteria().max_radial_ratio
 
 
 def test_sizing_rejects_invalid_open_tubes_and_packing_rescues():
     before = bm.resolved_config()
     try:
-        bm._GEOMETRY_CACHE.clear()
-        bm.apply_config({"GEOMETRY_DESIGN": {"enabled": True,
-                                             "packing": "auto"}})
+        bm.invalidate_caches()
+        bm.apply_config({"FEATURES": {"geometry_optimization": True,
+                                      "packed_bed_reactor": True}})
+        bm.invalidate_caches()
         rows = bm.geometry_sizing_table(6)
-        open_bad = [r for r in rows if not r["packed"]
-                    and r["radial_ratio"]
-                    > bm.GEOMETRY_DESIGN["max_radial_ratio"]]
-        assert open_bad, "expected some infeasible open tubes in the grid"
-        assert all(not r["feasible"] for r in open_bad)
-        assert all(r["score"] == float("-inf") or r["score"] != r["score"]
-                   or not np.isfinite(r["score"]) for r in open_bad)
+        # feasibility is judged over the WHOLE flow envelope, so every open
+        # tube in the declared bounds is out - the review's point
+        open_rows = [r for r in rows if not r["packed"]]
+        assert open_rows, "expected open tubes in the screened grid"
+        assert all(not r["feasible"] for r in open_rows)
+        assert all(not np.isfinite(r["score"]) for r in open_rows)
         packed = [r for r in rows if r["packed"]]
-        assert packed and all(r["feasible"] for r in packed)
+        assert packed and any(r["feasible"] for r in packed)
         chosen = [r for r in rows if r["selected"]]
         assert len(chosen) >= 1 and chosen[0]["feasible"]
-        # with beads forbidden AND a threshold below every open tube's
-        # ratio, the sizing must REFUSE rather than quietly pick an invalid
-        # reactor
-        bm._GEOMETRY_CACHE.clear()
-        bm.apply_config({"GEOMETRY_DESIGN": {"packing": False,
-                                             "max_radial_ratio": 5.0}})
+        assert chosen[0]["packed"] == 1
+        # with beads forbidden the sizing must REFUSE rather than quietly
+        # pick an invalid reactor - and it must say which bound to change
+        bm.apply_config({"FEATURES": {"packed_bed_reactor": False}})
+        bm.invalidate_caches()
         try:
             bm.active_geometry(6)
         except ValueError as exc:
-            assert "packed" in str(exc) or "packing" in str(exc)
+            msg = str(exc)
+            assert "NO ADMISSIBLE GEOMETRY" in msg
+            assert "flow bound" in msg and "PACK the tube" in msg
         else:
             raise AssertionError("all-infeasible sizing must raise")
     finally:
         bm.apply_config(before)
-        bm._GEOMETRY_CACHE.clear()
+        bm.invalidate_caches()
 
 
 def test_cost_term_prevents_runaway_size():
@@ -245,20 +249,22 @@ def test_cost_term_prevents_runaway_size():
     to be live, not decorative."""
     before = bm.resolved_config()
     try:
-        bm._GEOMETRY_CACHE.clear()
-        bm.apply_config({"GEOMETRY_DESIGN": {
-            "enabled": True, "packing": True,
+        # geometry optimization and packing are FEATURE switches now
+        bm.apply_config({"FEATURES": {"geometry_optimization": True,
+                                      "packed_bed_reactor": True},
+                         "GEOMETRY_DESIGN": {
             "objective_lambdas": {"lambda_time_per_s": 0.0,
                                   "lambda_material_per_mol": 0.0,
                                   "lambda_waste_per_mL": 0.0,
                                   "lambda_energy_per_kJ": 0.0}}})
+        bm.invalidate_caches()
         g_free = bm.active_geometry(6)
-        bm._GEOMETRY_CACHE.clear()
         bm.apply_config({"GEOMETRY_DESIGN": {
             "objective_lambdas": {"lambda_time_per_s": 2e-3,
                                   "lambda_material_per_mol": 50.0,
                                   "lambda_waste_per_mL": 5e-3,
                                   "lambda_energy_per_kJ": 0.05}}})
+        bm.invalidate_caches()
         g_paid = bm.active_geometry(6)
         v = lambda g: g["length_m"] * g["diameter_m"] ** 2
         assert v(g_free) > v(g_paid), (g_free, g_paid)
@@ -300,9 +306,17 @@ def test_blind_scoring_always_in_the_declared_reference_reactor():
                           activity_model="pitzer")
         assert bm._scoring_bridge(br) is br
         # ON: a model living in the sized reactor is scored in the declared
-        bm._GEOMETRY_CACHE.clear()
-        bm.apply_config({"GEOMETRY_DESIGN": {"enabled": True}})
+        # one.  The levels are narrowed so the sizing CANNOT land on the
+        # declared geometry - otherwise the rebridge path is never taken and
+        # the test would pass without exercising anything.
+        bm.invalidate_caches()
+        bm.apply_config({"FEATURES": {"geometry_optimization": True},
+                         "GEOMETRY_DESIGN": {
+                             "levels": {"length_m": [0.40, 0.60],
+                                        "diameter_m": [0.004, 0.006]}}})
+        bm.invalidate_caches()
         g = bm.active_geometry(6)
+        assert abs(g["length_m"] - bm.GEOMETRY["length_m"]) > 1e-9
         br_act = Layer1Bridge(g, bm.T_REF_C + 273.15,
                               activity_model="pitzer", reversible=True)
         sb = bm._scoring_bridge(br_act)
@@ -336,9 +350,9 @@ def test_geometry_score_uses_the_prior_not_the_truth():
 def test_per_experiment_geometry_refuses_rather_than_pretending():
     before = bm.resolved_config()
     try:
-        bm._GEOMETRY_CACHE.clear()
-        bm.apply_config({"GEOMETRY_DESIGN": {"enabled": True,
-                                             "mode": "per_experiment"}})
+        bm.apply_config({"FEATURES": {"geometry_optimization": True},
+                         "GEOMETRY_DESIGN": {"mode": "per_experiment"}})
+        bm.invalidate_caches()
         try:
             bm.active_geometry(8)
         except NotImplementedError as exc:

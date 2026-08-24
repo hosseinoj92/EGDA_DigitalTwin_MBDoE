@@ -141,7 +141,8 @@ class SpectralFitter:
                  sigma_floor_abs_M: float = 0.002,
                  sigma_floor_rel: float = 0.03,
                  gain_drift_rel: float = 0.01,
-                 shift_jitter_ppm: float = 0.001):
+                 shift_jitter_ppm: float = 0.001,
+                 empirical_error_model: bool = True):
         # sigma_floor_*: instrument REPRODUCIBILITY/ACCURACY term added in
         # quadrature to the single-spectrum fit covariance.  The fit
         # covariance captures only within-spectrum noise; acquisition-to-
@@ -167,6 +168,12 @@ class SpectralFitter:
         self.sigma_floor_rel = float(sigma_floor_rel)
         self.gain_drift_rel = float(gain_drift_rel)
         self.shift_jitter_ppm = float(shift_jitter_ppm)
+        #: FEATURE GATE (FEATURES['quantification_uncertainty']): when False
+        #: the standards-calibrated bias/covariance model is not applied at
+        #: all, so Sigma_y is the pure within-spectrum Jacobian covariance.
+        #: The calibration artifact is still adopted for the RESPONSE
+        #: factors, which are a different measurement.
+        self.empirical_error_model = bool(empirical_error_model)
         self.acq = acq
         self.species = tuple(species)
         self.sim = NMRSimulator(acq)          # ideal basis generator
@@ -395,9 +402,11 @@ class SpectralFitter:
         # systematic bias and ADD the measured residual covariance, which
         # carries the composition-dependent overlap error the single-
         # spectrum Jacobian cannot see (inter-species terms preserved)
-        if self.empirical_bias is not None:
+        if self.empirical_bias is not None and self.empirical_error_model:
             conc = conc - self.empirical_bias
-        if self.empirical_corr is not None:
+        if not self.empirical_error_model:
+            pass                       # bypassed: no empirical covariance
+        elif self.empirical_corr is not None:
             scale = (self.empirical_scale
                      if self.empirical_scale is not None
                      else np.ones(n_s))
@@ -551,23 +560,16 @@ class SpectralCovarianceModel:
 
 
 # --------------------------------------------------------------------------- #
-def _check_standards() -> List[Dict[str, float]]:
+def _check_standards(env: Optional[CompositionEnvelope] = None
+                     ) -> List[Dict[str, float]]:
     """DATASET 2 - independent calibration-CHECK standards.
 
-    Prepared mixtures that SPAN the composition range the campaign will
-    actually measure (including high-conversion, water-rich reaction-like
-    states), so the interval scale is estimated where it will be used.
+    A conversion series over the SAME declared envelope but at OFFSET
+    conversion states, so the interval scale is estimated on genuinely
+    different prepared mixtures and across the range where it will be used.
     These are prepared compositions: public information, not truth."""
-    return [
-        {"EGDA": 0.45, "EGMA": 0.04, "EG": 0.01, "AcOH": 0.06, "H2O": 53.0},
-        {"EGDA": 0.30, "EGMA": 0.12, "EG": 0.04, "AcOH": 0.20, "H2O": 52.5},
-        {"EGDA": 0.18, "EGMA": 0.16, "EG": 0.10, "AcOH": 0.40, "H2O": 52.0},
-        {"EGDA": 0.08, "EGMA": 0.14, "EG": 0.22, "AcOH": 0.60, "H2O": 51.0},
-        {"EGDA": 0.01, "EGMA": 0.05, "EG": 0.38, "AcOH": 0.85, "H2O": 50.0},
-        {"EGDA": 0.25, "EGMA": 0.00, "EG": 0.00, "AcOH": 0.00, "H2O": 54.0},
-        {"EGDA": 0.00, "EGMA": 0.20, "EG": 0.20, "AcOH": 0.40, "H2O": 51.5},
-        {"EGDA": 0.50, "EGMA": 0.10, "EG": 0.05, "AcOH": 0.15, "H2O": 52.0},
-    ]
+    env = env or STANDARD_ENVELOPE
+    return _mass_balance_series(env, offset=0.12)
 
 
 def calibrate_nmr(acq: AcquisitionSettings, acquire,
@@ -721,19 +723,117 @@ def calibrate_empirical(fitter: SpectralFitter, acquire, rng,
             "species": fitter.species}
 
 
-def _default_standards() -> List[Dict[str, float]]:
-    """Prepared calibration mixtures: four single-species standards plus
-    mixtures spanning the overlap-relevant composition range."""
-    return [
-        {"EGDA": 0.40, "EGMA": 0.0, "EG": 0.0, "AcOH": 0.0, "H2O": 53.0},
-        {"EGDA": 0.0, "EGMA": 0.30, "EG": 0.0, "AcOH": 0.0, "H2O": 53.0},
-        {"EGDA": 0.0, "EGMA": 0.0, "EG": 0.30, "AcOH": 0.0, "H2O": 53.0},
-        {"EGDA": 0.0, "EGMA": 0.0, "EG": 0.0, "AcOH": 0.40, "H2O": 53.0},
-        {"EGDA": 0.20, "EGMA": 0.10, "EG": 0.05, "AcOH": 0.15, "H2O": 52.0},
-        {"EGDA": 0.35, "EGMA": 0.06, "EG": 0.02, "AcOH": 0.10, "H2O": 52.5},
-        {"EGDA": 0.10, "EGMA": 0.18, "EG": 0.14, "AcOH": 0.45, "H2O": 51.0},
-        {"EGDA": 0.02, "EGMA": 0.06, "EG": 0.30, "AcOH": 0.70, "H2O": 50.0},
-    ]
+# --------------------------------------------------------------------------- #
+# PREPARED STANDARDS: they must SPAN what the campaign will measure
+# --------------------------------------------------------------------------- #
+# WHY THIS IS DERIVED AND NOT A LITERAL LIST.  Every calibrated quantity in
+# this module - response factors, the empirical bias, the residual variance
+# model, the interval scale - is a REGRESSION on the prepared standards, and
+# a regression is only trustworthy inside the range it was fitted on.  When
+# the framework widens its design space (more EGDA feed levels, more acid
+# levels) the campaign starts measuring compositions the standards never
+# covered, and those regressions are silently extrapolated.
+#
+# That is not hypothetical.  With the previous hard-coded eight standards
+# (EGDA <= 0.40 M, AcOH <= 0.70 M) and the V6 design space (EGDA feed up to
+# 2 M, i.e. 1.0 M after 1:1 mixing; AcOH up to ~1.7 M at full conversion)
+# the claimed Sigma_y under-stated the realized quantification error by a
+# factor of 1.3-1.6 in campaign conditions.  The chi2 lack-of-fit statistic
+# grows with the number of data points, so that under-statement accumulated
+# into a MODEL_INADEQUATE verdict on a WELL-SPECIFIED scenario: the measured
+# false-inadequacy rate was 57.5 % of campaigns.  It was a calibration-RANGE
+# defect, not a threshold defect and not a governor defect.
+#
+# The standards are therefore GENERATED from a declared envelope, which
+# benchmark.apply_config keeps synchronized with DESIGN.  Widening the
+# design space now widens the calibration with it, and cannot silently
+# invalidate it.
+#
+# Every composition is physically preparable: the pure standards fix the
+# per-species response, and the mixtures lie on the A -> B -> C MASS-BALANCE
+# manifold of this chemistry (EGDA + EGMA + EG = C0, AcOH = EGMA + 2 EG),
+# which is exactly what a laboratory prepares as a conversion series.
+
+
+@dataclass(frozen=True)
+class CompositionEnvelope:
+    """The composition range prepared standards have to cover.
+
+    `egda_reactor_M` are the EGDA concentrations that reach the REACTOR
+    inlet (i.e. after the 1:1 stream mixing), not the feed-bottle
+    molarities - the inlet values are what the spectrometer sees."""
+    egda_reactor_M: Tuple[float, ...] = (0.05, 0.25, 0.5, 1.0)
+    water_M: float = 55.0
+    #: conversion states (b, c) = (fraction of the initial EGDA present as
+    #: EGMA, as EG); b + c <= 1.  They walk the reaction coordinate from
+    #: untouched feed to complete hydrolysis, including the intermediate
+    #: states where the EGDA/EGMA and EGMA/AcOH acetyl overlaps are worst.
+    conversion_states: Tuple[Tuple[float, float], ...] = (
+        (0.00, 0.00), (0.30, 0.05), (0.35, 0.25), (0.15, 0.65), (0.00, 1.00))
+    #: concentration of the single-species response standards
+    pure_M: float = 0.4
+
+    def levels(self) -> Tuple[float, ...]:
+        return tuple(sorted({round(float(a), 9)
+                             for a in self.egda_reactor_M if a > 0.0}))
+
+    def max_concentrations(self) -> Dict[str, float]:
+        """Highest concentration of each species this envelope reaches - the
+        number a campaign must not exceed if the calibration is to be an
+        interpolation rather than an extrapolation."""
+        lv = self.levels()
+        a0 = max(lv) if lv else 0.0
+        b_max = max(b for b, _c in self.conversion_states)
+        c_max = max(c for _b, c in self.conversion_states)
+        acoh_max = max(b + 2.0 * c for b, c in self.conversion_states)
+        return {"EGDA": max(a0, self.pure_M),
+                "EGMA": max(a0 * b_max, self.pure_M),
+                "EG": max(a0 * c_max, self.pure_M),
+                "AcOH": max(a0 * acoh_max, self.pure_M)}
+
+
+#: the DECLARED envelope; benchmark.apply_config keeps it synchronized with
+#: DESIGN, so widening the design space widens the calibration with it
+STANDARD_ENVELOPE = CompositionEnvelope()
+
+
+def set_standard_envelope(envelope: CompositionEnvelope) -> None:
+    """Declare the composition envelope the prepared standards must span."""
+    global STANDARD_ENVELOPE
+    STANDARD_ENVELOPE = envelope
+
+
+def _mass_balance_series(env: CompositionEnvelope, offset: float = 0.0
+                         ) -> List[Dict[str, float]]:
+    """Conversion series on the A -> B -> C mass-balance manifold.
+
+    `offset` shifts the conversion states, so the CHECK set is a genuinely
+    different set of prepared mixtures rather than the FIT set measured
+    twice."""
+    out: List[Dict[str, float]] = []
+    for a0 in env.levels():
+        for b0, c0 in env.conversion_states:
+            b = min(max(b0 + offset, 0.0), 1.0)
+            c = min(max(c0 - 0.5 * offset, 0.0), 1.0 - b)
+            out.append({"EGDA": a0 * (1.0 - b - c), "EGMA": a0 * b,
+                        "EG": a0 * c, "AcOH": a0 * (b + 2.0 * c),
+                        "H2O": env.water_M})
+    return out
+
+
+def _pure_standards(env: CompositionEnvelope) -> List[Dict[str, float]]:
+    base = {"EGDA": 0.0, "EGMA": 0.0, "EG": 0.0, "AcOH": 0.0,
+            "H2O": env.water_M}
+    return [{**base, sp: env.pure_M} for sp in QUANTIFIED_SPECIES]
+
+
+def _default_standards(env: Optional[CompositionEnvelope] = None
+                       ) -> List[Dict[str, float]]:
+    """DATASET 1 - prepared calibration-FIT mixtures: the single-species
+    response standards plus a conversion series spanning the declared
+    envelope."""
+    env = env or STANDARD_ENVELOPE
+    return _pure_standards(env) + _mass_balance_series(env)
 
 
 def calibrate_responses(fitter: SpectralFitter, acquire, rng,

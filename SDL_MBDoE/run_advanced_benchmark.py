@@ -76,12 +76,29 @@ from sdl_advanced import validation as val                       # noqa: E402
 from sdl_advanced import observability as obs                    # noqa: E402
 
 CONFIG = {
-    "mode": "publication",                 # "smoke" | "demo" | "publication"
-    # NEW directory per configuration change: results_advanced_v4 holds the
-    # completed discrete / reactor-temperature-line run and must not be
-    # overwritten.  v5 is the first run with the configurable transfer-line
-    # temperature (25 C) and the optional continuous design space.
-    "outdir": "results_advanced_v5/discrete/OptimizeGeometry/publication",
+    "mode": "smoke",                       # "smoke" | "demo" | "publication"
+    # NEW DIRECTORY PER CONFIGURATION CHANGE.  results_advanced_v5 is a
+    # COMPLETED ARCHIVE of the V5 framework and must never be written to
+    # again: its numbers were produced by different physics (an open tube
+    # that fails the plug-flow criterion at every design flow), a stale
+    # measurement-systematic allowance, and a QC rule that paused every
+    # adaptive campaign.  They are not V6 validation and must not be
+    # presented as such.
+    #
+    # `run_kind` separates CODE VALIDATION from PUBLICATION RESULTS.  It is
+    # written into the run manifest and into the directory layout, so a
+    # smoke or demo run can never be mistaken for the publication run:
+    #     validation/   fast runs that prove the code works
+    #     publication/  the run whose numbers are reported
+    "results_root": "results_advanced_v6",
+    "run_kind": "validation",              # "validation" | "publication"
+    "run_label": "smoke",         # names the subdirectory; one per run
+    # Set explicitly to override the derived
+    # <results_root>/<run_kind>/<run_label> path.
+    "outdir": None,
+    # Refuse to write into a directory that already holds a run.  Set True
+    # only when you intend to replace your OWN previous run.
+    "allow_overwrite": False,
     # optional overrides of the mode defaults (None -> use MODES[mode]):
     "seeds": None,
     "budget": None,
@@ -135,12 +152,241 @@ CONFIG = {
 # Delete a key to keep the library default; the resolved values of ALL of
 # them are written to benchmark_config.json regardless.
 KNOBS = {
+    # ===================================================================== #
+    # (1) FEATURE SWITCHES - WHAT IS SIMULATED AT ALL
+    # ===================================================================== #
+    # ONE True/False per optional effect, for the whole framework.  These
+    # decide WHETHER something happens; every block after this one decides
+    # HOW MUCH.  False is a genuine bypass - the code path is skipped and
+    # the idealized behaviour is recovered exactly - never a tiny parameter
+    # with the machinery still running.  Every switch applies to the TRUTH
+    # and to the INFERENCE alike; deliberate divergence lives in the clearly
+    # separated MODEL_MISMATCH block at the end, which is off by default.
+    #
+    # sdl_advanced/features.py holds the catalogue, the routing and the
+    # dependency checks; the fully resolved state (every switch, its value
+    # and its explanation) is written to features_resolved.json with every
+    # run, so an archived result has no hidden defaults.
+    "FEATURES": {
+        # ---- chemistry -------------------------------------------------- #
+        # Equilibrium ester hydrolysis with K1, K2 and consistent reverse
+        # rates.  True: reverse rates act, K1_ref/K2_ref are estimated.
+        # False: irreversible A->B->C, no K parameters anywhere, monotone
+        # conversion to completion.
+        "reversible_chemistry": True,
+        # Arrhenius k(T).  True: Ea acts and is estimated, temperature is an
+        # informative design axis.  False: Ea = 0 in the forward model and
+        # Ea1/Ea2 held fixed - isothermal rate constants.
+        "temperature_dependent_kinetics": True,
+        # van 't Hoff K(T).  True: literature dH shifts the equilibrium with
+        # temperature.  False: dH = 0, K(T) = K_ref.
+        "temperature_dependent_equilibrium": True,
+        # Pitzer activity of the catalytic proton.  True: rates respond to
+        # ionic strength as well as to acid concentration.  False: dilute
+        # ideality, gamma = 1.
+        "nonideal_acid_activity": True,
+        # H2SO4 second dissociation.  True: [H+] solved from the Ka2
+        # equilibrium.  False: stoichiometric [H+] = n_eff [H2SO4].
+        "acid_speciation_equilibrium": True,
+        # Ka2(T).  True: speciation follows the LOCAL temperature (reactor
+        # vs cooled line).  False: Ka2 frozen at its reference value.
+        "temperature_dependent_ka2": True,
+
+        # ---- reactor ---------------------------------------------------- #
+        # Inert packing.  True: tau = eps V/Q and the bed's mechanical
+        # dispersion replaces molecular diffusion, which is what makes the
+        # reactor plug-flow valid at the design flows.  False: an OPEN tube
+        # - which at these flows is a radially segregated laminar tube and
+        # will be REFUSED by the validity check (with guidance).
+        "packed_bed_reactor": True,
+        # True: the plug-flow criterion is a CONSTRAINT - checked at every
+        # permitted flow, and an inadmissible reactor stops the run.
+        # False: checked and archived, never blocking (a declared non-ideal
+        # study).
+        "reactor_validity_enforcement": True,
+        # True: Bo = uL/D_ax >= 100 is enforced alongside radial mixing.
+        # False: only the radial criterion decides; Bo is still reported.
+        "axial_dispersion_criterion": True,
+        # True: the reactor geometry is a design variable, sized once from
+        # the prior.  False: the declared GEOMETRY is used unchanged.
+        "geometry_optimization": True,
+
+        # ---- transfer line ---------------------------------------------- #
+        # True: samples travel a finite line to the flow cell.  False:
+        # identity transform - the NMR sees the reactor composition at z.
+        "transfer_line": True,
+        # True: the sample keeps reacting in the line.  False: frozen at
+        # withdrawal - delayed but chemically unchanged.
+        "transfer_line_reaction": True,
+        # True: the line is COOLED (25 C), so in-line reaction and catalyst
+        # speciation are evaluated there.  False: the sample stays at
+        # REACTOR temperature - the legacy assumption, which over-states
+        # in-line conversion badly at 160 C.
+        "transfer_line_temperature_correction": True,
+        # True: gamma / tanks-in-series RTD - the cell sees a MIXTURE of
+        # ages.  False: plug (delta) RTD, one sharp delay.
+        "transfer_line_rtd_dispersion": True,
+        # True: incomplete flushing mixes in the previous sample, so a
+        # measurement depends on the previous position.  False: every
+        # acquisition sees only its own sample.
+        "transfer_line_carryover": True,
+        # True: the controller corrects predictions for the COMMANDED mean
+        # delay (never for the truth's RTD or carryover).  False: the
+        # F-uncorr ablation - the model is compared against the reactor
+        # state as if the line did not exist.
+        "transfer_correction_in_inference": True,
+
+        # ---- NMR spectrum ----------------------------------------------- #
+        # True: time-domain FID -> T2* -> noise -> phase -> FFT; the
+        # acquisition time is physical.  False: the ANALYTIC frequency-
+        # domain lineshape - no acquisition time, and fast enough for
+        # 40-seed Monte Carlo.  (The FID engine is used as an independent
+        # TRUTH pathway in the quantification validation regardless.)
+        "nmr_fid_engine": False,
+        # True: additive receiver noise.  False: noiseless spectra -
+        # repeated acquisitions are bit-identical.
+        "nmr_white_noise": True,
+        # True: AR(1) COLOURED noise, which the white-noise fitter does not
+        # model, so its covariance understates the true uncertainty.
+        # False: white noise - the fitter's assumption is exactly right.
+        "nmr_correlated_noise": True,
+        # True: lognormal linewidth variation per acquisition.  False:
+        # every acquisition has exactly the nominal linewidth.
+        "nmr_line_broadening": True,
+        # True: offset + curvature + a CUBIC term outside the fitter's
+        # quadratic baseline model.  False: a flat, zero baseline.
+        "nmr_baseline_distortion": True,
+        # True: reference drift, per-group jitter and a per-campaign STATIC
+        # shift miscalibration - which reapportions area in the 7 Hz
+        # EGDA/EGMA overlap.  False: every peak exactly at its database
+        # shift.
+        "nmr_chemical_shift_drift": True,
+        # True: zero-order phase error mixing in dispersion lineshape.
+        # False: perfectly phased spectra.
+        "nmr_phase_error": True,
+        # True: receiver-gain drift, entering the covariance as a rank-one
+        # CORRELATED term.  False: constant, exactly calibrated gain.
+        "nmr_gain_drift": True,
+        # ANTI-INVERSE-CRIME.  True: the truth lineshape is pseudo-Voigt and
+        # the true J differs from the database, so the fitter never fits its
+        # own physics.  False: pure Lorentzian truth with the database J -
+        # the fitter's model is EXACTLY right, which is an inverse crime and
+        # useful only as a control.
+        "nmr_lineshape_mismatch": True,
+        # True: pre-campaign response calibration against prepared
+        # standards, as the real workflow does.  False: nominal response
+        # assumed - any true response error passes straight through.
+        "nmr_response_calibration": True,
+
+        # ---- quantification --------------------------------------------- #
+        # True: correlated error between overlapping species (EGDA/EGMA).
+        # False: independent per-species errors.
+        "overlap_correlated_errors": True,
+        # True: Sigma_y includes the reproducibility floor, the coherent
+        # gain term, shift-jitter propagation and the standards-calibrated
+        # residual covariance - the covariance the design layer also uses.
+        # False: the pure within-spectrum Jacobian covariance (optimistic
+        # by construction; useful to see how much of the reported
+        # uncertainty comes from the error model rather than the spectra).
+        "quantification_uncertainty": True,
+
+        # ---- faults and QC ---------------------------------------------- #
+        # True: injects gross, QC-DETECTABLE hardware failures (lost lock,
+        # bubble, failed shim).  False: the only QC failures are genuine
+        # spectral-fit failures on hard compositions - which still occur and
+        # are still caught.  OFF by default: this is additional physics.
+        "instrument_faults": False,
+        # True: injects UNDETECTABLE quantification outliers (many claimed
+        # sigmas off, normal residual) to test inference robustness.
+        # False: quantification error stays within its calibrated
+        # distribution.  OFF by default.
+        "measurement_outliers": False,
+        # True: a spectrum with FAIL flags is NEVER assimilated, and
+        # persistent failure pauses the campaign.  False: everything is
+        # assimilated, flags and all.
+        "qc_rejection": True,
+        # True: a failing position is re-acquired (costing instrument time)
+        # before being dropped.  False: dropped immediately.
+        "qc_retry_on_failure": True,
+
+        # ---- design ------------------------------------------------------ #
+        # True: any point inside the declared bounds, snapped to the
+        # hardware resolution and accepted only when it beats the best grid
+        # point.  False: the classical discrete factorial grid.
+        "continuous_design_space": False,
+        # True: axial positions chosen by incremental D-optimality.
+        # False: fixed, equally spaced ports - the classical profile.
+        "spatial_optimization": True,
+        # True: one acquisition at a time, full posterior update between
+        # positions, so the realized measurement moves the next one.
+        # False: a round's positions are chosen as a BATCH up front.
+        "adaptive_single_measurement": True,
+        # True: the acquisition also maximizes model-discrimination EIG.
+        # False: pure parameter information; model probabilities are
+        # tracked but never steer an experiment.
+        "bayesian_model_discrimination": True,
+
+        # ---- inference --------------------------------------------------- #
+        # True: the lack-of-fit governor may stop the controller exploiting
+        # a model it no longer trusts.  False: the model is always
+        # exploited (the F-noGovernor ablation).
+        "model_inadequacy_governor": True,
+        # True: the governor's decision is invariant to a uniform
+        # mis-scaling of Sigma_y (dispersion-standardized structural tests;
+        # the chi2 MAGNITUDE stops being a decision component under a
+        # declared measurement systematic, the gross-misfit override
+        # stays).  False: the historical behaviour, in which any residual
+        # covariance error eventually reads as model inadequacy.
+        "governor_dispersion_robust": True,
+        # True: parameters the design space cannot identify are held at
+        # their literature values.  False: everything is estimated.
+        "identifiability_screen": True,
+
+        # ---- resources ---------------------------------------------------- #
+        # True: time, material, waste, energy and travel are metered from an
+        # event log.  False: nothing is metered (all totals zero).
+        "resource_accounting": True,
+        # True: the design objective trades information against cost.
+        # False: pure information maximization - cost is reported but never
+        # influences a decision.
+        "resource_aware_design": True,
+        # True: the per-spectrum clock follows the acquisition settings.
+        # False: a LEGACY fixed per-spectrum duration, independent of them.
+        "acquisition_time_accounting": True,
+    },
+
+    # ===================================================================== #
+    # (2) MODEL MISMATCH - the ONLY place truth and inference may differ
+    # ===================================================================== #
+    # Everything above applies to truth and inference alike.  This block is
+    # for validation experiments that deliberately hand the learner a
+    # different world model from the world ("what does the framework do when
+    # its structural assumption is wrong?").  OFF BY DEFAULT, and declaring
+    # any divergence without enabling it RAISES - a mismatch that is
+    # configured but not declared is exactly the silent inverse-crime risk
+    # this section exists to prevent.
+    "MODEL_MISMATCH": {
+        "enabled": False,
+        "inference_reversible": None,        # True/False, None = same as truth
+        "inference_activity_model": None,    # "pitzer"/"dilute", None = same
+        "inference_arrhenius": None,
+        "inference_van_t_hoff": None,
+        "inference_noise_scale": 1.0,        # >1: learner believes its data
+                                             # are worse than they are
+        "truth_parameter_bias": {},          # e.g. {"k2_ref": 1.5}
+    },
+
+    # ===================================================================== #
+    # (3) MAGNITUDES - how much, given what is switched on above
+    # ===================================================================== #
     # ---- reactor ------------------------------------------------------- #
+    # packing_enabled / bed_void_fraction are NOT set here: they are
+    # derived from FEATURES["packed_bed_reactor"] and the void fraction
+    # declared in GEOMETRY_DESIGN, so there is exactly one place that
+    # decides whether this reactor is packed.
     "GEOMETRY": {
         "length_m": 0.20,
         "diameter_m": 0.007,
-        "packing_enabled": False,     # True -> inert-packed bed
-        "bed_void_fraction": 1.0,     # epsilon; only used when packed
     },
     "T_REF_C": 60.0,                  # Arrhenius reference temperature
     "N_PORTS": 10,                    # axial samples per profile
@@ -172,8 +418,8 @@ KNOBS = {
     # propose any point inside continuous_bounds, snapped to the resolution
     # the hardware can actually command, and accepted only when it strictly
     # beats the best grid point - so it can never do worse.
+    # `continuous` lives in FEATURES["continuous_design_space"].
     "DESIGN_SPACE": {
-        "continuous": False,
         "resolution": {"T_C": 0.1,             # deg C
                        "Q_total_mL_min": 0.1,   # mL/min
                        "C_cat_M": 1.0e-4,       # 0.1 mM
@@ -191,8 +437,9 @@ KNOBS = {
     # Blind RMSE stays comparable even with this on: scoring is always done
     # in the DECLARED reference reactor (the learned parameters are
     # intrinsic - geometry changes tau(z), never the constants).
+    # `enabled` lives in FEATURES["geometry_optimization"]; `packing`
+    # follows FEATURES["packed_bed_reactor"].
     "GEOMETRY_DESIGN": {
-        "enabled": True,
         "mode": "per_campaign",       # "per_experiment" raises: not implemented
         "bounds": {"length_m": [0.06, 0.60],
                    "diameter_m": [0.004, 0.008]},
@@ -200,16 +447,13 @@ KNOBS = {
                    "diameter_m": [0.004, 0.006, 0.008]},
         "resolution": {"length_m": 0.005, "diameter_m": 0.0005},
         "switch_cost_s": 1800.0,
-        # Ideality: an open laminar tube violates plug flow when
-        # t_rad/tau = Q/(pi D L eps) exceeds max_radial_ratio (Layer 1's own
-        # advisory boundary; the bore cancels - only length/flow/holdup
-        # help).  Infeasible candidates are rejected; "auto" also offers
-        # every geometry as a PACKED bed (spherical beads, eps ~ 0.4), the
-        # standard engineering fix, which is treated as plug-flow valid
-        # under the documented d_p <= d/10, L/d_p >= 100 assumption.
-        "packing": False,            # "auto" | True | False
-        "bed_void_fraction": 0.40,
-        "max_radial_ratio": 10.0,
+        # Feasibility is judged by sdl_advanced/reactor_validity.py at
+        # EVERY permitted flow, never at a nominal one - a reactor that is
+        # admissible at 1 mL/min and segregated at 8 mL/min is not
+        # admissible, because the optimizer is free to command 8.  The
+        # criteria themselves live in VALIDITY["criteria"] below;
+        # `packing` follows FEATURES["packed_bed_reactor"].
+        "bed_void_fraction": 0.40,   # eps of a random-packed bed
         # sizing objective = logdet F(reference design) - resource penalty
         # of that campaign in that reactor; the weights are S6's 1x vector
         # (one information-resource exchange rate for the whole framework).
@@ -221,19 +465,36 @@ KNOBS = {
     },
 
     # ---- plug-flow validity of the reactor IN USE ------------------------ #
-    # The geometry optimizer rejects candidates above max_radial_ratio; this
-    # applies the same standard to whichever reactor actually runs, so the
-    # baseline is not exempt from the criterion the framework enforces
-    # elsewhere.  "warn" | "error" | "ignore".
+    # ONE criterion, applied to every reactor the framework touches - the
+    # geometry candidates, the reactor a campaign runs in, and the declared
+    # reference reactor - at EVERY flow the design space can command.
+    # Whether it BLOCKS is FEATURES["reactor_validity_enforcement"]; these
+    # are the numbers it blocks on.
     #
-    # NOTE: the shipped 20 cm OPEN tube FAILS this at every design flow
-    # (t_rad/tau = 13-212 vs a threshold of 10).  Packing it
-    # (GEOMETRY["packing_enabled"] = True, bed_void_fraction 0.4) is the
-    # engineering fix and makes the flagship configuration satisfy its own
-    # criterion; it also shortens tau by eps, which changes conversions and
-    # therefore every published number - a deliberate decision, not a
-    # silent default change.
-    "VALIDITY": {"policy": "warn"},
+    # NOTE ON THE V6 PHYSICS CHANGE.  The shipped 20 cm OPEN tube fails this
+    # at every design flow (t_rad/tau = 13-212 against a limit of 10, and Bo
+    # far below 100), and so does every open tube in the geometry bounds at
+    # the higher flows: at 8 mL/min a 60 cm open tube sits at t_rad/tau = 71.
+    # No open tube of any practical length is admissible over this flow
+    # envelope - the closed form is Q <= max_radial_ratio * pi * D_m * L, so
+    # 8 mL/min would need an 88 m tube.  PACKING is the engineering fix and
+    # is now the default (FEATURES["packed_bed_reactor"]).  It shortens tau
+    # by eps and therefore changes every conversion, so V6 numbers are NOT
+    # comparable to the v5 archive - a deliberate, declared physics change.
+    "VALIDITY": {
+        "criteria": {
+            "max_radial_ratio": 10.0,   # t_rad/tau (Layer 1's boundary)
+            "min_bodenstein": 100.0,    # Bo = uL/D_ax, "<1% from plug flow"
+            "bed_to_particle_ratio": 10.0,   # d/d_p, wall channelling
+            "min_bed_aspect": 100.0,         # L/d_p, entrance/exit
+            "packed_peclet_axial": 0.5,      # low-Re liquid asymptote
+            "packed_peclet_radial": 10.0,
+            "tortuosity": 1.4,
+            # True would declare packed beds valid WITHOUT checking them,
+            # which is what the framework used to do implicitly.
+            "packed_plug_flow_assumed": False,
+        },
+    },
 
     # ---- conventional-vs-optimized comparison ---------------------------- #
     # Which strategy plays "the conventional method" the methodology must
@@ -258,20 +519,20 @@ KNOBS = {
     # leaving a 160 C reactor into a 25 C line barely reacts on the way,
     # whereas at reactor temperature it keeps converting.  None means "stays
     # at reactor temperature" (the old assumption).
+    # enabled / react_in_line / rtd / carryover and whether the line is
+    # cooled at all are FEATURES; these are the magnitudes.
     "TRANSFER_TRUE": {
-        "enabled": True,
-        "T_line_C": 25.0,
         "Q_sample_mL_min": 0.5,
         "V_fixed_mL": 0.15,
         "geometry": "constant",        # "constant" | "linear"
         "v_per_m_mL": 0.0,
-        "rtd": "gamma",                # "delta" (plug) | "gamma"
-        "n_tanks": 4.0,
+        "n_tanks": 4.0,                # gamma RTD shape
         "n_quad": 5,
-        "react_in_line": True,
-        "carryover": True,
         "flush_volumes": 3.0,
     },
+    # commanded line temperature used when
+    # FEATURES["transfer_line_temperature_correction"] is True
+    "TRANSFER_LINE_T_C": 25.0,
 
     # ---- NMR instrument -------------------------------------------------- #
     "ACQ": {
@@ -294,12 +555,13 @@ KNOBS = {
         "fft_points": None,
         "repetition_time_s": 15.0,
         "n_scans": 1,
-        "engine": "analytic",          # "analytic" | "fid"
+        # engine is FEATURES["nmr_fid_engine"]
     },
     # ASSUMED nuisances of the synthetic spectrum - not measured Fourier-80
     # properties.  These are the truth side; the fitter never sees them.
+    # Which of these effects is simulated is decided by the nmr_* FEATURES;
+    # these are their magnitudes.
     "NMR_NUISANCE_TRUE": {
-        "enabled": True,
         "noise_sigma": 0.10,
         "shift_drift_ppm": 0.004,
         "shift_jitter_ppm": 0.001,
@@ -312,6 +574,30 @@ KNOBS = {
     # assumed direct-observation noise for the A-E baselines
     "NOISE_DIRECT": {"sigma_abs_M": 0.004, "sigma_rel": 0.02,
                      "rho_overlap": 0.3},
+
+    # ---- quantification error model (magnitudes) -------------------------- #
+    # WHETHER these terms enter Sigma_y is
+    # FEATURES["quantification_uncertainty"]; these are their sizes.  All
+    # four are ASSUMED (CAL: measure from replicate standards).
+    "QUANTIFICATION": {
+        "sigma_floor_abs_M": 0.002,   # instrument reproducibility floor
+        "sigma_floor_rel": 0.03,      # ~3 %, the classic qNMR accuracy scale
+        "gain_drift_rel": 0.01,       # coherent, rank-one covariance term
+        "shift_jitter_ppm": 0.001,    # propagated through the overlap solve
+    },
+
+    # ---- truth-side fault magnitudes -------------------------------------- #
+    # WHETHER faults happen is FEATURES["instrument_faults"] /
+    # FEATURES["measurement_outliers"]; these are their rates and sizes.
+    "FAULT_MODEL": {
+        "spectrum_fault_prob": 0.02,           # per acquisition
+        "spectrum_fault_amplitude_sigma": 400.0,   # in noise sigmas
+        "outlier_prob": 0.01,                  # per acquisition per species
+        "outlier_scale_sigma": 8.0,            # in CLAIMED sigmas
+    },
+    # the lumped per-spectrum duration used when
+    # FEATURES["acquisition_time_accounting"] is False
+    "LEGACY_NMR_TIME_S": 60.0,
 
     # ---- spatial sampling ------------------------------------------------ #
     "SPATIAL": {
@@ -338,18 +624,38 @@ KNOBS = {
         "discrimination_prob": 0.90,
         "qc_fail_fraction": 0.25,
         "chi2_dof_ratio_override": 25.0,
-        # kappa: DERIVED FROM CONTROL DATA (validation.derive_systematic_
-        # allowance), never tuned on benchmark performance.  Re-derive it
-        # whenever the NMR calibration changes.
-        "systematic_allowance_nmr": 0.47,
+        # kappa: "auto" DERIVES the measurement-systematic allowance from
+        # WELL-SPECIFIED CONTROL DATA under THIS configuration - the current
+        # geometry, acquisition settings, nuisance model and DESIGN SPACE -
+        # and records the derivation.  It is never tuned on benchmark
+        # performance.  A hard-coded number is a value that was right once:
+        # between v3 and v5 the design space widened, the prepared standards
+        # stopped spanning it, and kappa stayed at the old value.  Pin a
+        # float here only to reproduce an archived run exactly.
+        "systematic_allowance_nmr": "auto",
         "systematic_allowance_direct": 0.0,
+        # governor_dispersion_robust lives in FEATURES
+        "allowance_seed": 0,
+        "allowance_n_rep": 3,
+        "allowance_n_control": 80,
+        "allowance_stride": 3,
     },
 
     # ---- measurement-fault QC gate ---------------------------------------- #
+    # WHEN QC REJECTION MEANS "THE INSTRUMENT IS BROKEN".  A per-round
+    # rejection FRACTION is meaningless for a single-acquisition round: in
+    # adaptive mode one rejected spectrum is 100 %, which paused 40 of 40
+    # F-zadaptive campaigns in the v5 archive.  The fraction rule is
+    # therefore applied only to batches large enough for it to mean
+    # something, and PERSISTENCE rules (which work at any batch size) decide
+    # the rest.
     "QC_GATE": {
-        "enabled_for_nmr": True,
         "max_retries": 1,              # reacquisitions per failing position
-        "max_reject_fraction": 0.5,    # above this per round -> pause
+        "max_reject_fraction": 0.5,    # batch rule
+        "min_batch_for_fraction": 4,   # below this, the fraction is ignored
+        "max_consecutive_rejects": 3,  # persistence rule
+        "rolling_window": 8,           # persistence rule
+        "max_rejects_in_window": 4,
     },
 
     # ---- resource model ---------------------------------------------------- #
@@ -365,9 +671,8 @@ KNOBS = {
         # of the historical lumped 60 s at the shipped acquisition, so the
         # shipped campaign clock is unchanged but now explicit.
         "nmr_fixed_overhead_s": 40.9,
-        # LEGACY COMPATIBILITY (labelled): set a number to force a fixed
-        # per-spectrum duration and ignore the decomposition entirely.
-        "legacy_fixed_nmr_time_s": None,
+        # the LEGACY lumped per-spectrum duration is
+        # FEATURES["acquisition_time_accounting"] = False
         "capillary_speed_m_s": 0.002,
         "flush_time_s": 30.0,
         "sample_volume_mL": 0.3,
@@ -395,12 +700,65 @@ AUDIT_LAYOUT = {
 }
 
 
-def resolve_outdir(outdir: str) -> str:
+#: files whose presence means "a run already lives here"
+_RUN_MARKERS = ("benchmark_config.json", "run_manifest.json",
+                "benchmark_rounds.csv")
+
+
+def resolve_outdir(cfg: dict) -> str:
+    """Where this run writes - and a refusal to overwrite anything else.
+
+    A completed archive is evidence.  Silently writing over it (or, worse,
+    half over it) destroys the ability to say which code produced which
+    number, so a directory that already holds a run is refused unless the
+    caller explicitly asked to replace it."""
+    outdir = cfg.get("outdir")
+    kind = str(cfg.get("run_kind", "validation")).lower()
+    if kind not in ("validation", "publication"):
+        raise ValueError("CONFIG['run_kind'] must be 'validation' (code "
+                         "checks) or 'publication' (reported numbers); got "
+                         f"{kind!r}.")
+    if not outdir:
+        outdir = os.path.join(str(cfg["results_root"]), kind,
+                              str(cfg.get("run_label") or cfg["mode"]))
     if not os.path.isabs(outdir):
         outdir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               outdir)
+    existing = [m for m in _RUN_MARKERS
+                if os.path.exists(os.path.join(outdir, m))]
+    if existing and not cfg.get("allow_overwrite", False):
+        raise FileExistsError(
+            f"{outdir} already contains a completed run ({', '.join(existing)}"
+            ").  Refusing to overwrite it: an archived run is the only "
+            "record of which code produced which numbers.  Choose a new "
+            "run_label, or set CONFIG['allow_overwrite'] = True if you "
+            "really mean to replace your own previous run.")
     os.makedirs(outdir, exist_ok=True)
     return outdir
+
+
+def git_provenance() -> dict:
+    """Exact commit + working-tree state, so a result can be traced to code.
+
+    A dirty tree is RECORDED, not refused: refusing would make the framework
+    unusable while developing.  But a publication run says so loudly."""
+    import subprocess
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _git(*args):
+        try:
+            return subprocess.run(("git",) + args, cwd=root,
+                                  capture_output=True, text=True,
+                                  timeout=30).stdout.strip()
+        except Exception:                            # pragma: no cover
+            return ""
+    status = _git("status", "--porcelain")
+    return {"commit": _git("rev-parse", "HEAD"),
+            "commit_short": _git("rev-parse", "--short", "HEAD"),
+            "branch": _git("rev-parse", "--abbrev-ref", "HEAD"),
+            "describe": _git("describe", "--always", "--dirty"),
+            "dirty": bool(status),
+            "dirty_files": [ln[3:] for ln in status.splitlines()][:200]}
 
 
 def _write_rows(rows, path):
@@ -466,8 +824,70 @@ def main() -> None:
     seeds = cfg["seeds"] or mode["seeds"]
     budget = cfg["budget"] or mode["budget"]
     scenarios = cfg["scenarios"] or mode["scenarios"]
-    outdir = resolve_outdir(cfg["outdir"])
+    outdir = resolve_outdir(cfg)
     t0 = time.time()
+
+    # ---- derive the measurement-systematic allowance ONCE --------------- #
+    # kappa is a pure function of the configuration, so every worker would
+    # otherwise re-derive the same number - minutes of duplicated NMR fits
+    # per process.  Deriving it here and PINNING the resolved float has a
+    # second, better reason: it makes it a fact of the run rather than
+    # something each process computes for itself, so the archive records the
+    # value that was actually used everywhere and the workers cannot
+    # silently disagree.
+    allowance = None
+    if isinstance(bm.GOVERNOR["systematic_allowance_nmr"], str):
+        allowance = bm.derive_allowance(budget)
+        resolved_knobs = bm.apply_config(
+            {"GOVERNOR": {"systematic_allowance_nmr":
+                          float(allowance["kappa"])}})
+        knobs = {**knobs, "GOVERNOR": {**knobs.get("GOVERNOR", {}),
+                                       "systematic_allowance_nmr":
+                                       float(allowance["kappa"])}}
+        print(f"systematic allowance kappa = {allowance['kappa']:.4f} "
+              f"(derived: rms z = {allowance['rms_z']:.3f} over "
+              f"{allowance['n_control_compositions']} control compositions "
+              f"spanning the declared design space)")
+
+    # ---- reproducibility record, written BEFORE anything runs ----------- #
+    # Written first so that even a crashed or interrupted run leaves behind
+    # the exact code and configuration it was attempting.
+    prov = git_provenance()
+    manifest = {
+        "framework_version": "v6",
+        "run_kind": cfg["run_kind"],
+        "run_label": cfg.get("run_label"),
+        "is_publication_run": cfg["run_kind"] == "publication",
+        "mode": cfg["mode"],
+        "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "git": prov,
+        "python": sys.version,
+        "numpy": np.__version__,
+        "seeds": list(seeds), "budget": budget,
+        "scenarios": list(scenarios),
+        "CONFIG": {k: v for k, v in cfg.items()},
+        "knobs_requested": knobs,
+        "knobs_resolved": resolved_knobs,
+        "features_resolved": resolved_knobs["FEATURES_RESOLVED"],
+        "systematic_allowance_derivation": allowance,
+    }
+    with open(os.path.join(outdir, "run_manifest.json"), "w",
+              encoding="utf-8") as fh:
+        json.dump(manifest, fh, indent=2, default=str)
+    with open(os.path.join(outdir, "features_resolved.json"), "w",
+              encoding="utf-8") as fh:
+        json.dump(resolved_knobs["FEATURES_RESOLVED"], fh, indent=2,
+                  default=str)
+    print(f"run kind: {cfg['run_kind'].upper()}"
+          + ("  (code validation - NOT publication numbers)"
+             if cfg["run_kind"] != "publication" else ""))
+    print(f"commit: {prov.get('describe') or 'unknown'}"
+          + ("   *** WORKING TREE DIRTY ***" if prov.get("dirty") else ""))
+    if cfg["run_kind"] == "publication" and prov.get("dirty"):
+        print("  WARNING: a publication run from a dirty working tree "
+              "cannot be reproduced from the recorded commit alone.  The "
+              "modified files are listed in run_manifest.json.")
+    print(f"output: {outdir}")
 
     # ---- overall progress bar ------------------------------------------- #
     gov_seeds = cfg["governor_mc_seeds"] or list(seeds)
@@ -497,8 +917,13 @@ def main() -> None:
     n_proc = par.resolve_workers(cfg.get("n_workers", "auto"))
     audit_on = bool(cfg.get("audit", False))
 
-    say(f"=== advanced benchmark v3 | mode={cfg['mode']} | "
-        f"{len(seeds)} seeds | budget {budget} ===")
+    say(f"=== advanced benchmark V6 | {cfg['run_kind']} | "
+        f"mode={cfg['mode']} | {len(seeds)} seeds | budget {budget} ===")
+    say("    FEATURES (full state in features_resolved.json):")
+    for line in bm.feat.summary_lines(bm.FEATURES, bm.MODEL_MISMATCH):
+        say(line)
+    nd = resolved_knobs["FEATURES_RESOLVED"]["non_default"]
+    say(f"    non-default switches: {', '.join(nd) if nd else 'none'}")
     say(f"    parallelism: {par.describe_workers(cfg.get('n_workers', 'auto'))}"
         f", {threads} BLAS thread(s) each")
     if threads != 1:
@@ -540,8 +965,17 @@ def main() -> None:
                     os.path.join(outdir, "geometry_sizing.csv"))
     # plug-flow validity of the reactor actually in use, at every design
     # flow - the same criterion the geometry optimizer enforces
-    validity_rows = bm.assert_reactor_validity(geom_scan)
+    # Rows are ARCHIVED FIRST, then the policy is applied: a run that stops
+    # because its reactor is inadmissible must still leave behind the table
+    # that says why.
+    validity_rows = bm.reactor_validity_rows(geom_scan)
     _write_rows(validity_rows, os.path.join(outdir, "reactor_validity.csv"))
+    with open(os.path.join(outdir, "reactor_validity.txt"), "w",
+              encoding="utf-8") as fh:
+        fh.write(bm.rv.explain(geom_scan, bm.permitted_flows(),
+                               bm.validity_criteria()))
+        fh.write(os.linesep)
+    bm.assert_reactor_validity(geom_scan)
     diag_bridge = Layer1Bridge(geom_scan, t_ref_K, activity_model="pitzer")
     scan_conds = [OperatingConditions(T, q / 2, q / 2, 1.0, c)
                   for T in (40.0, 100.0, 160.0)
@@ -706,9 +1140,17 @@ def main() -> None:
         json.dump(gov, fh, indent=2)
     print(f"\ngovernor MC validation ({len(gov_seeds)} seeds): "
           f"false-inadequacy campaign rate = "
-          f"{gov['false_inadequacy_campaign_rate']:.2f}, detection prob = "
+          f"{gov['false_inadequacy_campaign_rate']:.2f} "
+          f"(target alpha = {gov['alpha_campaign_target']:g}), "
+          f"detection prob = "
           f"{gov['detection_probability']:.2f}, median detection round = "
           f"{gov['median_detection_round']}")
+    print(f"    kappa used = {gov['systematic_allowance_used']:.3f}; "
+          f"median dispersion phi on well-specified campaigns = "
+          f"{gov['median_dispersion_well_specified']}")
+    print(f"    detection carried by: {gov['detection_drivers']}")
+    if gov["false_alarm_drivers"]:
+        print(f"    false alarms carried by: {gov['false_alarm_drivers']}")
     if "S5_inadequacy" in scenarios:
         s5 = [r for r in all_rows if r["scenario"] == "S5_inadequacy"]
         seed0 = seeds[0]
@@ -881,7 +1323,20 @@ def main() -> None:
     n_fp = sum(1 for r in fp_rows if r["gov_state"] == "MODEL_INADEQUATE")
     with open(os.path.join(outdir, "benchmark_config.json"), "w") as fh:
         json.dump({
-            "framework_version": "v3",
+            "framework_version": "v6",
+            "run_kind": cfg["run_kind"],
+            "is_publication_run": cfg["run_kind"] == "publication",
+            "git": prov,
+            # EVERY switch, its value and its explanation - no hidden
+            # defaults survive in an archived run
+            "features_resolved": resolved_knobs["FEATURES_RESOLVED"],
+            "systematic_allowance_derivation": (
+                allowance if allowance is not None
+                else {"kappa": bm.GOVERNOR["systematic_allowance_nmr"],
+                      "source": "pinned in CONFIG"}),
+            "plug_flow_criteria": dataclasses.asdict(
+                bm.validity_criteria()),
+            "permitted_flows_mL_min": bm.permitted_flows(),
             "CONFIG": {k: v for k, v in cfg.items()},
             "mode_resolved": {"seeds": list(seeds), "budget": budget,
                               "scenarios": list(scenarios)},
@@ -902,7 +1357,14 @@ def main() -> None:
                 (n_fp / len(fp_rows)) if fp_rows else None,
             "governor_validation": gov,
             "truth": bm.TRUTH, "geometry": bm.GEOMETRY, "design": bm.DESIGN,
-            "scenarios": {k: dataclasses.asdict(v)
+            # the spec plus its RESOLVED transfer line and RESOLVED
+            # candidate family: the spec stores the ablation, the feature
+            # switches decide the rest, and the archive must show the answer
+            "scenarios": {k: {**dataclasses.asdict(v),
+                              "transfer_resolved": dataclasses.asdict(
+                                  v.transfer),
+                              "family_resolved": list(
+                                  bm.scenario_family(v))}
                           for k, v in bm.SCENARIOS.items()
                           if k in scenarios},
             "nmr_nuisance_true": dataclasses.asdict(bm.NMR_NUISANCE_TRUE),
@@ -912,6 +1374,8 @@ def main() -> None:
             # another (spectral.AcquisitionSettings.acquisition_report)
             "acquisition_resolved": bm.ACQ.acquisition_report(),
             "reactor_validity": validity_rows,
+            "reactor_validity_verdict": bm.rv.explain(
+                geom_scan, bm.permitted_flows(), bm.validity_criteria()),
             "nmr_measurement_time": bm.RESOURCE_COSTS.with_acquisition(
                 bm.ACQ).nmr_time_report(),
             "transfer_true": dataclasses.asdict(bm.TRANSFER_TRUE),

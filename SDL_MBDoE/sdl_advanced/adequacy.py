@@ -41,6 +41,45 @@ alpha_round = alpha_campaign / n_rounds_planned (Bonferroni spending -
 conservative, simple, and defensible; refine with an O'Brien-Fleming
 schedule later if wanted).
 
+WHY THE MAGNITUDE TEST IS NOT A DECISION COMPONENT UNDER NMR
+------------------------------------------------------------
+T1 = r_w' r_w tests whether the residuals are the SIZE that Sigma_y claims.
+Its power against a scalar mis-specification of Sigma_y grows without bound
+in the number of data points: at a few thousand points a 10 % under-stated
+sigma gives chi2/dof = 1.21 and a p-value of order 1e-16.  But a mis-scaled
+measurement covariance is a MEASUREMENT-model error, and declaring the
+KINETIC model inadequate because of it is a category mistake - and an
+irreversible one, since the governor's verdict stops the campaign
+exploiting the model.
+
+That is not theoretical either.  Under the V6 configuration the realized
+quantification error exceeded the claimed sigma by a factor of 1.3-1.6 (the
+prepared standards no longer spanned the widened design space, see
+spectral_fit.py), the magnitude component fired on well-specified
+campaigns, and the measured false-inadequacy rate was 57.5 %.  Splitting the
+residual showed the KINETIC model was fine throughout: the MAP prediction
+sat within 0.33-0.72 claimed sigma of the truth while the MEASUREMENT sat
+1.26-1.55 away.  The magnitude test was reading the measurement model.
+
+What distinguishes kinetic inadequacy from a mis-scaled covariance is
+STRUCTURE: a wrong kinetic model concentrates its misfit in particular
+species, particular axial regions, particular temperatures and particular
+(experiment x species) cells, while a mis-scaled covariance inflates
+everything uniformly.  Components 2-5 test exactly that.  So under a
+declared measurement-systematic allowance (kappa > 0, i.e. NMR observation)
+the governor:
+
+  * ESTIMATES the realized dispersion phi = r_w' r_w / dof (floored at 1)
+    and standardizes the structural components by it, making them invariant
+    to a uniform scale error while keeping their sensitivity to structure;
+  * REPORTS T1 and chi2/dof but does not let them decide;
+  * KEEPS `chi2_dof_ratio_override` as the gross-misfit safety net, so a
+    catastrophically wrong model is still stopped on magnitude alone.
+
+With kappa = 0 (direct observation, where Sigma is exact by construction)
+T1 remains a decision component and the nulls are exact.  `dispersion_robust
+= False` restores the historical behaviour in full.
+
 States:
     NORMAL_LEARNING       data consistent with >= 1 model, one model dominant
     MODEL_DISCRIMINATION  data consistent, but several models plausible
@@ -86,6 +125,13 @@ class AdequacyReport:
     affected_region: str = ""
     round_detected: Optional[int] = None
     p_boot: Optional[float] = None   # set when a bootstrap p was requested
+    #: realized dispersion phi = r_w'r_w/dof used to standardize the
+    #: structural components (1.0 when dispersion_robust is off).  Reported
+    #: because it is the number that says whether the MEASUREMENT model, not
+    #: the kinetic model, is the thing that does not fit.
+    dispersion: float = 1.0
+    #: which components were allowed to decide this round
+    decision_components_used: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -109,6 +155,18 @@ class GovernorConfig:
     # The value is tied to the fitter's declared floor share (ASSUMED /
     # CAL: refine from replicate mixture standards).
     systematic_allowance: float = 0.0
+    # DISPERSION-ROBUST DECISION (see the module docstring section
+    # "WHY THE MAGNITUDE TEST IS NOT A DECISION COMPONENT UNDER NMR").
+    # True  -> the realized dispersion phi = r'r/dof is estimated from the
+    #          residuals and used to standardize the STRUCTURAL components,
+    #          and the absolute chi2 magnitude leaves the decision set
+    #          whenever a measurement-systematic allowance is declared.
+    # False -> the historical behaviour: chi2 is a decision component and
+    #          the structural nulls assume the claimed Sigma_y is exact.
+    dispersion_robust: bool = True
+    # phi is floored at this value so an over-conservative Sigma_y can never
+    # make the governor MORE aggressive than the covariance it declared.
+    min_dispersion: float = 1.0
 
 
 class AdequacyGovernor:
@@ -125,6 +183,23 @@ class AdequacyGovernor:
             r = cm.inference.predict(theta, m) - m.y
             out.append(solve_triangular(L, r, lower=True))
         return out
+
+    # ---- realized dispersion ------------------------------------------ #
+    def dispersion(self, rw: np.ndarray, n_params: int) -> float:
+        """phi = r_w' r_w / dof, the factor by which the residuals exceed
+        the size the declared Sigma_y claims.
+
+        Floored at `min_dispersion` (1 by default): an over-conservative
+        covariance must not make the structural tests MORE aggressive than
+        the covariance that was declared.  Returns 1.0 when the
+        dispersion-robust mode is off, which recovers the old nulls
+        exactly."""
+        if not self.cfg.dispersion_robust:
+            return 1.0
+        dof = max(len(rw) - n_params, 1)
+        if len(rw) == 0:
+            return 1.0
+        return float(max(float(rw @ rw) / dof, self.cfg.min_dispersion))
 
     # ---- individual components (continuous p-values) ------------------ #
     def _p_chi2(self, rw: np.ndarray, n_params: int) -> Tuple[float, float]:
@@ -153,7 +228,8 @@ class AdequacyGovernor:
         rho = float(np.sum(a * b) / denom) if denom > 0 else 0.0
         return rho, float(stats.norm.sf((rho - rho0) * np.sqrt(n))), n
 
-    def _species_bias(self, cm, rws) -> Tuple[Dict[str, float], float]:
+    def _species_bias(self, cm, rws, phi: float = 1.0
+                      ) -> Tuple[Dict[str, float], float]:
         kap2 = self.cfg.systematic_allowance ** 2
         bias: Dict[str, float] = {}
         if not rws:
@@ -165,8 +241,11 @@ class AdequacyGovernor:
                 vals.extend(r[i * m.n_z:(i + 1) * m.n_z])
             v = np.asarray(vals)
             # a bounded systematic (<= kappa sigma) never averages away:
-            # widen the null accordingly instead of mean*sqrt(n) vs N(0,1)
-            bias[sp] = float(np.mean(v) / np.sqrt(1.0 / len(v) + kap2))
+            # widen the null accordingly instead of mean*sqrt(n) vs N(0,1).
+            # phi carries the REALIZED dispersion, so a uniformly mis-scaled
+            # Sigma_y cannot masquerade as a species bias.
+            bias[sp] = float(np.mean(v)
+                             / np.sqrt(phi / len(v) + kap2))
         if not bias:
             return bias, 1.0
         p_each = [2.0 * stats.norm.sf(abs(b)) for b in bias.values()]
@@ -174,7 +253,7 @@ class AdequacyGovernor:
         m_tests = len(p_each)
         return bias, float(1.0 - (1.0 - p_min) ** m_tests)   # Sidak
 
-    def _worst_cell(self, cm, rws) -> Tuple[float, float]:
+    def _worst_cell(self, cm, rws, phi: float = 1.0) -> Tuple[float, float]:
         """Max standardized mean residual over (experiment x species) CELLS,
         Sidak-corrected for the number of cells.  A refitted wrong model
         spreads its misfit thin GLOBALLY but cannot silence it LOCALLY: the
@@ -189,14 +268,14 @@ class AdequacyGovernor:
                 if len(cell) == 0:
                     continue
                 zs.append(float(np.mean(cell))
-                          / np.sqrt(1.0 / len(cell) + kap2))
+                          / np.sqrt(phi / len(cell) + kap2))
         if not zs:
             return 0.0, 1.0
         worst = float(np.max(np.abs(zs)))
         p_one = 2.0 * stats.norm.sf(worst)
         return worst, float(1.0 - (1.0 - p_one) ** len(zs))   # Sidak
 
-    def _t_trend(self, cm, rws) -> Tuple[float, float]:
+    def _t_trend(self, cm, rws, phi: float = 1.0) -> Tuple[float, float]:
         kap2 = self.cfg.systematic_allowance ** 2
         r0 = kap2 / (1.0 + kap2)
         t_cs = [m.u.T_C for m in cm.inference.measurements]
@@ -221,10 +300,11 @@ class AdequacyGovernor:
         rws = self._whitened_by_measurement(cm, theta)
         rw = np.concatenate(rws) if rws else np.zeros(0)
         score, p1 = self._p_chi2(rw, cm.space.n_params)
+        phi = self.dispersion(rw, cm.space.n_params)
         rho, p2, n_pairs = self._autocorr(cm, rws)
-        bias, p3 = self._species_bias(cm, rws)
-        _t_r, p4 = self._t_trend(cm, rws)
-        _w, p5 = self._worst_cell(cm, rws)
+        bias, p3 = self._species_bias(cm, rws, phi)
+        _t_r, p4 = self._t_trend(cm, rws, phi)
+        _w, p5 = self._worst_cell(cm, rws, phi)
         comps = {"chi2": p1, "z_autocorr": p2, "species_bias": p3,
                  "T_trend": p4, "worst_cell": p5}
         p_comb = self.combine(comps, n_pairs)
@@ -246,11 +326,22 @@ class AdequacyGovernor:
         With a nonzero systematic allowance it is therefore excluded from
         the DECISION (still computed and reported); with kappa = 0
         (direct observation) it is a decision component, where it is the
-        most sensitive test."""
-        excluded = {"z_autocorr"} if self.cfg.systematic_allowance > 0.0 \
-            else set()
+        most sensitive test.
+
+        The same reasoning removes `chi2` under a declared allowance: it
+        tests the SIZE of the residuals, which is a property of the
+        measurement covariance, and its power against a scalar
+        mis-specification of that covariance grows without bound in n.  The
+        gross-misfit override (`chi2_dof_ratio_override`) keeps magnitude in
+        the loop for a catastrophically wrong model.  See the module
+        docstring for the measurement that motivated this."""
+        excluded = set()
+        if self.cfg.systematic_allowance > 0.0:
+            excluded.add("z_autocorr")
+            if self.cfg.dispersion_robust:
+                excluded.add("chi2")
         if n_pairs < 8:
-            excluded = excluded | {"z_autocorr"}
+            excluded.add("z_autocorr")
         return {k: v for k, v in comps.items() if k not in excluded}
 
     def combine(self, comps: Dict[str, float], n_pairs: int) -> float:
@@ -281,7 +372,9 @@ class AdequacyGovernor:
         theta = best.posterior.theta_map
         rws = self._whitened_by_measurement(best, theta) if theta is not None \
             else []
-        T_r, _ = self._t_trend(best, rws)
+        rw_all = np.concatenate(rws) if rws else np.zeros(0)
+        phi = self.dispersion(rw_all, best.space.n_params)
+        T_r, _ = self._t_trend(best, rws, phi)
 
         # QC of the spectral fits (informational here; the CONTROL response
         # to QC failure happens in the controller's gate BEFORE assimilation)
@@ -304,12 +397,15 @@ class AdequacyGovernor:
         elif (all(pv < alpha_round for pv in p_all.values())
               or score > cfg.chi2_dof_ratio_override):
             state = GovernorState.MODEL_INADEQUATE
+            used = ", ".join(sorted(self.decision_components(comps_best,
+                                                            10 ** 6)))
             reasons.append(
                 f"every candidate rejected at alpha_round={alpha_round:.2e} "
                 f"(campaign alpha={cfg.alpha_campaign:g} Bonferroni-spent "
                 f"over {cfg.n_rounds_planned} rounds); best model "
-                f"p={p_best:.2e}, chi2/dof={score:.2f}, "
-                f"z-autocorr={rho:.2f}")
+                f"p={p_best:.2e}, chi2/dof={score:.2f} "
+                f"(realized dispersion phi={phi:.2f}), z-autocorr={rho:.2f}; "
+                f"decision components: {used}")
             if self.round_first_inadequate is None:
                 self.round_first_inadequate = round_no
         elif float(np.max(ensemble.probs)) < cfg.discrimination_prob:
@@ -335,7 +431,10 @@ class AdequacyGovernor:
             species_bias=bias, z_trend_r=rho, T_trend_r=T_r,
             reasons=reasons, affected_species=affected,
             affected_region=region,
-            round_detected=self.round_first_inadequate)
+            round_detected=self.round_first_inadequate,
+            dispersion=phi,
+            decision_components_used=tuple(sorted(
+                self.decision_components(comps_best, 10 ** 6))))
 
     # ------------------------------------------------------------------ #
     def min_replicates_for(self, alpha: float) -> int:

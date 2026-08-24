@@ -27,10 +27,27 @@ GUESS = literature_guess(T_REF_K)
 
 # ---- geometry / packing --------------------------------------------------- #
 def test_demo_geometry_is_20cm_7mm_and_configurable():
+    """The demonstration CPR is 20 cm x 7 mm, and in V6 it is PACKED.
+
+    That is not a cosmetic default: an open tube of this size is radially
+    segregated at every flow the design space commands (t_rad/tau = 13-212
+    against a limit of 10), so the framework would be applying a plug-flow
+    model outside its range.  Packing is the standard engineering fix and it
+    is switched from FEATURES['packed_bed_reactor']."""
     g = ReactorGeometry(**bm.GEOMETRY)
     assert abs(g.length_m - 0.20) < 1e-12
     assert abs(g.diameter_m - 0.007) < 1e-12
-    assert g.void_fraction == 1.0            # unpacked demonstration reactor
+    assert bm.FEATURES["packed_bed_reactor"] is True
+    assert g.packing_enabled and 0.0 < g.void_fraction < 1.0
+    # and the switch really removes the packing
+    before = bm.resolved_config()
+    try:
+        bm.apply_config({"FEATURES": {"packed_bed_reactor": False,
+                                      "reactor_validity_enforcement": False}})
+        assert ReactorGeometry(**bm.GEOMETRY).void_fraction == 1.0
+    finally:
+        bm.apply_config(before)
+        bm.invalidate_caches()
     # nothing is hard-coded: a different geometry is simply another config
     g2 = ReactorGeometry(length_m=0.35, diameter_m=0.004)
     assert g2.volume_m3 > 0 and g2.length_m == 0.35
@@ -109,6 +126,8 @@ def test_positions_rescale_with_configured_length():
 # ---- equilibrium observability -------------------------------------------- #
 def test_phi_and_k_sensitivity_behave():
     bridge = Layer1Bridge(bm.GEOMETRY, T_REF_K, activity_model="pitzer")
+    # the demonstration reactor still reaches the equilibrium-sensitive
+    # region when packed (shorter tau, so the hot/slow corner matters more)
     L = bridge.geometry.length_m
     z = np.linspace(L / 10, L, 10)
     hot_slow = OperatingConditions(160.0, 0.25, 0.25, 1.0, 1.0)

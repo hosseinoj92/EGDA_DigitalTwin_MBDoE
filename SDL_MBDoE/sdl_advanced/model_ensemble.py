@@ -264,12 +264,13 @@ class ModelEnsemble:
 def build_egda_family(geometry: Dict[str, float], t_ref_K: float,
                       include: Sequence[str] = ("rev-pitzer", "rev-dilute",
                                                 "irreversible"),
-                      h_plus_model: str = "equilibrium",
-                      ka2_model: str = "tdep",
+                      h_plus_model: Optional[str] = "equilibrium",
+                      ka2_model: Optional[str] = "tdep",
                       fixed: Optional[Dict[str, float]] = None,
                       noise_assumed: Optional[NoiseModel] = None,
                       assumed_extra_tau_s: float = 0.0,
-                      assumed_transfer: Optional[AssumedTransfer] = None
+                      assumed_transfer: Optional[AssumedTransfer] = None,
+                      chemistry: Optional[Dict] = None
                       ) -> List[CandidateModel]:
     """The interpretable EGDA/H2SO4 candidate family (see module docstring).
     `include` lets benchmark scenarios remove the correct structure
@@ -278,8 +279,23 @@ def build_egda_family(geometry: Dict[str, float], t_ref_K: float,
     `noise_assumed` is the fallback covariance for measurements that carry
     no cov_y (direct-observation ablations).  `assumed_transfer` (or the
     legacy scalar `assumed_extra_tau_s`) is the inference-side transfer
-    correction, shared by all candidates."""
+    correction, shared by all candidates.
+
+    `chemistry` carries the FEATURE-resolved forward-model configuration
+    (reversibility, activity model, speciation, Arrhenius, van 't Hoff).
+    Each candidate still overrides the fields that DEFINE it - the
+    irreversible candidate is irreversible whatever the global setting says
+    - but everything else follows the central switches, so a candidate
+    cannot quietly simulate physics the rest of the framework has turned
+    off."""
     guess = literature_guess(t_ref_K, "H2SO4")
+    chem = dict(chemistry or {})
+    chem.pop("reversible", None)          # each candidate declares its own
+    chem.pop("activity_model", None)      # ditto
+    if h_plus_model is not None:
+        chem["h_plus_model"] = h_plus_model
+    if ka2_model is not None:
+        chem["ka2_model"] = ka2_model
     fixed = dict(fixed or {})
     noise = noise_assumed or NoiseModel()
     out: List[CandidateModel] = []
@@ -291,8 +307,7 @@ def build_egda_family(geometry: Dict[str, float], t_ref_K: float,
 
     def _model(name: str, desc: str, sp: ParameterSpace,
                **bridge_kw) -> CandidateModel:
-        bridge = Layer1Bridge(geometry, t_ref_K, h_plus_model=h_plus_model,
-                              ka2_model=ka2_model, **bridge_kw)
+        bridge = Layer1Bridge(geometry, t_ref_K, **{**chem, **bridge_kw})
         return CandidateModel(
             name=name, description=desc, bridge=bridge, space=sp,
             prior=GaussianPrior.from_space(sp),

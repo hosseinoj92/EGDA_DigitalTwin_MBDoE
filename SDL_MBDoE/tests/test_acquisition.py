@@ -58,49 +58,82 @@ def _noise_std(acq, sigma=0.10, n=40):
 
 # ---- 1. plug-flow validity ------------------------------------------------ #
 def test_principal_reactor_is_checked_against_its_own_criterion():
+    """The DEFAULT reactor must satisfy the criterion the framework
+    enforces on designed geometries - it is now a packed bed for exactly
+    that reason (FEATURES['packed_bed_reactor'])."""
     rows = bm.reactor_validity_rows()
     assert rows and all(r["threshold"] ==
-                        bm.GEOMETRY_DESIGN["max_radial_ratio"] for r in rows)
-    # the shipped open tube fails at EVERY design flow - the review's point
-    assert all(not r["plug_flow_valid"] for r in rows)
-    got = {r["Q_total_mL_min"]: round(r["t_rad_over_tau"], 1) for r in rows}
+                        bm.validity_criteria().max_radial_ratio
+                        for r in rows)
+    assert all(r["plug_flow_valid"] for r in rows), \
+        "the shipped default reactor must pass its own criterion"
+    assert all(r["packed"] for r in rows)
+    # and the OPEN tube it replaced fails at every design flow, which is why
+    assert all(not r["plug_flow_valid"] for r in bm.reactor_validity_rows(
+        {"length_m": 0.20, "diameter_m": 0.007}))
+    got = {r["Q_total_mL_min"]: round(r["t_rad_over_tau"], 1)
+           for r in bm.reactor_validity_rows(
+               {"length_m": 0.20, "diameter_m": 0.007},
+               flows=[0.5, 2.0, 8.0])}
     assert got[0.5] == 13.3 and got[2.0] == 53.1 and got[8.0] == 212.2
 
 
 def test_validity_ratio_scales_as_Q_over_L_eps():
-    """t_rad/tau = Q/(pi D L eps): linear in flow, inverse in length and
-    holdup, independent of bore."""
+    """t_rad/tau = Q/(pi D L eps) for an OPEN tube: linear in flow, inverse
+    in length, independent of bore."""
     g = {"length_m": 0.2, "diameter_m": 0.007}
     r1 = bm._radial_ratio(g, 1.0)
     assert abs(bm._radial_ratio(g, 2.0) - 2.0 * r1) < 1e-9
     assert abs(bm._radial_ratio({**g, "length_m": 0.4}, 1.0) - r1 / 2) < 1e-9
     assert abs(bm._radial_ratio({**g, "diameter_m": 0.02}, 1.0) - r1) < 1e-12
-    # a packed bed is treated as valid by the bead assumption
+    # A packed bed is CHECKED, not assumed: its ratio is small because the
+    # bed disperses radially, but it is finite and it is computed.
     packed = {**g, "packing_enabled": True, "bed_void_fraction": 0.4}
+    assert 0.0 < bm._radial_ratio(packed, 1.0) < 1.0
     assert all(r["plug_flow_valid"]
                for r in bm.reactor_validity_rows(packed))
 
 
 def test_validity_policy_warns_by_default_and_can_refuse():
     before = bm.resolved_config()
+    open_tube = {"length_m": 0.20, "diameter_m": 0.007}
     try:
         bm.apply_config({"VALIDITY": {"policy": "warn"}})
-        assert bm.assert_reactor_validity()          # warns, returns rows
+        bm.invalidate_caches()
+        assert bm.assert_reactor_validity(open_tube)   # warns, returns rows
         bm.apply_config({"VALIDITY": {"policy": "error"}})
+        bm.invalidate_caches()
         try:
-            bm.assert_reactor_validity()
+            bm.assert_reactor_validity(open_tube)
         except ValueError as exc:
-            assert "pack the tube" in str(exc)
+            assert "PACK the tube" in str(exc)
         else:
             raise AssertionError("policy='error' must refuse")
-        bm.apply_config({"VALIDITY": {"policy": "ignore"}})
-        bm.assert_reactor_validity()                 # silent
+        # "ignore" is reached by DECLARING the non-ideal study through the
+        # feature switch, not by quietly setting a policy string
+        bm.apply_config({"FEATURES": {"reactor_validity_enforcement": False}})
+        bm.invalidate_caches()
+        assert bm.VALIDITY["policy"] == "ignore"
+        bm.assert_reactor_validity(open_tube)          # silent
+        # ... and claiming enforcement while ignoring the verdict is refused
+        try:
+            bm.apply_config({"FEATURES": {
+                "reactor_validity_enforcement": True}})
+        except ValueError as exc:
+            assert "nothing is enforced" in str(exc)
+        else:
+            raise AssertionError("enforcement + policy 'ignore' must raise")
+        bm.apply_config({"VALIDITY": {"policy": "error"},
+                         "FEATURES": {"reactor_validity_enforcement": True}})
+        bm.invalidate_caches()
         # packing the tube satisfies the criterion even under 'error'
         bm.apply_config({"VALIDITY": {"policy": "error"}})
-        bm.assert_reactor_validity({**bm.GEOMETRY, "packing_enabled": True,
+        bm.invalidate_caches()
+        bm.assert_reactor_validity({**open_tube, "packing_enabled": True,
                                     "bed_void_fraction": 0.4})
     finally:
         bm.apply_config(before)
+        bm.invalidate_caches()
 
 
 # ---- 2. transfer-line speciation ------------------------------------------ #

@@ -22,6 +22,7 @@ import numpy as np
 
 from sdl import Layer1Bridge, build_candidates, build_fixed_design
 from sdl_advanced import benchmark as bm
+from sdl_advanced import features as feat
 from sdl_advanced import reporting as rep
 from sdl_advanced.bayes_design import NoiseSurrogate
 from sdl_advanced.instrument import InstrumentConfig
@@ -35,7 +36,11 @@ CONFIG = {
     "budget": 6,                  # reactor conditions per strategy
     "scenario": "S3_transport",   # the full-physics demonstration
     "strategies": ["D", "F"],
-    "outdir": "results_advanced_v4/campaign",
+    # V6 results live in their own tree; results_advanced_v5 is a COMPLETED
+    # ARCHIVE of the previous framework and is never written to again.
+    # "validation" marks this as a code/figure run, not publication numbers.
+    "outdir": "results_advanced_v6/validation/campaign",
+    "allow_overwrite": False,
     "n_recovery_mc": 120,         # Figure D Monte Carlo size
 }
 
@@ -54,12 +59,33 @@ CONFIG = {
 # prints every knob that differs from the library default, and the complete
 # resolved configuration is written to <outdir>/config_used.json.
 KNOBS = {
+    # ===================================================================== #
+    # (1) FEATURE SWITCHES - WHAT IS SIMULATED AT ALL
+    # ===================================================================== #
+    # One True/False per optional effect, exactly as in
+    # the benchmark runner.  The catalogue, the three-part explanation
+    # of every switch and the routing live in sdl_advanced/features.py, and
+    # the fully resolved state is written to <outdir>/features_resolved.json
+    # with every run.  Starting from `feat.defaults()` and listing only the
+    # DELTAS here is deliberate: duplicating 40 explained switches in two
+    # runners is the drift this refactor exists to remove, and the resolved
+    # record shows every value regardless of where it came from.
+    "FEATURES": {**feat.defaults(),
+                 # this demonstration runs in the declared reactor
+                 "geometry_optimization": False},
+    # Deliberate truth/inference divergence, OFF by default (see the
+    # benchmark runner for the full commentary).
+    "MODEL_MISMATCH": feat.mismatch_defaults(),
+
+    # ===================================================================== #
+    # (2) MAGNITUDES
+    # ===================================================================== #
     # ---- reactor ------------------------------------------------------- #
+    # packing_enabled / bed_void_fraction are derived from
+    # FEATURES["packed_bed_reactor"].
     "GEOMETRY": {
         "length_m": 0.20,
         "diameter_m": 0.007,
-        "packing_enabled": False,     # True -> inert-packed bed
-        "bed_void_fraction": 1.0,     # epsilon; only used when packed
     },
     "T_REF_C": 60.0,                  # Arrhenius reference temperature
     "N_PORTS": 10,                    # axial samples per profile
@@ -91,8 +117,8 @@ KNOBS = {
     # propose any point inside continuous_bounds, snapped to the resolution
     # the hardware can actually command, and accepted only when it strictly
     # beats the best grid point - so it can never do worse.
+    # `continuous` lives in FEATURES["continuous_design_space"].
     "DESIGN_SPACE": {
-        "continuous": False,
         "resolution": {"T_C": 0.1,             # deg C
                        "Q_total_mL_min": 0.1,   # mL/min
                        "C_cat_M": 1.0e-4,       # 0.1 mM
@@ -110,8 +136,9 @@ KNOBS = {
     # NOTE: with this on, blind RMSE is computed in the CHOSEN reactor, so
     # it stays comparable across strategies but not across runs with
     # different geometry settings - the prediction target itself moves.
+    # `enabled` lives in FEATURES["geometry_optimization"]; `packing`
+    # follows FEATURES["packed_bed_reactor"].
     "GEOMETRY_DESIGN": {
-        "enabled": False,
         "mode": "per_campaign",       # "per_experiment" raises: not implemented
         "bounds": {"length_m": [0.05, 0.60],
                    "diameter_m": [0.002, 0.012]},
@@ -126,9 +153,7 @@ KNOBS = {
         # every geometry as a PACKED bed (spherical beads, eps ~ 0.4), the
         # standard engineering fix, which is treated as plug-flow valid
         # under the documented d_p <= d/10, L/d_p >= 100 assumption.
-        "packing": "auto",            # "auto" | True | False
-        "bed_void_fraction": 0.40,
-        "max_radial_ratio": 10.0,
+        "bed_void_fraction": 0.40,   # eps of a random-packed bed
         # sizing objective = logdet F(reference design) - resource penalty
         # of that campaign in that reactor; the weights are S6's 1x vector
         # (one information-resource exchange rate for the whole framework).
@@ -152,7 +177,18 @@ KNOBS = {
     # criterion; it also shortens tau by eps, which changes conversions and
     # therefore every published number - a deliberate decision, not a
     # silent default change.
-    "VALIDITY": {"policy": "warn"},
+    "VALIDITY": {
+        "criteria": {
+            "max_radial_ratio": 10.0,
+            "min_bodenstein": 100.0,
+            "bed_to_particle_ratio": 10.0,
+            "min_bed_aspect": 100.0,
+            "packed_peclet_axial": 0.5,
+            "packed_peclet_radial": 10.0,
+            "tortuosity": 1.4,
+            "packed_plug_flow_assumed": False,
+        },
+    },
 
     # ---- conventional-vs-optimized comparison ---------------------------- #
     # Which strategy plays "the conventional method" the methodology must
@@ -178,19 +214,15 @@ KNOBS = {
     # whereas at reactor temperature it keeps converting.  None means "stays
     # at reactor temperature" (the old assumption).
     "TRANSFER_TRUE": {
-        "enabled": True,
-        "T_line_C": 25.0,
         "Q_sample_mL_min": 0.5,
         "V_fixed_mL": 0.15,
         "geometry": "constant",        # "constant" | "linear"
         "v_per_m_mL": 0.0,
-        "rtd": "gamma",                # "delta" (plug) | "gamma"
         "n_tanks": 4.0,
         "n_quad": 5,
-        "react_in_line": True,
-        "carryover": True,
         "flush_volumes": 3.0,
     },
+    "TRANSFER_LINE_T_C": 25.0,
 
     # ---- NMR instrument -------------------------------------------------- #
     "ACQ": {
@@ -213,12 +245,11 @@ KNOBS = {
         "fft_points": None,
         "repetition_time_s": 15.0,
         "n_scans": 1,
-        "engine": "analytic",          # "analytic" | "fid"
+        # engine is FEATURES["nmr_fid_engine"]
     },
     # ASSUMED nuisances of the synthetic spectrum - not measured Fourier-80
     # properties.  These are the truth side; the fitter never sees them.
     "NMR_NUISANCE_TRUE": {
-        "enabled": True,
         "noise_sigma": 0.10,
         "shift_drift_ppm": 0.004,
         "shift_jitter_ppm": 0.001,
@@ -239,7 +270,24 @@ KNOBS = {
         "z_max_fraction": 1.0,
         "min_spacing_fraction": 0.02,
         "continuous_refinement": False,
+        "marginal_information_threshold": None,
     },
+
+    # ---- quantification error model (magnitudes) ------------------------- #
+    "QUANTIFICATION": {
+        "sigma_floor_abs_M": 0.002,
+        "sigma_floor_rel": 0.03,
+        "gain_drift_rel": 0.01,
+        "shift_jitter_ppm": 0.001,
+    },
+    # ---- truth-side fault magnitudes (whether they happen is FEATURES) --- #
+    "FAULT_MODEL": {
+        "spectrum_fault_prob": 0.02,
+        "spectrum_fault_amplitude_sigma": 400.0,
+        "outlier_prob": 0.01,
+        "outlier_scale_sigma": 8.0,
+    },
+    "LEGACY_NMR_TIME_S": 60.0,
 
     # ---- Bayesian design (strategy F) ------------------------------------ #
     "ADVANCED_DESIGN": {
@@ -260,15 +308,22 @@ KNOBS = {
         # kappa: DERIVED FROM CONTROL DATA (validation.derive_systematic_
         # allowance), never tuned on benchmark performance.  Re-derive it
         # whenever the NMR calibration changes.
-        "systematic_allowance_nmr": 0.47,
+        "systematic_allowance_nmr": "auto",
         "systematic_allowance_direct": 0.0,
+        "allowance_seed": 0,
+        "allowance_n_rep": 3,
+        "allowance_n_control": 80,
+        "allowance_stride": 3,
     },
 
     # ---- measurement-fault QC gate ---------------------------------------- #
     "QC_GATE": {
-        "enabled_for_nmr": True,
         "max_retries": 1,              # reacquisitions per failing position
-        "max_reject_fraction": 0.5,    # above this per round -> pause
+        "max_reject_fraction": 0.5,    # batch rule
+        "min_batch_for_fraction": 4,   # below this, the fraction is ignored
+        "max_consecutive_rejects": 3,  # persistence rule
+        "rolling_window": 8,
+        "max_rejects_in_window": 4,
     },
 
     # ---- resource model ---------------------------------------------------- #
@@ -284,9 +339,8 @@ KNOBS = {
         # of the historical lumped 60 s at the shipped acquisition, so the
         # shipped campaign clock is unchanged but now explicit.
         "nmr_fixed_overhead_s": 40.9,
-        # LEGACY COMPATIBILITY (labelled): set a number to force a fixed
-        # per-spectrum duration and ignore the decomposition entirely.
-        "legacy_fixed_nmr_time_s": None,
+        # the LEGACY lumped duration is
+        # FEATURES["acquisition_time_accounting"] = False
         "capillary_speed_m_s": 0.002,
         "flush_time_s": 30.0,
         "sample_volume_mL": 0.3,
@@ -303,10 +357,22 @@ KNOBS = {
 }
 
 
-def resolve_outdir(outdir: str) -> str:
+def resolve_outdir(outdir: str, allow_overwrite: bool = False) -> str:
+    """Resolve the output directory, refusing to overwrite a completed run.
+
+    An archived run is the only record of which code produced which figure;
+    writing over it (or half over it) destroys that."""
     if not os.path.isabs(outdir):
         outdir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               outdir)
+    existing = [m for m in ("config_used.json", "campaign_history.csv")
+                if os.path.exists(os.path.join(outdir, m))]
+    if existing and not allow_overwrite:
+        raise FileExistsError(
+            f"{outdir} already contains a completed run "
+            f"({', '.join(existing)}).  Choose a different outdir, or set "
+            f"CONFIG['allow_overwrite'] = True to replace your own "
+            f"previous run.")
     os.makedirs(outdir, exist_ok=True)
     return outdir
 
@@ -387,7 +453,8 @@ def main() -> None:
                       if base.get(k) != cur[k]]
         elif base != cur:
             drift.append(f"{name}={cur!r}")
-    outdir = resolve_outdir(cfg["outdir"])
+    outdir = resolve_outdir(cfg["outdir"],
+                            bool(cfg.get("allow_overwrite", False)))
     spec = bm.SCENARIOS[cfg["scenario"]]
     t0 = time.time()
 
@@ -398,6 +465,11 @@ def main() -> None:
           f"{cfg['strategies']} | seed {cfg['seed']}")
     if drift:
         print("  non-default knobs: " + "; ".join(drift))
+    print("  FEATURES (full state in features_resolved.json):")
+    for line in feat.summary_lines(bm.FEATURES, bm.MODEL_MISMATCH):
+        print(line)
+    nd = resolved_knobs["FEATURES_RESOLVED"]["non_default"]
+    print(f"    non-default switches: {', '.join(nd) if nd else 'none'}")
     print(f"  design space: "
           f"{'CONTINUOUS (snapped)' if bm.DESIGN_SPACE['continuous'] else 'DISCRETE grid'}"
           f" | transfer line T: {bm.TRANSFER_TRUE.T_line_C}")
@@ -441,16 +513,38 @@ def main() -> None:
     _figure_d(outdir, cfg["n_recovery_mc"], cfg["seed"])
 
     # ---- reproducibility record ----------------------------------------- #
-    with open(os.path.join(outdir, "config_used.json"), "w") as fh:
-        json.dump({"CONFIG": cfg,
+    with open(os.path.join(outdir, "config_used.json"), "w",
+              encoding="utf-8") as fh:
+        json.dump({"framework_version": "v6",
+                   "run_kind": "validation",
+                   "is_publication_run": False,
+                   "CONFIG": cfg,
                    "knobs_resolved": resolved_knobs,
-                   "scenario": dataclasses.asdict(spec),
+                   # every switch, its value and its explanation
+                   "features_resolved": resolved_knobs["FEATURES_RESOLVED"],
+                   "plug_flow_criteria": dataclasses.asdict(
+                       bm.validity_criteria()),
+                   "reactor_validity": bm.reactor_validity_rows(),
+                   "reactor_validity_verdict": bm.rv.explain(
+                       bm.GEOMETRY, bm.permitted_flows(),
+                       bm.validity_criteria()),
+                   "scenario": {**dataclasses.asdict(spec),
+                                "transfer_resolved": dataclasses.asdict(
+                                    spec.transfer),
+                                "family_resolved": list(
+                                    bm.scenario_family(spec))},
                    "truth": bm.TRUTH, "geometry": bm.GEOMETRY,
                    "design": bm.DESIGN,
                    "nmr_nuisance_true": dataclasses.asdict(
                        bm.NMR_NUISANCE_TRUE),
+                   "nmr_nuisance_active_gates":
+                       bm.NMR_NUISANCE_TRUE.active_gates(),
                    "acquisition": dataclasses.asdict(bm.ACQ)},
                   fh, indent=2, default=str)
+    with open(os.path.join(outdir, "features_resolved.json"), "w",
+              encoding="utf-8") as fh:
+        json.dump(resolved_knobs["FEATURES_RESOLVED"], fh, indent=2,
+                  default=str)
     print(f"\nDone in {time.time() - t0:.1f} s.  Outputs in: {outdir}")
 
 

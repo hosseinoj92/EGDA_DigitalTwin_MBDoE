@@ -26,9 +26,14 @@ QC GATE (measurement-fault handling): a spectrum whose deconvolution raises
 FAIL quality flags is NEVER assimilated into the kinetic posterior.  The
 controller re-acquires the same position up to `qc.max_retries` times
 (metered as reacquisitions); persistently failing positions are dropped and
-counted; if more than `qc.max_reject_fraction` of a round's positions fail,
+counted; and when the gate's policy concludes that the INSTRUMENT is broken
 the campaign PAUSES safely (stop_reason='MEASUREMENT_FAULT') instead of
-designing new chemistry experiments on corrupted data.
+designing new chemistry experiments on corrupted data.  That policy is
+batch-size aware (QCGateConfig / QCMonitor): a per-round rejection FRACTION
+is only used where a batch is large enough for it to mean anything, and
+persistent failure is detected by consecutive-rejection and rolling-window
+rules that behave identically whether a round contains ten acquisitions or
+one.  Single-measurement (adaptive_sequential) operation depends on that.
 
 FIREWALL: this module only ever touches lab.run_profile() and the resulting
 Measurement objects.  Baseline strategies A-D remain in sdl.campaign,
@@ -64,9 +69,111 @@ ADV_STRATEGY_NAMES = {
 
 @dataclass(frozen=True)
 class QCGateConfig:
+    """When does QC rejection mean "the instrument is broken, stop"?
+
+    The original rule was a per-round REJECTION FRACTION.  That is a
+    reasonable statistic for a 10-position profile and a meaningless one for
+    a single acquisition: in adaptive_sequential mode every round contains
+    ONE measurement, so a single rejected spectrum gives a rejection
+    fraction of 100 % and pauses the campaign.  In the archived v5
+    publication run that fired on 40 of 40 F-zadaptive seeds - the adaptive
+    spatial policy never completed a campaign, and the S7 comparison was
+    measuring the gate, not the policy.
+
+    The gate therefore now applies FOUR rules, and a fault is declared when
+    any of them trips.  The first two are batch statistics (unchanged
+    behaviour where they are meaningful); the last two are PERSISTENCE
+    statistics that carry across acquisitions and rounds, so they work
+    identically at any batch size - which is what makes single-measurement
+    operation testable at all:
+
+      1. `total_loss`   a batch of >= 2 positions of which NONE survived
+      2. `fraction`     a batch of >= `min_batch_for_fraction` positions
+                        with more than `max_reject_fraction` rejected
+      3. `consecutive`  `max_consecutive_rejects` rejections in a row
+      4. `window`       more than `max_rejects_in_window` rejections among
+                        the last `rolling_window` acquisitions
+
+    Rules 3 and 4 need memory, which lives in `QCMonitor` (one per campaign).
+    A genuinely broken instrument fails repeatedly and trips them within a
+    few acquisitions; an isolated bad spectrum does not, and the campaign
+    simply samples elsewhere - which is the correct laboratory response."""
     enabled: bool = True
     max_retries: int = 1              # reacquisitions per failing position
-    max_reject_fraction: float = 0.5  # above this per round -> pause campaign
+    max_reject_fraction: float = 0.5  # batch rule (rule 2)
+    #: below this batch size a rejection FRACTION carries no information
+    #: (1/1 = 100 % is not evidence of anything), so rule 2 is not applied
+    min_batch_for_fraction: int = 4
+    #: rule 3: consecutive rejected acquisitions that mean "broken"
+    max_consecutive_rejects: int = 3
+    #: rule 4: rolling window over acquisitions, and how many may fail in it
+    rolling_window: int = 8
+    max_rejects_in_window: int = 4
+
+    def __post_init__(self) -> None:
+        if not 0.0 <= self.max_reject_fraction <= 1.0:
+            raise ValueError("max_reject_fraction must lie in [0, 1].")
+        if self.max_consecutive_rejects < 1:
+            raise ValueError("max_consecutive_rejects must be >= 1.")
+        if self.rolling_window < 1:
+            raise ValueError("rolling_window must be >= 1.")
+        if self.max_rejects_in_window < 0:
+            raise ValueError("max_rejects_in_window must be >= 0.")
+
+
+class QCGateFault(Exception):
+    """Internal signal - never raised out of this module."""
+
+
+class QCMonitor:
+    """Per-campaign memory of acquisition dispositions (rules 3 and 4).
+
+    Deliberately counts ACQUISITIONS, not rounds: an adaptive campaign takes
+    one acquisition per round and a batch campaign takes ten, and the
+    question "is the instrument working?" is about acquisitions either way.
+    A successful acquisition resets the consecutive counter, because a
+    spectrometer that produces a good spectrum is, at that moment, working."""
+
+    def __init__(self, cfg: QCGateConfig):
+        self.cfg = cfg
+        self.consecutive_rejects = 0
+        self.history: List[int] = []          # 1 = rejected, 0 = accepted
+        self.n_accepted = 0
+        self.n_rejected = 0
+        self.trip_reason = ""
+
+    def record(self, rejected: bool) -> None:
+        self.history.append(1 if rejected else 0)
+        if len(self.history) > max(self.cfg.rolling_window, 1):
+            self.history.pop(0)
+        if rejected:
+            self.n_rejected += 1
+            self.consecutive_rejects += 1
+        else:
+            self.n_accepted += 1
+            self.consecutive_rejects = 0
+
+    def tripped(self) -> bool:
+        cfg = self.cfg
+        if self.consecutive_rejects >= cfg.max_consecutive_rejects:
+            self.trip_reason = (
+                f"{self.consecutive_rejects} consecutive QC rejections "
+                f"(limit {cfg.max_consecutive_rejects})")
+            return True
+        in_window = sum(self.history)
+        if (len(self.history) >= cfg.rolling_window
+                and in_window > cfg.max_rejects_in_window):
+            self.trip_reason = (
+                f"{in_window} QC rejections in the last "
+                f"{len(self.history)} acquisitions "
+                f"(limit {cfg.max_rejects_in_window})")
+            return True
+        return False
+
+    def summary(self) -> Dict[str, float]:
+        return {"qc_accepted": self.n_accepted, "qc_rejected": self.n_rejected,
+                "qc_consecutive_rejects": self.consecutive_rejects,
+                "qc_trip_reason": self.trip_reason}
 
 
 @dataclass
@@ -180,15 +287,46 @@ def _qc_failed(qc_entry: Dict) -> bool:
                for f in qc_entry.get("qc_flags", []))
 
 
+def qc_fault_verdict(n_positions: int, n_rejected: int, qc: QCGateConfig,
+                     monitor: "Optional[QCMonitor]" = None
+                     ) -> Tuple[bool, str]:
+    """Apply the four gate rules (see QCGateConfig) and say WHICH one fired.
+
+    Separated from the measurement loop so the policy can be unit-tested
+    directly - including the case that used to be wrong, a single-position
+    batch with one rejection."""
+    if n_positions <= 0:
+        return False, ""
+    if n_positions >= 2 and n_rejected >= n_positions:
+        return True, (f"total loss: all {n_positions} positions of the batch "
+                      f"failed QC")
+    if (n_positions >= max(int(qc.min_batch_for_fraction), 1)
+            and n_rejected / n_positions > qc.max_reject_fraction):
+        return True, (f"{n_rejected}/{n_positions} positions rejected "
+                      f"(limit {qc.max_reject_fraction:.0%} of a batch of "
+                      f"{qc.min_batch_for_fraction}+)")
+    if monitor is not None and monitor.tripped():
+        return True, monitor.trip_reason
+    return False, ""
+
+
 def measure_with_qc(lab: AdvancedVirtualLaboratory, u: OperatingConditions,
                     zs: Sequence[float], qc: QCGateConfig,
-                    recorder=None, round_no: int = 0
+                    recorder=None, round_no: int = 0,
+                    monitor: "Optional[QCMonitor]" = None
                     ) -> Tuple[Optional[Measurement], int, int, bool]:
     """Measure the positions with the QC gate applied BEFORE assimilation.
 
     Returns (measurement_of_passing_positions_or_None, n_rejected,
-    n_reacquired, fault).  fault=True when the reject fraction exceeds the
-    configured limit - the caller must pause, not continue designing.
+    n_reacquired, fault).  fault=True only when the gate's policy says the
+    INSTRUMENT is broken (QCGateConfig) - the caller must then pause rather
+    than continue designing.  An isolated rejection is not a fault: it
+    returns fault=False with whatever survived, and the caller samples
+    somewhere else.
+
+    `monitor`: the campaign's QCMonitor, which carries the persistence rules
+    across acquisitions and rounds.  None disables those two rules, leaving
+    the batch rules - which is right for a one-off call.
 
     `recorder`: passive audit sink or None.  A REJECTED spectrum never
     reaches the posterior and would otherwise leave no trace beyond a
@@ -207,6 +345,8 @@ def measure_with_qc(lab: AdvancedVirtualLaboratory, u: OperatingConditions,
     for p in parts:
         if not _qc_failed(p["qc"]):
             kept.append(p)
+            if monitor is not None:
+                monitor.record(False)
             if recorder is not None:
                 recorder.record_acquisition_part(round_no, u, p, "accepted",
                                                  attempt=1)
@@ -232,16 +372,23 @@ def measure_with_qc(lab: AdvancedVirtualLaboratory, u: OperatingConditions,
                 recorder.record_acquisition_part(round_no, u, p_re,
                                                  "failed_qc",
                                                  attempt=attempt + 2)
+        # A position that a RETRY rescued counts as a success for the
+        # persistence rules: the instrument did deliver a usable spectrum.
+        if monitor is not None:
+            monitor.record(not recovered)
         if not recovered:
             n_rej += 1
             if recorder is not None:
                 recorder.record_acquisition_part(round_no, u, p, "rejected",
                                                  attempt=0)
             lab.meter.log_qc_reject(p["z"])
-    fault = (len(parts) > 0
-             and n_rej / len(parts) > qc.max_reject_fraction)
+    fault, _why = qc_fault_verdict(len(parts), n_rej, qc, monitor)
     if not kept:
-        return None, n_rej, n_re, True
+        # No usable data from this batch.  That is NOT automatically an
+        # instrument fault: for a single-acquisition batch it just means
+        # "try another position", and only the policy above may pause the
+        # campaign.
+        return None, n_rej, n_re, fault
     kept.sort(key=lambda p: p["z"])
     return (_combine_positions(u, lab.species, kept,
                                {"observation_mode": "nmr"}),
@@ -402,6 +549,10 @@ def run_strategy_f(lab: AdvancedVirtualLaboratory,
     state = GovernorState.NORMAL_LEARNING
     decision: Optional[DesignDecision] = None
     u_next = first_u
+    # ONE monitor for the whole campaign: the persistence rules must see the
+    # acquisition stream, not a per-round slice of it - that is exactly the
+    # information a per-round rejection fraction throws away.
+    qc_monitor = QCMonitor(qc)
     for r in range(1, budget + 1):
         # ---- measure this round's spatial set --------------------------- #
         t_round = time.perf_counter()
@@ -409,7 +560,7 @@ def run_strategy_f(lab: AdvancedVirtualLaboratory,
         if spatial_cfg.mode == "adaptive_sequential" and r > 1:
             meas_list, n_rej, n_re, fault = _adaptive_profile_bayes(
                 lab, ensemble, designer, surrogate, u_next, spatial_cfg, qc,
-                recorder=recorder, round_no=r)
+                recorder=recorder, round_no=r, monitor=qc_monitor)
             zs_measured = np.concatenate([m.z_m for m in meas_list]) \
                 if meas_list else np.array([])
         else:
@@ -426,25 +577,30 @@ def run_strategy_f(lab: AdvancedVirtualLaboratory,
                     else ensemble.best.inference.fisher_information(
                         ensemble.best.posterior.theta_map))
             meas, n_rej, n_re, fault = measure_with_qc(
-                lab, u_next, zs, qc, recorder=recorder, round_no=r)
+                lab, u_next, zs, qc, recorder=recorder, round_no=r,
+                monitor=qc_monitor)
             if meas is not None and not fault:
                 surrogate.observe(meas)
                 ensemble.add_measurement(meas)
                 ensemble.update()
             meas_list = [meas] if meas is not None else []
             zs_measured = meas.z_m if meas is not None else np.array([])
+        if not fault and not meas_list:
+            # Nothing survived QC but the instrument is not judged broken:
+            # spend the round, record nothing, and let the next round design
+            # afresh.  Appending a round record here would either report a
+            # posterior that no data supports or crash on a None MAP.
+            if verbose:
+                print(f"  [{key}] round {r}: no assimilable data "
+                      f"({n_rej} rejected); retrying next round")
+            continue
         if fault:
-            result.stop_reason = ("MEASUREMENT_FAULT: QC rejected "
-                                  f"{n_rej} positions in round {r}; "
-                                  "campaign paused")
+            why = qc_monitor.trip_reason or f"{n_rej} positions rejected"
+            result.stop_reason = (
+                f"MEASUREMENT_FAULT: {why} (round {r}); campaign paused")
             if verbose:
                 print(f"  [{key}] round {r}: {result.stop_reason}")
             break
-        if spatial_cfg.mode == "adaptive_sequential" and r > 1 \
-                and not meas_list:
-            result.stop_reason = f"no assimilable data in round {r}; paused"
-            break
-
         t_fit_done = time.perf_counter()
         gov_rep = governor.assess(ensemble, r)
         state = gov_rep.state if use_governor \
@@ -512,7 +668,8 @@ def _adaptive_profile_bayes(lab: AdvancedVirtualLaboratory,
                             u: OperatingConditions,
                             cfg: SpatialDesignConfig,
                             qc: QCGateConfig,
-                            recorder=None, round_no: int = 0
+                            recorder=None, round_no: int = 0,
+                            monitor: "Optional[QCMonitor]" = None
                             ) -> Tuple[List[Measurement], int, int, bool]:
     """TRULY data-adaptive sequential axial sampling:
 
@@ -540,9 +697,15 @@ def _adaptive_profile_bayes(lab: AdvancedVirtualLaboratory,
         if chosen and cfg.allow_profile_early_stop \
                 and gain < cfg.marginal_information_threshold:
             break
+        # ONE acquisition per iteration.  With the old per-round rejection
+        # fraction this branch declared a MEASUREMENT_FAULT on the FIRST
+        # rejected spectrum (1/1 = 100 %); the gate policy now needs
+        # persistent failure, so a single bad spectrum simply costs this
+        # position and the loop chooses another z.
         meas, n_rej, n_re, fault = measure_with_qc(lab, u, [float(z_next)],
                                                    qc, recorder=recorder,
-                                                   round_no=round_no)
+                                                   round_no=round_no,
+                                                   monitor=monitor)
         n_rej_tot += n_rej
         n_re_tot += n_re
         chosen.append(float(z_next))

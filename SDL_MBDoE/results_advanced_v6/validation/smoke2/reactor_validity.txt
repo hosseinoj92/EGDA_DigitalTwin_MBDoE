@@ -1,0 +1,1 @@
+reactor 20.0 cm x 6.0 mm (PACKED, eps=0.40): plug-flow valid at all 4 design flows (0.5-8 mL/min).

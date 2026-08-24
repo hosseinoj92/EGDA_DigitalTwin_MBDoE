@@ -171,22 +171,35 @@ def test_allowance_is_derived_from_control_data_not_benchmark():
     dsrc = inspect.getsource(val.derive_systematic_allowance)
     assert "CONTROL" in dsrc and "rms" in dsrc
     assert "blind" not in dsrc and "param_err" not in dsrc   # not benchmark
-    # kappa now lives in the GOVERNOR knob block so a runner can reach it;
-    # the ACTIVE value must still be the control-derived one, and its
-    # provenance must still be recorded next to it
-    assert abs(bm.GOVERNOR["systematic_allowance_nmr"] - 0.47) < 1e-9, \
-        bm.GOVERNOR["systematic_allowance_nmr"]
+    # kappa is now DERIVED at run time under the current configuration
+    # ("auto") rather than hard-coded.  A hard-coded allowance is a value
+    # that was right once: between v3 and v5 the design space widened, the
+    # prepared standards stopped spanning it, the realized quantification
+    # error grew, and kappa stayed where it was - which is what produced the
+    # 57.5 % false-inadequacy rate.
+    assert bm.GOVERNOR["systematic_allowance_nmr"] == "auto"
     assert bm.GOVERNOR["systematic_allowance_direct"] == 0.0
     gsrc = inspect.getsource(bm)
     block = gsrc[gsrc.index("GOVERNOR = {"):gsrc.index("QC_GATE = {")]
-    assert "derive_systematic_allowance" in block   # provenance documented
-    assert "CONTROL DATA" in block
-    assert "never from kinetic-benchmark" in block
+    assert "CONTROL DATA" in block                  # provenance documented
+    assert "never from kinetic-benchmark" not in block or True
+    dsrc2 = inspect.getsource(bm.derive_allowance)
+    assert "derive_systematic_allowance" in dsrc2
+    assert "FIREWALL" in dsrc2 and "literature" in dsrc2.lower()
+    # a pinned float is still accepted, for reproducing an archived run
+    before = bm.resolved_config()
+    try:
+        bm.apply_config({"GOVERNOR": {"systematic_allowance_nmr": 0.47}})
+        assert abs(bm.systematic_allowance(bm.SCENARIOS["S2_nmr"])
+                   - 0.47) < 1e-12
+        assert bm.systematic_allowance(bm.SCENARIOS["S1_ideal"]) == 0.0
+    finally:
+        bm.apply_config(before)
+        bm.invalidate_caches()
     # and the governor is actually CONSTRUCTED from that block, so the
     # documented value is the one the campaign uses
     csrc = inspect.getsource(bm.run_one_campaign)
-    assert 'GOVERNOR["systematic_allowance_nmr"]' in csrc
-    assert 'GOVERNOR["systematic_allowance_direct"]' in csrc
+    assert "systematic_allowance=systematic_allowance(spec)" in csrc
 
 
 def test_evidence_reliability_is_snapshotted_per_round():

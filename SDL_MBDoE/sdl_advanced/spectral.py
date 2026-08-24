@@ -328,8 +328,26 @@ class SpectralNuisance:
     benchtop instrument; none is a measured Fourier 80 property.  Each maps
     onto a quantity that will be calibrated from standards (CAL) once the
     real instrument is available.  With `enabled=False` every effect is off
-    and the spectrum is the ideal deterministic one (nmr_mode='ideal')."""
+    and the spectrum is the ideal deterministic one (nmr_mode='ideal').
+
+    FEATURE GATES.  Each effect additionally carries its own boolean.  A
+    gate set to False does not merely shrink a magnitude to something small
+    - the corresponding code path is SKIPPED and no random number is drawn
+    for it, so the recovered behaviour is exactly the ideal one and a test
+    can prove it bit for bit.  The gates are driven from
+    KNOBS["FEATURES"]; setting them here directly is equivalent."""
     enabled: bool = True
+    # ---- per-effect gates (True = the effect is simulated) ------------- #
+    white_noise: bool = True          # additive receiver noise
+    correlated_noise: bool = True     # AR(1) colouring of that noise
+    line_broadening: bool = True      # acquisition-to-acquisition linewidth
+    baseline_distortion: bool = True  # offset + curvature + cubic term
+    chemical_shift_drift: bool = True  # global drift, per-group jitter,
+                                       # per-campaign static miscalibration
+    phase_error: bool = True          # zero-order phase
+    gain_drift: bool = True           # receiver-gain drift
+    lineshape_mismatch: bool = True   # pseudo-Voigt truth + J mismatch
+    response_error: bool = True       # per-species response factors
     noise_sigma: float = 0.10            # additive spectral noise, area/ppm
                                          # units per sqrt(scan).  For scale: a
                                          # 0.3 M EGDA backbone peak tops near
@@ -362,8 +380,22 @@ class SpectralNuisance:
     baseline_cubic: float = 0.01         # cubic baseline term the fitter's
                                          # quadratic model cannot represent
 
+    #: names of the per-effect gates, in the order they are reported
+    GATES = ("white_noise", "correlated_noise", "line_broadening",
+             "baseline_distortion", "chemical_shift_drift", "phase_error",
+             "gain_drift", "lineshape_mismatch", "response_error")
+
     def ideal(self) -> "SpectralNuisance":
         return replace(self, enabled=False)
+
+    def on(self, gate: str) -> bool:
+        """Is this effect simulated?  `enabled` is the master switch, the
+        per-effect gate is the feature switch, and both must be True."""
+        return bool(self.enabled and getattr(self, gate))
+
+    def active_gates(self) -> Dict[str, bool]:
+        """What this instrument actually simulates - for the run record."""
+        return {g: self.on(g) for g in self.GATES}
 
 
 @dataclass
@@ -434,7 +466,8 @@ class NMRSimulator:
     def _static_shifts(self, rng: Optional[np.random.Generator]
                        ) -> np.ndarray:
         nu = self.nuisance
-        if not nu.enabled or nu.static_shift_ppm <= 0.0 or rng is None:
+        if (not nu.on("chemical_shift_drift") or nu.static_shift_ppm <= 0.0
+                or rng is None):
             return np.zeros(len(CARBON_BOUND_GROUPS))
         if self._static_shift is None:
             self._static_shift = rng.normal(0.0, nu.static_shift_ppm,
@@ -454,14 +487,16 @@ class NMRSimulator:
                   else np.zeros(len(CARBON_BOUND_GROUPS)))
         static = (static_shift if static_shift is not None
                   else np.zeros(len(CARBON_BOUND_GROUPS)))
-        j_true = acq.j_hz + (nu.j_mismatch_hz if nu.enabled else 0.0)
+        j_true = acq.j_hz + (nu.j_mismatch_hz
+                             if nu.on("lineshape_mismatch") else 0.0)
         out: List[Line] = []
         for g, (label, delta, n_part, n_h, sp) in enumerate(
                 CARBON_BOUND_GROUPS):
             c = max(float(conc_M.get(sp, 0.0)), 0.0)
             if c <= 0.0:
                 continue
-            resp = (nu.response_factors.get(sp, 1.0) if nu.enabled else 1.0)
+            resp = (nu.response_factors.get(sp, 1.0)
+                    if nu.on("response_error") else 1.0)
             relax = flow_response(acq, nu.t1_s.get(sp, 3.0))
             area_g = n_h * c * resp * relax * rl.gain
             center = (delta + rl.shift_offset_ppm + float(jitter[g])
@@ -522,7 +557,8 @@ class NMRSimulator:
         Lorentzian."""
         nu = self.nuisance
         f = (nu.gaussian_fraction
-             if (nu.enabled and ln.species != "exchange") else 0.0)
+             if (nu.on("lineshape_mismatch") and ln.species != "exchange")
+             else 0.0)
         yl = self._lorentz(ppm, ln, self.acq.hz_per_ppm)
         if f <= 0.0:
             return yl
@@ -551,7 +587,7 @@ class NMRSimulator:
         t = np.arange(n_acq) * dt
         center_ppm = 0.5 * (acq.ppm_min + acq.ppm_max)
         nu = self.nuisance
-        g_frac = nu.gaussian_fraction if nu.enabled else 0.0
+        g_frac = nu.gaussian_fraction if nu.on("lineshape_mismatch") else 0.0
         fid = np.zeros(n_acq, dtype=complex)
         for ln in lines:
             f = (ln.ppm - center_ppm) * acq.hz_per_ppm      # offset, Hz
@@ -587,7 +623,7 @@ class NMRSimulator:
                      / (2.0 * dt * acq.hz_per_ppm * np.sqrt(n_acq)))
             eps = (rng.standard_normal(n_acq)
                    + 1j * rng.standard_normal(n_acq))
-            phi_ar = nu.noise_ar1 if nu.enabled else 0.0
+            phi_ar = nu.noise_ar1 if nu.on("correlated_noise") else 0.0
             if phi_ar > 0.0:                 # colored (AR1) receiver noise
                 for k in range(1, n_acq):
                     eps[k] += phi_ar * eps[k - 1]
@@ -613,20 +649,33 @@ class NMRSimulator:
 
     # ------------------------------------------------------------------ #
     def draw_realization(self, rng: np.random.Generator) -> RealizedNuisance:
+        """One acquisition's nuisance draw.
+
+        A DISABLED effect draws NOTHING - it is not drawn with sigma = 0.
+        That is the difference between "the feature is off" and "the feature
+        runs with a tiny parameter", and it is why turning a gate off
+        changes the RNG stream: a different instrument is being simulated,
+        not the same one with a small number."""
         nu = self.nuisance
         if not nu.enabled:
             return RealizedNuisance()
-        return RealizedNuisance(
-            shift_offset_ppm=rng.normal(0.0, nu.shift_drift_ppm),
-            group_jitter_ppm=rng.normal(0.0, nu.shift_jitter_ppm,
-                                        len(CARBON_BOUND_GROUPS)),
-            linewidth_factor=float(np.exp(rng.normal(
-                0.0, nu.linewidth_rel_sigma))),
-            baseline=(rng.normal(0.0, nu.baseline_offset),
-                      rng.normal(0.0, nu.baseline_curve)),
-            phase_rad=np.deg2rad(rng.normal(0.0, nu.phase_error_deg)),
-            gain=float(np.exp(rng.normal(0.0, nu.gain_drift_rel_sigma))),
-        )
+        out = RealizedNuisance()
+        if nu.on("chemical_shift_drift"):
+            out.shift_offset_ppm = rng.normal(0.0, nu.shift_drift_ppm)
+            out.group_jitter_ppm = rng.normal(0.0, nu.shift_jitter_ppm,
+                                              len(CARBON_BOUND_GROUPS))
+        if nu.on("line_broadening"):
+            out.linewidth_factor = float(np.exp(rng.normal(
+                0.0, nu.linewidth_rel_sigma)))
+        if nu.on("baseline_distortion"):
+            out.baseline = (rng.normal(0.0, nu.baseline_offset),
+                            rng.normal(0.0, nu.baseline_curve))
+        if nu.on("phase_error"):
+            out.phase_rad = np.deg2rad(rng.normal(0.0, nu.phase_error_deg))
+        if nu.on("gain_drift"):
+            out.gain = float(np.exp(rng.normal(0.0,
+                                               nu.gain_drift_rel_sigma)))
+        return out
 
     def simulate(self, conc_M: Dict[str, float],
                  rng: Optional[np.random.Generator] = None
@@ -638,13 +687,13 @@ class NMRSimulator:
         rl = (self.draw_realization(rng) if (nu.enabled and rng is not None)
               else RealizedNuisance())
         lines = self.lines(conc_M, rl, static_shift=self._static_shifts(rng))
-        noise_per_scan = nu.noise_sigma if nu.enabled else 0.0
+        noise_per_scan = nu.noise_sigma if nu.on("white_noise") else 0.0
         sigma = noise_per_scan / np.sqrt(max(acq.n_scans, 1))
         if acq.engine == "fid":
             y = self._spectrum_fid(lines, rl.phase_rad, rng, sigma)
         else:
             y = self._spectrum_analytic(lines)
-            if nu.enabled and abs(rl.phase_rad) > 0.0:
+            if nu.on("phase_error") and abs(rl.phase_rad) > 0.0:
                 # zero-order phase error mixes in the dispersion lineshape
                 yd = np.zeros_like(y)
                 ppm = acq.ppm_grid()
@@ -653,15 +702,15 @@ class NMRSimulator:
                     dx = ppm - ln.ppm
                     yd += ln.area / np.pi * dx / (dx ** 2 + hw ** 2)
                 y = np.cos(rl.phase_rad) * y + np.sin(rl.phase_rad) * yd
-            if nu.enabled and rng is not None and sigma > 0.0:
+            if rng is not None and sigma > 0.0:
                 eps = rng.standard_normal(y.shape)
-                if nu.noise_ar1 > 0.0:       # colored noise (mismatch)
+                if nu.on("correlated_noise") and nu.noise_ar1 > 0.0:
                     phi_ar = nu.noise_ar1
                     for k in range(1, len(eps)):
                         eps[k] += phi_ar * eps[k - 1]
                     eps *= np.sqrt(1.0 - phi_ar ** 2)
                 y = y + sigma * eps
-        if nu.enabled:
+        if nu.on("baseline_distortion"):
             ppm = acq.ppm_grid()
             x = (2.0 * (ppm - acq.ppm_min) / (acq.ppm_max - acq.ppm_min)
                  - 1.0)

@@ -264,9 +264,9 @@ def test_apply_config_is_strict_about_typos():
 def test_apply_config_round_trips_every_block():
     before = bm.resolved_config()
     try:
-        bm.apply_config({"DESIGN_SPACE": {"continuous": True,
-                                          "resolution": {"T_C": 0.5}},
-                         "TRANSFER_TRUE": {"T_line_C": 30.0},
+        bm.apply_config({"FEATURES": {"continuous_design_space": True},
+                         "DESIGN_SPACE": {"resolution": {"T_C": 0.5}},
+                         "TRANSFER_LINE_T_C": 30.0,
                          "GOVERNOR": {"alpha_campaign": 0.01},
                          "T_REF_C": 65.0})
         assert bm.DESIGN_SPACE["continuous"] is True

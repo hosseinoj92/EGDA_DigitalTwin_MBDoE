@@ -104,26 +104,66 @@ def stress_compositions(rng, n: int = 30) -> List[Dict[str, float]]:
     return out
 
 
+#: axial fractions of the reactor length sampled by the control/validation
+#: composition sets - spanning inlet to outlet, i.e. unreacted feed to the
+#: most converted state the campaign can produce
+_CONTROL_Z_FRACTIONS = (0.05, 0.2, 0.4, 0.7, 1.0)
+
+
 def reachable_compositions(geometry: Dict[str, float], t_ref_K: float,
                            theta: Dict[str, float],
-                           n_max: int = 30) -> List[Dict[str, float]]:
-    """Suite B: Layer-1 compositions over realistic (T, Q, C_cat, z).
+                           n_max: int = 30,
+                           design: Optional[Dict] = None,
+                           stride: int = 1) -> List[Dict[str, float]]:
+    """Layer-1 compositions over the operating envelope the campaign can
+    actually command.
+
     `theta` is a DOCUMENTED nominal parameter set (e.g. the literature
-    guess) - validation compositions need not and do not use hidden truth."""
+    guess) - validation compositions need not and do not use hidden truth.
+
+    WHY `design` MATTERS.  These compositions are the control data from
+    which the governor's systematic allowance kappa is derived, so they have
+    to span what the campaign will meet.  The original hard-coded corners
+    (3 temperatures x 2 flows x 2 acid levels x 3 positions, EGDA feed fixed
+    at 1 M) were a subset of the V6 design space, which reaches four EGDA
+    and four acid levels; deriving an allowance on a subset and applying it
+    on the whole space under-states it.  Passing the DECLARED design makes
+    the control set follow the design space automatically.  With
+    `design=None` the historical corner set is reproduced exactly."""
     bridge = Layer1Bridge(geometry, t_ref_K, activity_model="pitzer")
     L = geometry["length_m"]
     species = ("EGDA", "EGMA", "EG", "AcOH", "H2O")
+    if design is None:
+        temps, flows = (60.0, 110.0, 160.0), (0.5, 2.0)
+        cats, egdas = (0.5, 1.0), (1.0,)
+        z_frac = (0.2, 0.6, 1.0)
+    else:
+        # corners plus interior of every declared design dimension: the
+        # composition extremes live at the corners, the overlap-worst states
+        # in between
+        t_lev = sorted(float(t) for t in design["T_C_levels"])
+        temps = tuple(t_lev[:: max(len(t_lev) // 4, 1)] or t_lev)
+        flows = tuple(sorted(float(q) for q in
+                             design["Q_total_mL_min_levels"]))
+        c_lev = sorted(float(c) for c in design["C_cat_M_levels"])
+        cats = (c_lev[0], c_lev[-1]) if len(c_lev) > 1 else tuple(c_lev)
+        e_lev = sorted(float(c) for c in design["C_EGDA_M_levels"])
+        egdas = (e_lev[0], e_lev[-1]) if len(e_lev) > 1 else tuple(e_lev)
+        z_frac = _CONTROL_Z_FRACTIONS
     out = []
-    for T in (60.0, 110.0, 160.0):
-        for q in (0.5, 2.0):
-            for cat in (0.5, 1.0):
-                u = OperatingConditions(T, q / 2, q / 2, 1.0, cat)
-                z = np.array([0.2 * L, 0.6 * L, L])
-                flat = bridge.concentrations_at(theta, u, z, species)
-                for k in range(len(z)):
-                    out.append({sp: float(flat[i * len(z) + k])
-                                for i, sp in enumerate(species)})
-    return out[:n_max]
+    z = np.array([f * L for f in z_frac])
+    for T in temps:
+        for q in flows:
+            for cat in cats:
+                for ce in egdas:
+                    u = OperatingConditions(float(T), q / 2, q / 2,
+                                            float(ce), float(cat))
+                    flat = bridge.concentrations_at(theta, u, z, species)
+                    for k in range(len(z)):
+                        out.append({sp: float(flat[i * len(z) + k])
+                                    for i, sp in enumerate(species)})
+    out = out[::max(int(stride), 1)]
+    return out[:n_max] if n_max else out
 
 
 def run_validation(acq: AcquisitionSettings, nuisance: SpectralNuisance,
@@ -183,7 +223,10 @@ def validation_rows(results: Dict[str, Dict]) -> List[Dict]:
 
 def derive_systematic_allowance(acq, nuisance, geometry, t_ref_K,
                                 theta_nominal, seed: int = 0,
-                                n_rep: int = 3) -> Dict:
+                                n_rep: int = 3,
+                                design: Optional[Dict] = None,
+                                n_control: int = 80,
+                                stride: int = 3) -> Dict:
     """Derive the governor's residual systematic allowance kappa from
     WELL-SPECIFIED CONTROL data - never from kinetic-benchmark performance.
 
@@ -199,7 +242,15 @@ def derive_systematic_allowance(acq, nuisance, geometry, t_ref_K,
         kappa = sqrt( max(rms(z)^2 - 1, 0) )
 
     is the allowance the adequacy governor must grant the MEASUREMENT model
-    before attributing residuals to KINETIC model error."""
+    before attributing residuals to KINETIC model error.
+
+    THE CONTROL SET MUST MATCH THE OPERATING ENVELOPE.  kappa is a property
+    of the measurement pathway AT THE COMPOSITIONS IT WILL MEASURE; deriving
+    it on a narrow corner of the design space and applying it across the
+    whole space under-states it, which is what produced the 57.5 %
+    false-inadequacy rate.  Passing the declared `design` walks the control
+    set over the full envelope; `design=None` reproduces the historical
+    corner set."""
     from .spectral_fit import SpectralFitter, calibrate_nmr
     sim = NMRSimulator(acq, nuisance)
     acquire = lambda s, r: sim.simulate(s, r)[:2]
@@ -209,7 +260,12 @@ def derive_systematic_allowance(acq, nuisance, geometry, t_ref_K,
     fitter = SpectralFitter(acq)
     fitter.apply_calibration(cal)
     rng = np.random.default_rng(seed + 700_003)        # CONTROL stream
-    comps = reachable_compositions(geometry, t_ref_K, theta_nominal)
+    comps = reachable_compositions(geometry, t_ref_K, theta_nominal,
+                                   n_max=(n_control if design is not None
+                                          else 30),
+                                   design=design,
+                                   stride=(stride if design is not None
+                                           else 1))
     Z = []
     for c in comps:
         for _ in range(n_rep):
@@ -220,8 +276,14 @@ def derive_systematic_allowance(acq, nuisance, geometry, t_ref_K,
             Z.append((res.conc_M - truth) / sig)
     Z = np.asarray(Z)
     rms = float(np.sqrt(np.mean(Z ** 2)))
+    span = {sp: [float(min(c.get(sp, 0.0) for c in comps)),
+                 float(max(c.get(sp, 0.0) for c in comps))]
+            for sp in fitter.species}
     return {"rms_z": rms,
             "kappa": float(np.sqrt(max(rms ** 2 - 1.0, 0.0))),
             "z_std_by_species": Z.std(axis=0).tolist(),
             "z_mean_by_species": Z.mean(axis=0).tolist(),
-            "species": list(fitter.species), "n_obs": int(len(Z))}
+            "species": list(fitter.species), "n_obs": int(len(Z)),
+            "n_control_compositions": int(len(comps)),
+            "control_span_M": span,
+            "design_spanning": bool(design is not None)}

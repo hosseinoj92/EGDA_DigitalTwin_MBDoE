@@ -67,9 +67,12 @@ from .adequacy import AdequacyGovernor, GovernorConfig, GovernorState
 from .bayes_design import AdvancedDesignConfig
 from .controller import (AdvancedStrategyResult, QCGateConfig,
                          run_strategy_e, run_strategy_f)
-from .instrument import AdvancedVirtualLaboratory, InstrumentConfig
+from .instrument import (AdvancedVirtualLaboratory, FaultModel,
+                         InstrumentConfig)
+from . import features as feat
 from .model_ensemble import (AssumedTransfer, ModelEnsemble,
                              build_egda_family)
+from . import reactor_validity as rv
 from . import parallel as par
 from .resources import ResourceCosts, ResourceMeter
 from sdl.design_space import DesignResolution
@@ -156,15 +159,34 @@ GOVERNOR = {
     # kappa = 0.47 (down from 1.25 when the governor was compensating for a
     # broken Sigma_y).  Re-derive whenever the NMR calibration changes.
     # SEE: tests/test_calibration_governor.py::test_allowance_is_derived...
-    "systematic_allowance_nmr": 0.47,
+    # "auto" DERIVES kappa from control data under THIS configuration and
+    # records the derivation; a float pins it for exact reproduction of an
+    # archived run.  "auto" is the default because a hard-coded kappa goes
+    # stale the moment the design space, the geometry or the NMR settings
+    # change - which is precisely what happened between v3 and v5.
+    "systematic_allowance_nmr": "auto",
     # direct observation: Sigma is exact by construction -> exact nulls
     "systematic_allowance_direct": 0.0,
+    # see adequacy.py, "WHY THE MAGNITUDE TEST IS NOT A DECISION COMPONENT"
+    "dispersion_robust": True,
+    # control-data settings for the "auto" derivation
+    "allowance_seed": 0,
+    "allowance_n_rep": 3,
+    "allowance_n_control": 80,
+    "allowance_stride": 3,
 }
 
 QC_GATE = {
     "enabled_for_nmr": True,     # QC gate active whenever observation is NMR
     "max_retries": 1,            # reacquisitions per failing position
+    # BATCH rules (see controller.QCGateConfig)
     "max_reject_fraction": 0.5,  # above this per round -> pause the campaign
+    "min_batch_for_fraction": 4,  # below this a fraction means nothing
+    # PERSISTENCE rules - the ones that work at ANY batch size, and the
+    # reason single-measurement (adaptive) operation is now viable
+    "max_consecutive_rejects": 3,
+    "rolling_window": 8,
+    "max_rejects_in_window": 4,
 }
 
 ADVANCED_DESIGN = {
@@ -185,17 +207,159 @@ SPATIAL = {
     "marginal_information_threshold": None,   # None -> SpatialDesignConfig default
 }
 
+#: MAGNITUDES of the quantification error model.  Whether these terms are
+#: applied at all is FEATURES["quantification_uncertainty"].
+QUANTIFICATION = {
+    "sigma_floor_abs_M": 0.002,
+    "sigma_floor_rel": 0.03,
+    "gain_drift_rel": 0.01,
+    "shift_jitter_ppm": 0.001,
+    "empirical_error_model": True,
+    "calibrate_responses": True,
+}
+
+#: MAGNITUDES of the truth-side fault model.  Whether faults happen at all
+#: is FEATURES["instrument_faults"] / FEATURES["measurement_outliers"].
+FAULT_MODEL = {
+    "spectrum_fault_prob": 0.02,
+    "spectrum_fault_amplitude_sigma": 400.0,
+    "outlier_prob": 0.01,
+    "outlier_scale_sigma": 8.0,
+}
+FAULT_MODEL_CLASS = FaultModel
+FAULTS = FaultModel()                 # DERIVED by features.apply
+
+#: commanded transfer-line temperature when the correction is enabled
+TRANSFER_LINE_T_C = 25.0
+#: the legacy lumped per-spectrum duration, used only when
+#: FEATURES["acquisition_time_accounting"] is False
+LEGACY_NMR_TIME_S = 60.0
+#: which ResourceCosts fields are the information-vs-resource exchange rate
+RESOURCE_LAMBDA_FIELDS = ("lambda_time_per_s", "lambda_material_per_mol",
+                          "lambda_waste_per_mL", "lambda_energy_per_kJ",
+                          "lambda_switch", "lambda_motion_per_m")
+
+# ------------------------------------------------------------------------- #
+# CENTRAL FEATURE SWITCHES
+# ------------------------------------------------------------------------- #
+# The catalogue, the explanations and the routing all live in
+# sdl_advanced/features.py; these two dicts are the STATE.  A runner
+# overrides them through CONFIG like any other block, and apply_config
+# resolves them LAST so they have the final word over the detail blocks.
+FEATURES: Dict[str, bool] = feat.defaults()
+MODEL_MISMATCH: Dict = feat.mismatch_defaults()
+
+# ---- state DERIVED from FEATURES (never set directly) -------------------- #
+#: the chemistry both sides use; MODEL_MISMATCH may split them
+TRUTH_CHEMISTRY_BASE = {"reversible": True, "activity_model": "pitzer",
+                        "h_plus_model": "equilibrium", "ka2_model": "tdep",
+                        "arrhenius": True, "van_t_hoff": True}
+TRUTH_CHEMISTRY = dict(TRUTH_CHEMISTRY_BASE)
+INFERENCE_CHEMISTRY = dict(TRUTH_CHEMISTRY_BASE)
+FEATURE_FIXED_PARAMS: Tuple[str, ...] = ()
+FEATURE_FAMILY_MAP: Dict[str, Optional[str]] = {}
+FEATURE_FAMILY_FALLBACK: Optional[str] = None
+FEATURE_TRANSPORT_AWARE = True
+FEATURE_SPATIAL_OPTIMIZATION = True
+FEATURE_ADAPTIVE_SEQUENTIAL = True
+FEATURE_USE_GOVERNOR = True
+FEATURE_IDENTIFIABILITY_SCREEN = True
+FEATURE_RESOURCE_ACCOUNTING = True
+MODEL_MISMATCH_ACTIVE = False
+INFERENCE_NOISE_SCALE = 1.0
+TRUTH_PARAMETER_BIAS: Dict[str, float] = {}
+
 
 # ------------------------------------------------------------------------- #
 # One entry point for a runner to set EVERY knob above
 # ------------------------------------------------------------------------- #
 #: name -> the module-level object a runner may override.  Dicts are updated
 #: key by key; frozen dataclasses are rebuilt with dataclasses.replace.
-_OVERRIDABLE = ("GEOMETRY", "GEOMETRY_DESIGN", "COMPARISON", "VALIDITY",
+_OVERRIDABLE = ("FEATURES", "MODEL_MISMATCH",
+                "GEOMETRY", "GEOMETRY_DESIGN", "COMPARISON", "VALIDITY",
                 "TRUTH", "DESIGN", "DESIGN_SPACE", "GOVERNOR",
                 "QC_GATE", "ADVANCED_DESIGN", "SPATIAL", "TRANSFER_TRUE",
                 "NMR_NUISANCE_TRUE", "ACQ", "NOISE_DIRECT", "RESOURCE_COSTS",
-                "T_REF_C", "N_PORTS")
+                "QUANTIFICATION", "FAULT_MODEL", "TRANSFER_LINE_T_C",
+                "LEGACY_NMR_TIME_S", "T_REF_C", "N_PORTS")
+
+#: nested dicts whose KEYS are data rather than a fixed schema; these are
+#: replaced wholesale on override instead of merged key by key
+_FREEFORM_NESTED = {("MODEL_MISMATCH", "truth_parameter_bias")}
+
+# ------------------------------------------------------------------------- #
+# ONE SOURCE OF TRUTH: block fields that FEATURES owns
+# ------------------------------------------------------------------------- #
+# These fields are DERIVED from a feature switch.  Setting them directly
+# would have no effect (features are applied last and would overwrite them),
+# which is the worst kind of silent failure: the configuration would say one
+# thing and the run would do another.  They therefore RAISE, naming the
+# switch to use instead.  Every duplicate switch that used to live in a
+# detail block is routed here.
+_FEATURE_OWNED: Dict[Tuple[str, str], str] = {
+    ("GEOMETRY", "packing_enabled"): "packed_bed_reactor",
+    ("GEOMETRY", "bed_void_fraction"):
+        "packed_bed_reactor (magnitude: GEOMETRY_DESIGN['bed_void_fraction'])",
+    ("GEOMETRY_DESIGN", "enabled"): "geometry_optimization",
+    ("GEOMETRY_DESIGN", "packing"): "packed_bed_reactor",
+    ("DESIGN_SPACE", "continuous"): "continuous_design_space",
+    ("TRANSFER_TRUE", "enabled"): "transfer_line",
+    ("TRANSFER_TRUE", "react_in_line"): "transfer_line_reaction",
+    ("TRANSFER_TRUE", "rtd"): "transfer_line_rtd_dispersion",
+    ("TRANSFER_TRUE", "carryover"): "transfer_line_carryover",
+    ("TRANSFER_TRUE", "T_line_C"):
+        "transfer_line_temperature_correction (magnitude: "
+        "TRANSFER_LINE_T_C)",
+    ("ACQ", "engine"): "nmr_fid_engine",
+    ("NMR_NUISANCE_TRUE", "enabled"): "the nmr_* switches",
+    ("NMR_NUISANCE_TRUE", "white_noise"): "nmr_white_noise",
+    ("NMR_NUISANCE_TRUE", "correlated_noise"): "nmr_correlated_noise",
+    ("NMR_NUISANCE_TRUE", "line_broadening"): "nmr_line_broadening",
+    ("NMR_NUISANCE_TRUE", "baseline_distortion"): "nmr_baseline_distortion",
+    ("NMR_NUISANCE_TRUE", "chemical_shift_drift"):
+        "nmr_chemical_shift_drift",
+    ("NMR_NUISANCE_TRUE", "phase_error"): "nmr_phase_error",
+    ("NMR_NUISANCE_TRUE", "gain_drift"): "nmr_gain_drift",
+    ("NMR_NUISANCE_TRUE", "lineshape_mismatch"): "nmr_lineshape_mismatch",
+    ("NMR_NUISANCE_TRUE", "response_error"): "nmr_response_calibration",
+    ("QC_GATE", "enabled_for_nmr"): "qc_rejection",
+    ("GOVERNOR", "dispersion_robust"): "governor_dispersion_robust",
+    ("RESOURCE_COSTS", "legacy_fixed_nmr_time_s"):
+        "acquisition_time_accounting",
+    ("QUANTIFICATION", "empirical_error_model"): "quantification_uncertainty",
+    ("QUANTIFICATION", "calibrate_responses"): "nmr_response_calibration",
+}
+
+
+def _reject_feature_owned(name: str, value: Dict, replay: bool) -> None:
+    """Refuse a direct assignment to a feature-derived field.
+
+    `replay=True` (the call also supplies FEATURES, i.e. it is a FULL
+    configuration replay such as `apply_config(resolved_config())` or a
+    worker process re-applying the runner's knobs) skips the check: the
+    switches in the same call re-derive these fields anyway, so the values
+    are echoes of the record rather than an attempt to steer."""
+    if replay:
+        return
+    for key in value:
+        owner = _FEATURE_OWNED.get((name, key))
+        if owner is not None:
+            raise KeyError(
+                f"{name}['{key}'] is DERIVED from FEATURES['{owner}'] and "
+                f"cannot be set directly - the feature switches are applied "
+                f"last, so this assignment would be silently overwritten.  "
+                f"Set FEATURES['{owner}'] instead; this block carries the "
+                f"MAGNITUDE of the effect, not the question of whether it "
+                f"happens.")
+
+#: blocks that are DERIVED from FEATURES and recorded but never overridden
+_DERIVED = ("FAULTS", "TRUTH_CHEMISTRY", "INFERENCE_CHEMISTRY",
+            "FEATURE_FIXED_PARAMS", "FEATURE_FAMILY_MAP",
+            "FEATURE_FAMILY_FALLBACK", "FEATURE_TRANSPORT_AWARE",
+            "FEATURE_SPATIAL_OPTIMIZATION", "FEATURE_ADAPTIVE_SEQUENTIAL",
+            "FEATURE_USE_GOVERNOR", "FEATURE_IDENTIFIABILITY_SCREEN",
+            "FEATURE_RESOURCE_ACCOUNTING", "MODEL_MISMATCH_ACTIVE",
+            "INFERENCE_NOISE_SCALE", "TRUTH_PARAMETER_BIAS")
 
 
 def apply_config(overrides: Optional[Dict]) -> Dict:
@@ -219,25 +383,52 @@ def apply_config(overrides: Optional[Dict]) -> Dict:
     """
     if not overrides:
         return resolved_config()
+    replay = "FEATURES" in overrides
     for name, value in overrides.items():
+        # DERIVED blocks are echoed by resolved_config() so an archive is
+        # complete, and the round trip
+        #     before = resolved_config(); ...; apply_config(before)
+        # is the standard way to save and restore state.  Feeding a derived
+        # block back in is therefore expected and is simply skipped: it is
+        # recomputed from FEATURES a few lines below, and accepting it as an
+        # override would let a stale copy contradict the switches.
+        if name in _DERIVED or name in ("FEATURES_RESOLVED",
+                                        "NMR_NUISANCE_ACTIVE_GATES"):
+            continue
         if name not in _OVERRIDABLE:
             raise KeyError(
                 f"Unknown configuration block '{name}'. Overridable blocks: "
                 + ", ".join(_OVERRIDABLE))
         current = globals()[name]
+        if isinstance(value, dict):
+            _reject_feature_owned(name, value, replay)
         if isinstance(current, dict):
             unknown = [k for k in value if k not in current]
             if unknown:
                 raise KeyError(f"{name}: unknown field(s) {unknown}. "
                                f"Known: {sorted(current)}")
-            if name == "DESIGN_SPACE" and "resolution" in value:
-                res_unknown = [k for k in value["resolution"]
-                               if k not in current["resolution"]]
-                if res_unknown:
-                    raise KeyError(f"DESIGN_SPACE.resolution: unknown field(s) "
-                                   f"{res_unknown}")
-                current["resolution"].update(value["resolution"])
-                value = {k: v for k, v in value.items() if k != "resolution"}
+            # NESTED dicts are merged key by key (and validated key by key)
+            # rather than replaced wholesale, so overriding one resolution
+            # or one validity criterion does not silently drop the others.
+            nested = {k for k, v in current.items() if isinstance(v, dict)}
+            for sub in sorted(nested & set(value)):
+                if not isinstance(value[sub], dict):
+                    continue
+                if (name, sub) in _FREEFORM_NESTED:
+                    # A FREE-FORM map: its keys are DATA, not a schema, so
+                    # it is replaced wholesale.  Merging would make it
+                    # impossible to clear an entry, which is exactly what
+                    # restoring a saved configuration has to do.
+                    current[sub] = dict(value[sub])
+                    continue
+                sub_unknown = [k for k in value[sub] if k not in current[sub]]
+                if sub_unknown:
+                    raise KeyError(f"{name}.{sub}: unknown field(s) "
+                                   f"{sub_unknown}. "
+                                   f"Known: {sorted(current[sub])}")
+                current[sub].update(value[sub])
+            value = {k: v for k, v in value.items()
+                     if not (k in nested and isinstance(v, dict))}
             current.update(value)
         elif dataclasses_is_dataclass(current):
             fields = {f.name for f in dataclasses_fields(current)}
@@ -248,21 +439,54 @@ def apply_config(overrides: Optional[Dict]) -> Dict:
             globals()[name] = replace(current, **value)
         else:                                   # plain scalar (T_REF_C, ...)
             globals()[name] = value
+    # FEATURES is the authority for what is ON; it is applied LAST so it
+    # gates whatever the detail blocks configured (see sdl_advanced/
+    # features.py).  Applying it here - not in the runner - is what makes it
+    # impossible to run a configuration whose switches were never resolved.
+    # `explicit` is what the caller actually WROTE this call: a dependant
+    # that is only True by default cascades off with its prerequisite, while
+    # one the caller wrote True against a disabled prerequisite raises.
+    explicit = set((overrides or {}).get("FEATURES", {}))
+    feat.apply(FEATURES, MODEL_MISMATCH, globals(), explicit=explicit)
+    invalidate_caches()
     return resolved_config()
 
 
+def invalidate_caches() -> None:
+    """Drop every configuration-derived cache.
+
+    A cache keyed on the configuration is only safe if it is dropped when
+    the configuration changes; a test that flips a knob and reads a stale
+    geometry back is exactly the failure this prevents."""
+    _GEOMETRY_CACHE.clear()
+    _VALIDITY_CHECKED.clear()
+    _SCREEN_CACHE.clear()
+    _ALLOWANCE_CACHE.clear()
+
+
 def resolved_config() -> Dict:
-    """Every knob's CURRENT value - what the run actually used."""
+    """Every knob's CURRENT value - what the run actually used.
+
+    Includes the DERIVED blocks (the chemistry each side runs, the fault
+    model, the resolved family map) alongside the overridable ones, and the
+    fully expanded feature state with its explanations, so an archived run
+    carries no hidden defaults: every switch appears whether or not the
+    runner mentioned it."""
     out = {}
-    for name in _OVERRIDABLE:
+    for name in _OVERRIDABLE + _DERIVED:
         v = globals()[name]
         if isinstance(v, dict):
             out[name] = {k: (dict(x) if isinstance(x, dict) else x)
                          for k, x in v.items()}
         elif dataclasses_is_dataclass(v):
             out[name] = dataclasses_asdict(v)
+        elif isinstance(v, tuple):
+            out[name] = list(v)
         else:
             out[name] = v
+    out["FEATURES_RESOLVED"] = feat.resolved(FEATURES, MODEL_MISMATCH,
+                                             globals())
+    out["NMR_NUISANCE_ACTIVE_GATES"] = NMR_NUISANCE_TRUE.active_gates()
     return out
 
 
@@ -304,31 +528,28 @@ GEOMETRY_DESIGN = {
 
     # ---- ideality: open tube vs packed bed ------------------------------ #
     # The kinetics are intrinsic - geometry never changes the constants -
-    # but it DOES change whether the plug-flow model is valid.  In an open
-    # laminar tube the validity metric is the radial-mixing ratio
-    #     t_rad / tau = (R^2/D) / (eps V/Q) = Q / (pi D L eps)
-    # (Layer 1's own diagnostic; note the BORE CANCELS - only length, flow
-    # and holdup help).  Candidates whose ratio exceeds `max_radial_ratio`
-    # at the reference design's nominal flow are INFEASIBLE: an optimizer
-    # must not select a reactor in which the model it is fitting does not
-    # apply.  The default 10.0 is Layer 1's published advisory boundary
-    # between "moderate deviation" and "radially segregated streamlines"
-    # (pfr_twin/diagnostics.py), not a number invented here.
+    # but it DOES change whether the plug-flow model is valid.  The full
+    # criterion (radial mixing AND axial dispersion, open tube AND packed
+    # bed) lives in sdl_advanced/reactor_validity.py; it is evaluated at
+    # EVERY flow the design space can command, never at a nominal flow
+    # alone.  A reactor that is admissible at 1 mL/min and segregated at
+    # 8 mL/min is not admissible: the optimizer is free to command 8.
     #
     # `packing` is the engineering fix: random-packed spherical beads
-    # (eps ~ 0.4) break up the laminar streamlines, so a packed candidate
-    # is treated as plug-flow valid.  ASSUMPTION (CAL): beads chosen with
-    # d_p <= d/10 and L/d_p >= 100, the standard packed-bed plug-flow
-    # criteria; bed RTD itself is not simulated (future work).  Packing
-    # costs holdup: tau_liquid = eps V/Q, so a packed reactor needs ~2.5x
-    # the volume for the same residence time - the optimizer sees that
-    # automatically through Layer 1.
+    # (eps ~ 0.4) break up the laminar streamlines.  A packed candidate is
+    # NOT declared valid by fiat - it is checked against the packed-bed
+    # dispersion criterion (d_p = d/10, Pe_ax ~ 0.5, Pe_r ~ 10,
+    # L/d_p >= 100).  Packing costs holdup: tau_liquid = eps V/Q, so a
+    # packed reactor needs ~2.5x the volume for the same residence time -
+    # the optimizer sees that automatically through Layer 1.
     #   "auto"  consider every geometry both open and packed, pick the best
     #   True    all candidates packed;  False  open tubes only (may make
     #           every candidate infeasible -> raises with guidance)
     "packing": "auto",
     "bed_void_fraction": 0.40,       # random-packed spheres
-    "max_radial_ratio": 10.0,        # open-tube feasibility threshold
+    # kept for backwards compatibility: mirrored into VALIDITY["criteria"]
+    # ["max_radial_ratio"] by apply_config, so there is ONE threshold.
+    "max_radial_ratio": 10.0,
 
     # ---- information-resource exchange rate for the sizing objective ---- #
     #     score = logdet F(reference design)  -  sum_r lambda_r * resource_r
@@ -348,15 +569,58 @@ GEOMETRY_DESIGN = {
 # ------------------------------------------------------------------------- #
 # PLUG-FLOW VALIDITY OF THE REACTOR IN USE
 # ------------------------------------------------------------------------- #
-# The geometry optimizer rejects candidate reactors above
-# GEOMETRY_DESIGN["max_radial_ratio"].  This applies the SAME standard to
-# whichever reactor the campaign actually runs in, including the declared
-# default, so the framework cannot hold designed geometries to a criterion
-# its own baseline fails.
-#   "warn"   report loudly and continue (default: nothing silently breaks)
-#   "error"  refuse to run an invalid reactor
-#   "ignore" no check (deliberate non-ideal study)
-VALIDITY = {"policy": "warn"}
+# ONE criterion, applied in ONE place, to EVERY reactor the framework
+# touches: the candidates the geometry optimizer screens, the geometry a
+# campaign actually runs in, and the declared reference reactor.  It is
+# evaluated at every flow the design space can command (`permitted_flows`),
+# because a reactor that is only admissible at the nominal flow is not
+# admissible at all.
+#   "warn"   report loudly and continue
+#   "error"  refuse to run an invalid reactor (publication default)
+#   "ignore" no check (deliberate non-ideal study; recorded as such)
+#
+# `criteria` are the fields of reactor_validity.ValidityCriteria - see that
+# module for the physics and for the assumptions the code cannot validate.
+VALIDITY = {
+    "policy": "error",
+    "criteria": {
+        "max_radial_ratio": 10.0,
+        "min_bodenstein": 100.0,
+        "enforce_bodenstein": True,
+        "bed_to_particle_ratio": 10.0,
+        "min_bed_aspect": 100.0,
+        "packed_peclet_axial": 0.5,
+        "packed_peclet_radial": 10.0,
+        "tortuosity": 1.4,
+        "packed_plug_flow_assumed": False,
+    },
+}
+
+
+def validity_criteria() -> rv.ValidityCriteria:
+    """The single ValidityCriteria object every consumer must use.
+
+    `GEOMETRY_DESIGN["max_radial_ratio"]` is honoured as an alias so old
+    configurations keep working, but it is mirrored here rather than being a
+    second, independent threshold."""
+    kw = dict(VALIDITY.get("criteria", {}))
+    kw.setdefault("max_radial_ratio",
+                  float(GEOMETRY_DESIGN.get("max_radial_ratio", 10.0)))
+    return rv.ValidityCriteria(**kw)
+
+
+def permitted_flows() -> List[float]:
+    """Every total flow the campaign may command, worst case included.
+
+    Discrete mode: the declared factorial levels.  Continuous mode: the
+    levels PLUS the continuous bounds, because the optimizer may sit
+    anywhere between them and both criteria are monotone in Q."""
+    qs = [float(q) for q in DESIGN["Q_total_mL_min_levels"]]
+    if DESIGN_SPACE.get("continuous", False):
+        lo, hi = DESIGN["continuous_bounds"]["Q_total_mL_min"]
+        qs.extend([float(lo), float(hi)])
+    qs.append(float(DESIGN["nominal_Q_total_mL_min"]))
+    return sorted(set(qs))
 
 
 # ------------------------------------------------------------------------- #
@@ -416,20 +680,16 @@ def _geometry_candidates() -> List[Dict]:
 
 
 def _radial_ratio(geom: Dict, q_mL_min: Optional[float] = None) -> float:
-    """Open-tube plug-flow validity ratio t_rad/tau = Q/(pi D L eps) at the
-    reference design's nominal flow (Layer 1's diagnostic; the bore
-    cancels).  Packed beds return 0.0: the beads break the laminar
-    streamlines, which is the point of packing (assumptions documented in
-    GEOMETRY_DESIGN)."""
-    if geom.get("packing_enabled", False):
-        return 0.0
-    from pfr_twin.parameters import DIFFUSIVITY_LIQ
+    """Radial-mixing ratio t_rad/tau of a geometry at one total flow.
+
+    Open tube: t_rad = R^2/D_m, so the ratio is Q/(pi D_m L eps) and the
+    BORE CANCELS.  Packed bed: the radial dispersion coefficient is the
+    bed's, not the molecule's, so the ratio is small but FINITE - a packed
+    bed no longer reports 0.0, because "packed" is a hypothesis about the
+    hydrodynamics, not a proof of plug flow.  See reactor_validity.py."""
     q = (float(q_mL_min) if q_mL_min is not None
          else float(DESIGN["nominal_Q_total_mL_min"]))
-    q_m3s = q * 1e-6 / 60.0
-    eps = (float(geom.get("bed_void_fraction", 1.0))
-           if geom.get("packing_enabled", False) else 1.0)
-    return q_m3s / (np.pi * DIFFUSIVITY_LIQ * float(geom["length_m"]) * eps)
+    return float(rv.evaluate(geom, q, validity_criteria())["t_rad_over_tau"])
 
 
 def reactor_validity_rows(geom: Optional[Dict] = None,
@@ -438,67 +698,63 @@ def reactor_validity_rows(geom: Optional[Dict] = None,
     """Plug-flow validity of the reactor ACTUALLY IN USE, at every flow the
     design space can command.
 
-    The geometry optimizer already refuses candidate reactors whose
-    radial-mixing ratio exceeds `max_radial_ratio`.  The same standard has
-    to be applied to the PRINCIPAL reactor, or the framework is holding
-    designed geometries to a criterion its own baseline does not meet - and
-    since the axial position-to-age mapping is the entire information
-    source, a segregated-streamline reactor undermines every profile
-    measurement, not just a diagnostic."""
+    The geometry optimizer refuses candidate reactors that fail this test;
+    the same standard has to be applied to the PRINCIPAL reactor, or the
+    framework is holding designed geometries to a criterion its own baseline
+    does not meet - and since the axial position-to-age mapping is the
+    entire information source, a segregated-streamline reactor undermines
+    every profile measurement, not just a diagnostic."""
     g = geom if geom is not None else GEOMETRY
-    qs = flows if flows is not None else DESIGN["Q_total_mL_min_levels"]
-    thr = float(GEOMETRY_DESIGN["max_radial_ratio"])
-    packed = bool(g.get("packing_enabled", False))
-    eps = float(g.get("bed_void_fraction", 1.0)) if packed else 1.0
-    rows = []
-    for q in sorted(float(x) for x in qs):
-        ratio = (0.0 if packed
-                 else _radial_ratio({**g, "packing_enabled": False}, q))
-        rows.append({
-            "length_m": float(g["length_m"]),
-            "diameter_m": float(g["diameter_m"]),
-            "packed": int(packed), "bed_void_fraction": eps,
-            "Q_total_mL_min": q,
-            "t_rad_over_tau": ratio,
-            "threshold": thr,
-            "plug_flow_valid": int(ratio <= thr),
-            "regime": ("packed bed (beads break the streamlines)" if packed
-                       else "plug flow acceptable" if ratio <= thr
-                       else "partial radial mixing" if ratio <= 10.0
-                       else "RADIALLY SEGREGATED STREAMLINES"),
-        })
-    return rows
+    qs = flows if flows is not None else permitted_flows()
+    return rv.rows(g, qs, validity_criteria())
+
+
+def _validity_cache_key(geom: Dict, qs: Sequence[float]) -> Tuple:
+    c = validity_criteria()
+    return (float(geom["length_m"]), float(geom["diameter_m"]),
+            bool(geom.get("packing_enabled", False)),
+            float(geom.get("bed_void_fraction", 1.0)),
+            tuple(round(float(q), 9) for q in qs),
+            tuple(sorted(dataclasses_asdict(c).items())),
+            str(VALIDITY.get("policy", "error")).lower())
+
+
+#: geometries already checked under the current criteria; the check is a
+#: pure function of (geometry, flows, criteria), so campaigns do not repeat
+#: it 40 x 11 times - and the WARNING is printed once, not 440 times.
+_VALIDITY_CHECKED: Dict[Tuple, List[Dict]] = {}
 
 
 def assert_reactor_validity(geom: Optional[Dict] = None,
-                            policy: Optional[str] = None) -> List[Dict]:
-    """Apply VALIDITY['policy'] to the reactor in use.  Returns the rows so
-    the caller can archive them."""
-    rows = reactor_validity_rows(geom)
-    pol = (policy or VALIDITY.get("policy", "warn")).lower()
+                            policy: Optional[str] = None,
+                            flows: Optional[Sequence[float]] = None,
+                            quiet: bool = False) -> List[Dict]:
+    """Apply VALIDITY['policy'] to the reactor in use, over the WHOLE design
+    envelope.  Returns the rows so the caller can archive them.
+
+    Called from `active_geometry` and `make_lab`, so it covers the runner,
+    every campaign, every scenario override and any direct API use - not
+    just the one place the runner used to call it."""
+    g = {k: v for k, v in (geom if geom is not None else GEOMETRY).items()
+         if not k.startswith("_")}
+    qs = list(flows) if flows is not None else permitted_flows()
+    pol = (policy or VALIDITY.get("policy", "error")).lower()
+    if pol not in ("warn", "error", "ignore"):
+        raise ValueError(f"VALIDITY['policy'] must be 'warn', 'error' or "
+                         f"'ignore'; got {pol!r}.")
+    key = _validity_cache_key(g, qs)
+    if key in _VALIDITY_CHECKED:
+        return _VALIDITY_CHECKED[key]
+    crit = validity_criteria()
+    rows = rv.rows(g, qs, crit)
     bad = [r for r in rows if not r["plug_flow_valid"]]
     if bad and pol != "ignore":
-        g = rows[0]
-        worst = max(bad, key=lambda r: r["t_rad_over_tau"])
-        msg = (
-            f"PLUG-FLOW VALIDITY: the reactor in use "
-            f"({g['length_m'] * 100:.0f} cm x {g['diameter_m'] * 1e3:.1f} mm, "
-            f"{'packed' if g['packed'] else 'OPEN tube'}) exceeds the "
-            f"framework's own t_rad/tau <= {g['threshold']:g} criterion at "
-            f"{len(bad)}/{len(rows)} of the design flows "
-            f"(worst {worst['t_rad_over_tau']:.0f} at "
-            f"{worst['Q_total_mL_min']:g} mL/min).  Laminar streamlines are "
-            f"then radially segregated, so axial position maps to a "
-            f"DISTRIBUTION of ages rather than a single tau - and that "
-            f"mapping is the framework's entire information source.  "
-            f"Remedies: pack the tube "
-            f"(GEOMETRY['packing_enabled']=True, eps~0.4), lengthen it "
-            f"(the ratio is Q/(pi D L eps) - the bore does not help), or "
-            f"accept the non-ideality explicitly by raising "
-            f"GEOMETRY_DESIGN['max_radial_ratio'].")
+        msg = "PLUG-FLOW VALIDITY: " + rv.explain(g, qs, crit)
         if pol == "error":
             raise ValueError(msg)
-        print("  WARNING: " + msg)
+        if not quiet and _SCREEN_VERBOSE:
+            print("  WARNING: " + msg)
+    _VALIDITY_CHECKED[key] = rows
     return rows
 
 
@@ -522,11 +778,22 @@ def _reference_campaign_cost(geom: Dict, budget: int) -> Dict[str, float]:
 def _geometry_objective(geom: Dict, budget: int) -> Dict[str, float]:
     """score = information - resource penalty, with feasibility.
 
+    FEASIBILITY IS EVALUATED OVER THE WHOLE FLOW ENVELOPE, not at the
+    nominal flow.  Selecting a reactor that is admissible only at 1 mL/min
+    and then running it at 8 mL/min was the defect this replaces: the
+    campaign is free to command any permitted flow, so the reactor has to
+    be valid at all of them.  `radial_ratio` and `bodenstein` in the
+    returned decomposition are the WORST-CASE values, i.e. the ones the
+    feasibility verdict actually rests on.
+
     Returns the decomposition so the sizing table can show WHY a reactor
     won, not just that it did."""
     lam = GEOMETRY_DESIGN["objective_lambdas"]
-    ratio = _radial_ratio(geom)
-    feasible = ratio <= float(GEOMETRY_DESIGN["max_radial_ratio"])
+    crit = validity_criteria()
+    qs = permitted_flows()
+    worst = rv.worst_row(geom, qs, crit)
+    ratio = float(worst["t_rad_over_tau"])
+    feasible = rv.is_feasible(geom, qs, crit)
     info = _geometry_score(geom, budget) if feasible else float("nan")
     tot = _reference_campaign_cost(geom, budget) if feasible else {}
     penalty = (float(lam.get("lambda_time_per_s", 0.0)) * tot.get("time_s", 0.0)
@@ -540,9 +807,51 @@ def _geometry_objective(geom: Dict, budget: int) -> Dict[str, float]:
              else float("-inf"))
     return {"score": score, "info_nats": info, "cost_penalty_nats": penalty,
             "radial_ratio": ratio, "feasible": float(feasible),
+            "worst_flow_mL_min": float(worst["Q_total_mL_min"]),
+            "bodenstein": float(worst["bodenstein"]),
+            "bed_aspect_L_over_dp": float(worst["bed_aspect_L_over_dp"]),
+            "failed_criteria": worst["failed_criteria"],
+            "n_flows_checked": len(qs),
             "time_s": tot.get("time_s", float("nan")),
             "egda_mol": tot.get("egda_mol", float("nan")),
             "energy_kJ": tot.get("energy_kJ", float("nan"))}
+
+
+def _no_feasible_geometry_message(table: List[Tuple[Dict, Dict]]) -> str:
+    """WHY nothing is admissible, and WHICH BOUND to change.
+
+    "No feasible geometry" on its own is a dead end for the user.  The
+    message therefore names the closest candidate, the criterion it fails,
+    and the concrete edit (flow bound / length bound / packing / declared
+    threshold) that would open the space - and never falls back on a
+    geometry that is only nominally feasible."""
+    crit = validity_criteria()
+    qs = permitted_flows()
+    best_g, best_o = min(table, key=lambda t: (t[1]["radial_ratio"]
+                                               if np.isfinite(
+                                                   t[1]["radial_ratio"])
+                                               else np.inf))
+    lb = GEOMETRY_DESIGN["bounds"]["length_m"]
+    lines = [
+        "Reactor sizing found NO ADMISSIBLE GEOMETRY in the declared design "
+        "space: every candidate violates the plug-flow criterion somewhere "
+        f"in the commanded flow range {min(qs):g}-{max(qs):g} mL/min "
+        f"({len(table)} candidates screened at {len(qs)} flows each).",
+        "",
+        "Closest candidate: " + rv.explain(best_g, qs, crit),
+        "",
+        "Declared bounds that are binding:",
+        f"    length_m bounds     {lb[0]:g}-{lb[1]:g} m",
+        f"    Q_total_mL_min      {min(qs):g}-{max(qs):g} mL/min",
+        f"    packing             {GEOMETRY_DESIGN.get('packing', 'auto')!r}",
+        f"    max_radial_ratio    {crit.max_radial_ratio:g}",
+        f"    min_bodenstein      {crit.min_bodenstein}",
+        "",
+        "Nothing is selected: a reactor that is admissible only at the "
+        "nominal flow is NOT admissible, and picking one would silently "
+        "apply the plug-flow model outside its range.",
+    ]
+    return "\n".join(lines)
 
 
 def _geometry_score(geom: Dict, budget: int) -> float:
@@ -558,10 +867,10 @@ def _geometry_score(geom: Dict, budget: int) -> float:
     standard campaign in this reactor tell me?"."""
     t_ref_K = T_REF_C + 273.15
     try:
-        bridge = Layer1Bridge(geom, t_ref_K, activity_model="pitzer")
+        bridge = Layer1Bridge(geom, t_ref_K, **INFERENCE_CHEMISTRY)
         space = ParameterSpace(t_ref_K=t_ref_K,
                                initial_guess=dict(literature_guess(t_ref_K)))
-        inf = InferenceModel(space, bridge, NOISE_DIRECT)
+        inf = InferenceModel(space, bridge, assumed_noise())
         z = fixed_equal_positions(geom["length_m"], N_PORTS)
         F = np.zeros((space.n_params,) * 2)
         for u in build_fixed_design(design_for_budget(budget), budget=budget):
@@ -600,7 +909,8 @@ def optimal_geometry(budget: int) -> Dict:
            tuple(sorted((k, tuple(v)) for k, v in
                         GEOMETRY_DESIGN["levels"].items())),
            str(GEOMETRY_DESIGN.get("packing", "auto")),
-           float(GEOMETRY_DESIGN.get("max_radial_ratio", 10.0)),
+           tuple(sorted(dataclasses_asdict(validity_criteria()).items())),
+           tuple(round(float(q), 9) for q in permitted_flows()),
            tuple(sorted(GEOMETRY_DESIGN["objective_lambdas"].items())),
            bool(DESIGN_SPACE["continuous"]))
     if key in _GEOMETRY_CACHE:
@@ -613,16 +923,7 @@ def optimal_geometry(budget: int) -> Dict:
         table.append((g, obj))
     feasible = [(g, o) for g, o in table if np.isfinite(o["score"])]
     if not feasible:
-        best_ratio = min(o["radial_ratio"] for _g, o in table)
-        raise ValueError(
-            "Reactor sizing found NO feasible geometry: every open tube in "
-            f"the declared space has t_rad/tau > "
-            f"{GEOMETRY_DESIGN['max_radial_ratio']:g} at the nominal flow "
-            f"(best was {best_ratio:.1f}; note the ratio = Q/(pi D L eps) - "
-            "the bore cancels, only length and holdup help).  Either allow "
-            "packed beds (GEOMETRY_DESIGN['packing'] = 'auto'), lengthen "
-            "the bounds, or explicitly accept non-ideality by raising "
-            "GEOMETRY_DESIGN['max_radial_ratio'].")
+        raise ValueError(_no_feasible_geometry_message(table))
     best, best_obj = max(feasible, key=lambda t: t[1]["score"])
 
     if DESIGN_SPACE["continuous"]:
@@ -680,7 +981,10 @@ def optimal_geometry(budget: int) -> Dict:
               f"prior-based)")
         print(f"    info = {best_obj['info_nats']:.2f} nats - cost "
               f"{best_obj['cost_penalty_nats']:.2f} nats "
-              f"(t_rad/tau = {best_obj['radial_ratio']:.1f})")
+              f"(worst case over {best_obj['n_flows_checked']} design flows: "
+              f"t_rad/tau = {best_obj['radial_ratio']:.3g}, "
+              f"Bo = {best_obj['bodenstein']:.3g} at "
+              f"{best_obj['worst_flow_mL_min']:g} mL/min)")
         if on_bound:
             print(f"    NOTE: optimum rests on the {', '.join(on_bound)} "
                   f"bound - the constraint is binding, so this is the edge "
@@ -716,12 +1020,26 @@ def active_geometry(budget: int) -> Dict:
     """The reactor this campaign runs in: the declared GEOMETRY, or the
     prior-optimal one when geometry is part of the design problem.
 
+    THE VALIDITY GATE LIVES HERE.  Every path that runs a campaign - the
+    runner, `run_one_campaign`, the identifiability screen, a scenario with
+    a geometry override, a direct API call - obtains its reactor from this
+    function, so checking here is what makes the criterion inescapable
+    rather than something the runner happens to call once.  The check is
+    cached per (geometry, flows, criteria), so it costs one evaluation per
+    distinct configuration, not one per campaign.
+
     Strips the diagnostic `_on_bound` marker, which is reporting metadata
     and not a ReactorGeometry field."""
     if not GEOMETRY_DESIGN.get("enabled", False):
+        assert_reactor_validity(GEOMETRY)
         return GEOMETRY
     g = optimal_geometry(int(budget))
-    return {k: v for k, v in g.items() if not k.startswith("_")}
+    g = {k: v for k, v in g.items() if not k.startswith("_")}
+    # The optimizer already enforced feasibility; re-asserting is cheap and
+    # covers the case where the geometry was pinned or overridden after the
+    # sizing ran.
+    assert_reactor_validity(g)
+    return g
 
 
 def reference_strategy(scenario: str) -> str:
@@ -807,7 +1125,18 @@ class ScenarioSpec:
     description: str
     observation_mode: str = "direct"       # "direct" | "nmr"
     nmr_mode: str = "ideal"
-    transfer: TransferConfig = TransferConfig(enabled=False)
+    #: Does this scenario route samples through the transfer line at all?
+    #: The CONFIGURATION of that line is NOT stored here - it is read from
+    #: the module-level TRANSFER_TRUE when the scenario runs (see the
+    #: `transfer` property).  Storing a captured TransferConfig, as this
+    #: previously did, silently broke every runner override and every
+    #: feature switch that touches the line: apply_config rebuilt the module
+    #: global while the scenarios kept the object they had captured at
+    #: import time.
+    uses_transfer: bool = False
+    #: this scenario's transport ABLATION (e.g. plug RTD, no carryover),
+    #: applied on top of the current TRANSFER_TRUE
+    transfer_overrides: Dict = field(default_factory=dict)
     family: Tuple[str, ...] = ("rev-pitzer",)
     strategies: Tuple[str, ...] = ("A", "B", "C", "D", "E", "F")
     #: None -> the module-level RESOURCE_COSTS (which a runner's CONFIG can
@@ -825,8 +1154,29 @@ class ScenarioSpec:
     well_specified: bool = False
 
     @property
+    def transfer(self) -> TransferConfig:
+        """The line THIS scenario runs, built from the CURRENT global
+        configuration plus this scenario's ablation.
+
+        Resolved on access, so a runner override or a feature switch reaches
+        every scenario; the ablation is applied last, because it is the
+        scenario's identity (S3ab_delay is 'plug RTD' by definition)."""
+        if not self.uses_transfer:
+            return TransferConfig(enabled=False)
+        return replace(TRANSFER_TRUE, **self.transfer_overrides)
+
+    @property
     def truth(self) -> Dict[str, float]:
-        return {**TRUTH, **self.truth_override}
+        """The hidden truth for this scenario.
+
+        MODEL_MISMATCH['truth_parameter_bias'] is applied here and nowhere
+        else: it is a deliberate systematic discrepancy in the WORLD, and
+        it is empty unless the mismatch section is explicitly enabled."""
+        out = {**TRUTH, **self.truth_override}
+        for k, factor in (TRUTH_PARAMETER_BIAS or {}).items():
+            if k in out:
+                out[k] = float(out[k]) * float(factor)
+        return out
 
 
 def _resource_lambdas(scale: float) -> ResourceCosts:
@@ -855,7 +1205,7 @@ SCENARIOS: Dict[str, ScenarioSpec] = {
         name="S3_transport",
         description="NMR + transport: delay, RTD, in-line reaction, carryover",
         observation_mode="nmr", nmr_mode="realistic",
-        transfer=TRANSFER_TRUE, strategies=("D", "F-uncorr", "F"),
+        uses_transfer=True, strategies=("D", "F-uncorr", "F"),
         f_variants={"F-uncorr": {"transport_aware": False},
                     "F": {"transport_aware": True}}),
     # ---- transport ablation (which effect matters?) --------------------- #
@@ -864,7 +1214,8 @@ SCENARIOS: Dict[str, ScenarioSpec] = {
         description="transport ablation: mean delay + in-line reaction only "
                     "(plug RTD, no carryover)",
         observation_mode="nmr", nmr_mode="realistic",
-        transfer=replace(TRANSFER_TRUE, rtd="delta", carryover=False),
+        uses_transfer=True,
+        transfer_overrides={"rtd": "delta", "carryover": False},
         strategies=("D", "F"),
         f_variants={"F": {"transport_aware": True}}),
     "S3ab_rtd": ScenarioSpec(
@@ -872,7 +1223,7 @@ SCENARIOS: Dict[str, ScenarioSpec] = {
         description="transport ablation: delay + gamma RTD dispersion "
                     "(no carryover)",
         observation_mode="nmr", nmr_mode="realistic",
-        transfer=replace(TRANSFER_TRUE, carryover=False),
+        uses_transfer=True, transfer_overrides={"carryover": False},
         strategies=("D", "F"),
         f_variants={"F": {"transport_aware": True}}),
     # --------------------------------------------------------------------- #
@@ -984,13 +1335,22 @@ def make_lab(spec: ScenarioSpec, seed: int,
              geometry: Optional[Dict] = None
              ) -> AdvancedVirtualLaboratory:
     geom = geometry if geometry is not None else GEOMETRY
-    truth_bridge = Layer1Bridge(geom, T_REF_C + 273.15,
-                                activity_model="pitzer")
+    # SECOND gate, deliberately redundant with active_geometry(): this is
+    # the last point before a virtual reactor is instantiated, so a caller
+    # that passes its own `geometry=` (a scenario override, a test, a custom
+    # driver) is held to the same criterion as the runner.
+    assert_reactor_validity(geom)
+    # TRUTH-side chemistry comes from the FEATURE switches, so "is the world
+    # reversible / Arrhenius / non-ideal?" is answered in one place for the
+    # world and its model alike.
+    truth_bridge = Layer1Bridge(geom, T_REF_C + 273.15, **TRUTH_CHEMISTRY)
     return AdvancedVirtualLaboratory(
         spec.truth, truth_bridge,
         InstrumentConfig(observation_mode=spec.observation_mode,
                          nmr_mode=spec.nmr_mode,
-                         store_spectra=store_spectra),
+                         store_spectra=store_spectra,
+                         calibrate_responses=bool(
+                             QUANTIFICATION["calibrate_responses"])),
         ACQ, NMR_NUISANCE_TRUE, spec.transfer,
         # SYNCHRONIZED with the spectrometer settings: the campaign clock
         # and the acquisition contract are one model, so n_scans /
@@ -998,7 +1358,142 @@ def make_lab(spec: ScenarioSpec, seed: int,
         (costs if costs is not None
          else (spec.resource_costs if spec.resource_costs is not None
                else RESOURCE_COSTS)).with_acquisition(ACQ),
-        seed=seed, noise_direct=NOISE_DIRECT)
+        seed=seed, noise_direct=NOISE_DIRECT, faults=FAULTS,
+        fitter_kwargs=fitter_kwargs(),
+        meter_enabled=bool(FEATURE_RESOURCE_ACCOUNTING))
+
+
+def fitter_kwargs() -> Dict:
+    """The quantification error-model terms the fitter reports in Sigma_y.
+
+    With FEATURES['quantification_uncertainty'] off these are all zero and
+    the empirical model is not applied, so Sigma_y is the pure
+    within-spectrum Jacobian covariance - the idealized limit, not a small
+    number."""
+    return {"sigma_floor_abs_M": float(QUANTIFICATION["sigma_floor_abs_M"]),
+            "sigma_floor_rel": float(QUANTIFICATION["sigma_floor_rel"]),
+            "gain_drift_rel": float(QUANTIFICATION["gain_drift_rel"]),
+            "shift_jitter_ppm": float(QUANTIFICATION["shift_jitter_ppm"]),
+            "empirical_error_model": bool(
+                QUANTIFICATION["empirical_error_model"])}
+
+
+def assumed_noise() -> NoiseModel:
+    """The inference side's ASSUMED direct-observation covariance.
+
+    Identical to the truth's unless MODEL_MISMATCH deliberately scales it -
+    the one sanctioned way for the learner's error model to differ from the
+    world's."""
+    if MODEL_MISMATCH_ACTIVE and INFERENCE_NOISE_SCALE != 1.0:
+        return replace(NOISE_DIRECT,
+                       sigma_abs_M=NOISE_DIRECT.sigma_abs_M
+                       * INFERENCE_NOISE_SCALE,
+                       sigma_rel=NOISE_DIRECT.sigma_rel
+                       * INFERENCE_NOISE_SCALE)
+    return NOISE_DIRECT
+
+
+def resolved_spatial_mode(requested: str) -> str:
+    """The spatial policy after the feature switches.
+
+    A scenario may ASK for a policy; the features decide whether it is
+    available.  Downgrading (adaptive -> optimized -> fixed_equal) rather
+    than raising keeps S7's comparison meaningful when a policy is switched
+    off: the strategy still runs, it just runs the policy that IS enabled,
+    and the resolved mode is recorded."""
+    mode = requested
+    if mode == "adaptive_sequential" and not FEATURE_ADAPTIVE_SEQUENTIAL:
+        mode = "optimized"
+    if mode != "fixed_equal" and not FEATURE_SPATIAL_OPTIMIZATION:
+        mode = "fixed_equal"
+    return mode
+
+
+#: derived measurement-systematic allowances, cached per configuration
+_ALLOWANCE_CACHE: Dict[Tuple, Dict] = {}
+
+
+def systematic_allowance(spec: "ScenarioSpec") -> float:
+    """kappa for this scenario's observation mode.
+
+    Direct observation has an exact covariance, so kappa = 0.  For NMR the
+    value is either pinned (a float in GOVERNOR, for exact reproduction of
+    an archive) or DERIVED under the current configuration - see
+    `derive_allowance`."""
+    if spec.observation_mode != "nmr":
+        return float(GOVERNOR["systematic_allowance_direct"])
+    value = GOVERNOR["systematic_allowance_nmr"]
+    if isinstance(value, str):
+        if value.lower() != "auto":
+            raise ValueError(
+                f"GOVERNOR['systematic_allowance_nmr'] must be a number or "
+                f"'auto'; got {value!r}.")
+        return float(derive_allowance()["kappa"])
+    return float(value)
+
+
+def derive_allowance(budget: Optional[int] = None) -> Dict:
+    """Derive kappa from WELL-SPECIFIED CONTROL DATA under THIS configuration.
+
+    A hard-coded allowance is a number that was right once.  Between v3 and
+    v5 the design space widened, the prepared standards stopped spanning it,
+    the realized quantification error grew - and kappa stayed at the value
+    derived for the old space.  Deriving it here, from the CURRENT geometry,
+    acquisition settings, nuisance model and design space, is what stops
+    that happening again; the full derivation (rms z, per-species mean and
+    std, the control-composition span) is written to the run record.
+
+    FIREWALL: the control compositions come from the LITERATURE parameter
+    guess and prepared-standard calibration, never from the hidden truth or
+    from benchmark performance."""
+    from . import validation as _val
+    geom = active_geometry(int(budget) if budget is not None
+                           else MODES["publication"]["budget"])
+    geom = {k: v for k, v in geom.items() if not k.startswith("_")}
+    key = (tuple(sorted(geom.items())),
+           tuple(sorted(dataclasses_asdict(ACQ).items())),
+           tuple(sorted((k, str(v)) for k, v in
+                        dataclasses_asdict(NMR_NUISANCE_TRUE).items())),
+           tuple(sorted((k, tuple(v) if isinstance(v, list) else str(v))
+                        for k, v in DESIGN.items())),
+           tuple(sorted(QUANTIFICATION.items())),
+           int(GOVERNOR["allowance_seed"]), float(T_REF_C))
+    if key in _ALLOWANCE_CACHE:
+        return _ALLOWANCE_CACHE[key]
+    out = _val.derive_systematic_allowance(
+        ACQ, NMR_NUISANCE_TRUE, geom, T_REF_C + 273.15,
+        literature_guess(T_REF_C + 273.15),
+        seed=int(GOVERNOR["allowance_seed"]),
+        n_rep=int(GOVERNOR["allowance_n_rep"]),
+        design=DESIGN,
+        n_control=int(GOVERNOR["allowance_n_control"]),
+        stride=int(GOVERNOR["allowance_stride"]))
+    out["source"] = "derived from control data under the current configuration"
+    _ALLOWANCE_CACHE[key] = out
+    if _SCREEN_VERBOSE:
+        print(f"  systematic allowance kappa = {out['kappa']:.3f} "
+              f"(rms z = {out['rms_z']:.3f} on "
+              f"{out['n_control_compositions']} control compositions "
+              f"spanning the declared design space)")
+    return out
+
+
+def scenario_family(spec: "ScenarioSpec") -> Tuple[str, ...]:
+    """This scenario's candidate family AFTER the feature switches.
+
+    A feature that removes a physical mechanism must also remove the
+    candidate models that embody it - otherwise the ensemble carries a
+    hypothesis about a world that cannot exist, and its posterior mass is
+    split for nothing."""
+    out: List[str] = []
+    for name in spec.family:
+        mapped = FEATURE_FAMILY_MAP.get(name, name)
+        if mapped is not None and mapped not in out:
+            out.append(mapped)
+    if not out:
+        fallback = FEATURE_FAMILY_FALLBACK or "irreversible"
+        out = [fallback]
+    return tuple(out)
 
 
 def check_truth_in_domain(space: ParameterSpace, truth: Dict[str, float],
@@ -1042,21 +1537,32 @@ def screened_dropped_keys(budget: int) -> Tuple[str, ...]:
 
     Deterministic in `budget` alone, so a worker process re-deriving it
     reaches the same result as the parent - the per-process cache is a
-    speed-up, never a source of divergence."""
+    speed-up, never a source of divergence.
+
+    FEATURE_FIXED_PARAMS is unioned in unconditionally: a parameter the
+    forward model no longer uses (Ea when the Arrhenius feature is off) must
+    be held fixed whether or not the screen would have caught it, or the
+    optimizer is handed a direction with no gradient."""
+    forced = tuple(FEATURE_FIXED_PARAMS)
+    if not FEATURE_IDENTIFIABILITY_SCREEN:
+        return forced
     geom = active_geometry(budget)
-    key = (int(budget), float(geom["length_m"]), float(geom["diameter_m"]))
+    key = (int(budget), float(geom["length_m"]), float(geom["diameter_m"]),
+           bool(geom.get("packing_enabled", False)),
+           tuple(sorted(INFERENCE_CHEMISTRY.items())), forced)
     if key not in _SCREEN_CACHE:
         t_ref_K = T_REF_C + 273.15
-        bridge = Layer1Bridge(geom, t_ref_K, activity_model="pitzer")
+        bridge = Layer1Bridge(geom, t_ref_K, **INFERENCE_CHEMISTRY)
         space = ParameterSpace(t_ref_K=t_ref_K,
                                initial_guess=literature_guess(t_ref_K))
         ports = fixed_equal_positions(geom["length_m"], N_PORTS)
-        sr = screen(space, bridge, NOISE_DIRECT,
+        sr = screen(space, bridge, assumed_noise(),
                     build_candidates(DESIGN) + reference_design(DESIGN),
                     ports, SPECIES, budget=budget, max_rel_ci_pct=200.0)
-        _SCREEN_CACHE[key] = sr.dropped
-        if sr.dropped and _SCREEN_VERBOSE:
-            print(f"  identifiability screen: holding fixed {sr.dropped}")
+        dropped = tuple(sorted(set(sr.dropped) | set(forced)))
+        _SCREEN_CACHE[key] = dropped
+        if dropped and _SCREEN_VERBOSE:
+            print(f"  identifiability screen: holding fixed {dropped}")
     return _SCREEN_CACHE[key]
 
 
@@ -1155,7 +1661,10 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
     dropped = screened_dropped_keys(budget)
 
     if strategy in ("A", "B", "C", "D"):
-        bkw = dict(activity_model="pitzer", **spec.baseline_bridge_kwargs)
+        # INFERENCE_CHEMISTRY is the feature-resolved model of the world;
+        # the scenario's baseline_bridge_kwargs is its deliberate ablation
+        # (S5 removes reversibility from the baseline) and wins.
+        bkw = {**INFERENCE_CHEMISTRY, **spec.baseline_bridge_kwargs}
         bridge = Layer1Bridge(geom, t_ref_K, **bkw)
         pkeys = (("k1_ref", "Ea1_J", "k2_ref", "Ea2_J")
                  if not bridge.reversible else param_keys_for("H2SO4"))
@@ -1164,7 +1673,7 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
         drop = [k for k in dropped if k in pkeys]
         if drop:
             space = space.holding_fixed(drop)
-        inference = InferenceModel(space, bridge, NOISE_DIRECT)
+        inference = InferenceModel(space, bridge, assumed_noise())
         adapter = BaselineLabAdapter(lab, ports)
         selector = MBDoESelector(
             inference=inference, candidates=candidates,
@@ -1177,26 +1686,30 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
         return res, lab, adapter
 
     if strategy == "E":
-        bridge = Layer1Bridge(geom, t_ref_K, activity_model="pitzer")
+        bridge = Layer1Bridge(geom, t_ref_K, **INFERENCE_CHEMISTRY)
         space = ParameterSpace(t_ref_K=t_ref_K, initial_guess=dict(guess))
         if dropped:
             space = space.holding_fixed(list(dropped))
-        inference = InferenceModel(space, bridge, NOISE_DIRECT)
+        inference = InferenceModel(space, bridge, assumed_noise())
         res = run_strategy_e(lab, inference, candidates, fixed[0],
-                             _spatial_cfg("optimized"), budget,
+                             _spatial_cfg(resolved_spatial_mode("optimized")),
+                             budget,
                              verbose=verbose, recorder=recorder,
                              **continuous_kwargs())
         return res, lab, None
 
     # F and its variants -------------------------------------------------- #
-    transport_aware = variant.get("transport_aware",
-                                  spec.transfer.enabled)
+    # FEATURE_TRANSPORT_AWARE gates the correction globally; the scenario
+    # variant (F-uncorr) is the local ablation.  Both must allow it.
+    transport_aware = (variant.get("transport_aware", spec.transfer.enabled)
+                       and FEATURE_TRANSPORT_AWARE)
     assumed = (_assumed_transfer_from(spec.transfer, lab.length_m)
                if transport_aware else AssumedTransfer(enabled=False))
-    family = build_egda_family(geom, t_ref_K, include=spec.family,
-                               noise_assumed=NOISE_DIRECT,
+    family = build_egda_family(geom, t_ref_K, include=scenario_family(spec),
+                               noise_assumed=assumed_noise(),
                                fixed={k: guess[k] for k in dropped},
-                               assumed_transfer=assumed)
+                               assumed_transfer=assumed,
+                               chemistry=INFERENCE_CHEMISTRY)
     ensemble = ModelEnsemble(family)
     # kappa: NMR scenarios declare floor-level quantification systematics in
     # Sigma_y; the governor's nulls are widened by exactly that allowance
@@ -1221,10 +1734,8 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
         discrimination_prob=float(GOVERNOR["discrimination_prob"]),
         qc_fail_fraction=float(GOVERNOR["qc_fail_fraction"]),
         chi2_dof_ratio_override=float(GOVERNOR["chi2_dof_ratio_override"]),
-        systematic_allowance=float(
-            GOVERNOR["systematic_allowance_nmr"]
-            if spec.observation_mode == "nmr"
-            else GOVERNOR["systematic_allowance_direct"])))
+        dispersion_robust=bool(GOVERNOR["dispersion_robust"]),
+        systematic_allowance=systematic_allowance(spec)))
     cov_model = None
     if spec.observation_mode == "nmr" \
             and variant.get("expected_cov", "spectral") == "spectral":
@@ -1233,8 +1744,10 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
         # evaluations of one calibrated measurement model, not two
         # independently invented ones.
         cov_model = SpectralCovarianceModel(
-            SpectralFitter(ACQ), calibration=getattr(lab, "calibration", None))
-    spatial_mode = variant.get("spatial_mode", "optimized")
+            SpectralFitter(ACQ, **fitter_kwargs()),
+            calibration=getattr(lab, "calibration", None))
+    spatial_mode = resolved_spatial_mode(
+        variant.get("spatial_mode", "optimized"))
     design_cfg = AdvancedDesignConfig(
         top_k=int(ADVANCED_DESIGN["top_k"]),
         n_particles=int(ADVANCED_DESIGN["n_particles"]),
@@ -1250,13 +1763,18 @@ def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
     res = run_strategy_f(
         lab, ensemble, candidates, fixed[0], _spatial_cfg(spatial_mode),
         budget, design_cfg=design_cfg, governor=governor,
-        use_governor=variant.get("use_governor", True),
+        use_governor=bool(variant.get("use_governor", True)
+                          and FEATURE_USE_GOVERNOR),
         cov_model=cov_model,
         qc=QCGateConfig(
             enabled=bool(QC_GATE["enabled_for_nmr"])
             and spec.observation_mode == "nmr",
             max_retries=int(QC_GATE["max_retries"]),
-            max_reject_fraction=float(QC_GATE["max_reject_fraction"])),
+            max_reject_fraction=float(QC_GATE["max_reject_fraction"]),
+            min_batch_for_fraction=int(QC_GATE["min_batch_for_fraction"]),
+            max_consecutive_rejects=int(QC_GATE["max_consecutive_rejects"]),
+            rolling_window=int(QC_GATE["rolling_window"]),
+            max_rejects_in_window=int(QC_GATE["max_rejects_in_window"])),
         bounds=DESIGN["continuous_bounds"], seed=seed, verbose=verbose,
         key=strategy, recorder=recorder, resolution=design_resolution())
     return res, lab, governor
@@ -1275,7 +1793,9 @@ def _rebridge(bridge: Layer1Bridge, geometry: Dict) -> Layer1Bridge:
                         reversible=bridge.reversible,
                         catalyst=bridge.catalyst,
                         ka2_model=bridge.ka2_model,
-                        activity_model=bridge.activity_model)
+                        activity_model=bridge.activity_model,
+                        arrhenius=bridge.arrhenius,
+                        van_t_hoff=bridge.van_t_hoff)
 
 
 def _scoring_bridge(bridge: Layer1Bridge) -> Layer1Bridge:
@@ -1297,7 +1817,7 @@ def _scoring_bridge(bridge: Layer1Bridge) -> Layer1Bridge:
 def _truth_prediction(truth: Dict[str, float], z_val: np.ndarray,
                       geometry: Optional[Dict] = None) -> np.ndarray:
     bridge = Layer1Bridge(geometry if geometry is not None else GEOMETRY,
-                          T_REF_C + 273.15, activity_model="pitzer")
+                          T_REF_C + 273.15, **TRUTH_CHEMISTRY)
     return np.concatenate([bridge.concentrations_at(truth, u, z_val, SPECIES)
                            for u in VALIDATION_CONDS])
 
@@ -1684,16 +2204,45 @@ def paired_comparison(rows: List[Dict], scenario: str, strat_a: str,
 
 # ------------------------------------------------------------------------- #
 def governor_task(scenario_name: str, seed: int, budget: int):
-    """First round at which the governor declares MODEL_INADEQUATE, or None.
+    """First round at which the governor declares MODEL_INADEQUATE, plus
+    WHY - the component that carried the decision, and whether the
+    gross-misfit override was what fired.
 
-    The parallel unit of the governor validation, and like `campaign_task` a
-    picklable pure function of its arguments returning a primitive."""
+    "Detected at round 4" says little on its own: a detection that only ever
+    comes from the emergency override means the calibrated structural tests
+    are doing no work, and that is worth knowing about a governor whose
+    verdict stops a campaign.  Returns a picklable dict (the parallel unit
+    of the governor validation).
+
+    Also carries the realized dispersion, which is the number that says
+    whether a rejection is about the KINETIC model or about the measurement
+    covariance."""
     res, _lab, _gov = run_one_campaign(SCENARIOS[scenario_name], "F", seed,
                                        budget, verbose=False)
-    rd = next((r.round for r in res.history
-               if r.governor and r.governor.state
-               == GovernorState.MODEL_INADEQUATE), None)
-    return None if rd is None else int(rd)
+    reps = [(r.round, r.governor) for r in res.history if r.governor]
+    hit = next(((rd, g) for rd, g in reps
+                if g.state == GovernorState.MODEL_INADEQUATE), None)
+    out = {"seed": int(seed), "scenario": scenario_name,
+           "rounds_completed": len(reps),
+           "stop_reason": res.stop_reason,
+           "round": None, "driver": "", "override": 0,
+           "dispersion_final": (float(reps[-1][1].dispersion)
+                                if reps else float("nan")),
+           "chi2_dof_final": (float(reps[-1][1].score)
+                              if reps else float("nan")),
+           "p_final": float(reps[-1][1].p_value) if reps else float("nan")}
+    if hit is not None:
+        rd, g = hit
+        used = {k: v for k, v in g.components.items()
+                if k in g.decision_components_used}
+        out["round"] = int(rd)
+        out["driver"] = (min(used, key=used.get) if used else "override")
+        out["override"] = int(g.score > 0.0
+                              and not used
+                              or (used and min(used.values()) >= g.alpha_round))
+        out["dispersion_at_detection"] = float(g.dispersion)
+        out["chi2_dof_at_detection"] = float(g.score)
+    return out
 
 
 def governor_mc_validation(seeds: Sequence[int], budget: int = 6,
@@ -1727,20 +2276,64 @@ def governor_mc_validation(seeds: Sequence[int], budget: int = 6,
              + [("S5_inadequacy", s, budget) for s in seeds])
     out = par.ordered_map(governor_task, tasks, executor=executor,
                           on_result=_landed)
-    fp_rounds, det_rounds_all = out[:n], out[n:]
+    fp_recs, det_recs = out[:n], out[n:]
 
+    fp_rounds = [r["round"] for r in fp_recs]
+    det_rounds_all = [r["round"] for r in det_recs]
     fp = sum(1 for rd in fp_rounds if rd is not None)
     det_rounds = [rd for rd in det_rounds_all if rd is not None]
     detected = len(det_rounds)
     if verbose:
-        for label, got in (("correct-family", fp_rounds),
-                           ("misspecified", det_rounds_all)):
-            for seed, rd in zip(seeds, got):
-                verdict = "no flag" if rd is None else f"flagged at round {rd}"
-                print(f"    governor-MC {label} seed {seed}: {verdict}")
+        for label, recs in (("correct-family", fp_recs),
+                            ("misspecified", det_recs)):
+            for rec in recs:
+                verdict = ("no flag" if rec["round"] is None
+                           else f"flagged at round {rec['round']} "
+                                f"via {rec['driver']}")
+                print(f"    governor-MC {label} seed {rec['seed']}: {verdict}")
+
+    def _drivers(recs):
+        """WHICH test carried each detection - a governor that only ever
+        fires through its emergency override is not a calibrated test."""
+        d: Dict[str, int] = {}
+        for r in recs:
+            if r["round"] is not None:
+                d[r["driver"] or "override"] = d.get(
+                    r["driver"] or "override", 0) + 1
+        return d
+
+    def _stat(recs, key):
+        vals = [r[key] for r in recs if np.isfinite(r.get(key, np.nan))]
+        return float(np.median(vals)) if vals else None
+
     return {"n_seeds": n,
             "false_inadequacy_campaign_rate": fp / n,
             "detection_probability": detected / n,
             "detection_rounds": det_rounds,
             "median_detection_round": (float(np.median(det_rounds))
-                                       if det_rounds else None)}
+                                       if det_rounds else None),
+            # WHY each side behaved as it did - the part a bare rate hides
+            "detection_drivers": _drivers(det_recs),
+            "false_alarm_drivers": _drivers(fp_recs),
+            "median_dispersion_well_specified": _stat(fp_recs,
+                                                      "dispersion_final"),
+            "median_chi2_dof_well_specified": _stat(fp_recs,
+                                                    "chi2_dof_final"),
+            "median_chi2_dof_misspecified": _stat(det_recs, "chi2_dof_final"),
+            "alpha_campaign_target": float(GOVERNOR["alpha_campaign"]),
+            "systematic_allowance_used": systematic_allowance(
+                SCENARIOS["S2_nmr"]),
+            "per_seed_well_specified": fp_recs,
+            "per_seed_misspecified": det_recs}
+
+
+# ------------------------------------------------------------------------- #
+# RESOLVE THE FEATURE SWITCHES ONCE, AT IMPORT
+# ------------------------------------------------------------------------- #
+# Everything above declares MAGNITUDES; this line decides what is switched
+# on.  Running it at import (not only inside apply_config) means the module
+# defaults are already a coherent, feature-resolved configuration, so a test
+# or a script that imports the module without calling apply_config still
+# gets exactly the physics the switches describe - there is no "unresolved"
+# state in which the library can be used.
+feat.apply(FEATURES, MODEL_MISMATCH, globals())
