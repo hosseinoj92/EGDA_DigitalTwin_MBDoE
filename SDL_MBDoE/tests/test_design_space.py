@@ -295,26 +295,34 @@ def _load_runner(name):
     return mod
 
 
-def test_each_runner_owns_its_knobs_and_they_agree_by_default():
-    """The two entry points hold SEPARATE knob blocks - neither imports the
-    other, so the demo campaign can be retuned without touching a
+def test_each_runner_owns_its_knobs_independently():
+    """The two entry points hold SEPARATE knob blocks and neither imports
+    the other, so the demo campaign can be retuned without disturbing a
     publication benchmark.
 
-    Separate blocks can rot apart, though, so this test pins them equal in
-    the shipped state.  Deliberately diverging them is fine and expected -
-    it just has to be a decision someone makes here, not something that
-    happens by accident."""
+    They are deliberately NOT required to hold the same values - a study
+    campaign and a publication benchmark legitimately explore different
+    design spaces.  What must hold is that each is COMPLETE and
+    APPLICABLE: same set of blocks, every overridable block present, and
+    every value accepted by the strict validator.  Divergence in values is
+    surfaced at run time instead (the campaign prints every knob that is
+    not the library default) and recorded in the output config."""
     b = _load_runner("run_advanced_benchmark")
     c = _load_runner("run_advanced_campaign")
     assert "run_advanced_benchmark" not in \
         open(os.path.join(os.path.dirname(os.path.dirname(
             os.path.abspath(__file__))), "run_advanced_campaign.py")).read(), \
         "the campaign must not import the benchmark runner's globals"
-    assert set(b.KNOBS) == set(c.KNOBS)
-    for block in sorted(b.KNOBS):
-        assert b.KNOBS[block] == c.KNOBS[block], (
-            f"KNOBS['{block}'] differs between the two runners; if that is "
-            "intended, update this test to record the decision")
+    assert set(b.KNOBS) == set(c.KNOBS), (
+        "the two runners expose different knob BLOCKS; every block must be "
+        "reachable from both entry points even when the values differ")
+    before = bm.resolved_config()
+    try:
+        for mod in (b, c):
+            bm.apply_config(dict(mod.KNOBS))     # strict: raises on a typo
+    finally:
+        bm.apply_config(before)
+        bm._GEOMETRY_CACHE.clear()
 
 
 def test_runner_knobs_cover_every_overridable_block():

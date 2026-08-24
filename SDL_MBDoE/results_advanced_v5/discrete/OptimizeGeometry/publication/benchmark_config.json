@@ -1,0 +1,1059 @@
+{
+  "framework_version": "v3",
+  "CONFIG": {
+    "mode": "publication",
+    "outdir": "results_advanced_v5/discrete/OptimizeGeometry/publication",
+    "seeds": null,
+    "budget": null,
+    "scenarios": null,
+    "governor_mc_seeds": null,
+    "run_quant_validation": true,
+    "progress": true,
+    "verbose_rounds": false,
+    "n_workers": "auto",
+    "threads_per_worker": 1,
+    "audit": true,
+    "audit_examples": true
+  },
+  "mode_resolved": {
+    "seeds": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40
+    ],
+    "budget": 8,
+    "scenarios": [
+      "S1_ideal",
+      "S2_nmr",
+      "S3_transport",
+      "S3ab_delay",
+      "S3ab_rtd",
+      "S4a_ambiguity",
+      "S4b_identifiable",
+      "S4c_out_of_domain",
+      "S5_inadequacy",
+      "S6_resources",
+      "S7_spatial_modes"
+    ]
+  },
+  "knobs_resolved": {
+    "GEOMETRY": {
+      "length_m": 0.2,
+      "diameter_m": 0.007,
+      "packing_enabled": false,
+      "bed_void_fraction": 1.0
+    },
+    "GEOMETRY_DESIGN": {
+      "enabled": true,
+      "mode": "per_campaign",
+      "bounds": {
+        "length_m": [
+          0.06,
+          0.6
+        ],
+        "diameter_m": [
+          0.004,
+          0.008
+        ]
+      },
+      "levels": {
+        "length_m": [
+          0.06,
+          0.1,
+          0.2,
+          0.4,
+          0.6
+        ],
+        "diameter_m": [
+          0.004,
+          0.006,
+          0.008
+        ]
+      },
+      "resolution": {
+        "length_m": 0.005,
+        "diameter_m": 0.0005
+      },
+      "switch_cost_s": 1800.0,
+      "packing": false,
+      "bed_void_fraction": 0.4,
+      "max_radial_ratio": 10.0,
+      "objective_lambdas": {
+        "lambda_time_per_s": 0.002,
+        "lambda_material_per_mol": 50.0,
+        "lambda_waste_per_mL": 0.005,
+        "lambda_energy_per_kJ": 0.05
+      }
+    },
+    "COMPARISON": {
+      "reference_strategy": {
+        "S1_ideal": "A",
+        "S2_nmr": "B",
+        "S3_transport": "D",
+        "S3ab_delay": "D",
+        "S3ab_rtd": "D",
+        "S4a_ambiguity": "D",
+        "S4b_identifiable": "D",
+        "S4c_out_of_domain": "F",
+        "S5_inadequacy": "D",
+        "S6_resources": "D",
+        "S7_spatial_modes": "F-zfixed"
+      },
+      "default_reference": "A",
+      "targets": {
+        "param_err_pct": [
+          50.0,
+          30.0,
+          20.0,
+          10.0,
+          5.0
+        ],
+        "blind_rmse_M": [
+          0.01,
+          0.005,
+          0.002,
+          0.001
+        ]
+      },
+      "trajectory_seed": 1
+    },
+    "TRUTH": {
+      "k1_ref": 0.001,
+      "Ea1_J": 40000.0,
+      "k2_ref": 0.00065,
+      "Ea2_J": 48000.0,
+      "K1_ref": 0.9,
+      "K2_ref": 0.07
+    },
+    "DESIGN": {
+      "T_C_levels": [
+        40,
+        60,
+        80,
+        100,
+        120,
+        140,
+        160
+      ],
+      "Q_total_mL_min_levels": [
+        0.5,
+        2.0,
+        8.0
+      ],
+      "C_cat_M_levels": [
+        0.1,
+        0.5,
+        1.0,
+        2.0
+      ],
+      "C_EGDA_M_levels": [
+        0.1,
+        0.5,
+        1.0,
+        2.0
+      ],
+      "C_EGDA_M": 1.0,
+      "fixed_design_T_C": [
+        40,
+        60,
+        80,
+        100,
+        120,
+        140,
+        160
+      ],
+      "nominal_Q_total_mL_min": 1.0,
+      "nominal_C_cat_M": 0.5,
+      "continuous_bounds": {
+        "T_C": [
+          40.0,
+          160.0
+        ],
+        "Q_total_mL_min": [
+          0.5,
+          8.0
+        ],
+        "C_cat_M": [
+          0.1,
+          2.0
+        ],
+        "C_EGDA_M": [
+          0.1,
+          2.0
+        ]
+      }
+    },
+    "DESIGN_SPACE": {
+      "continuous": false,
+      "resolution": {
+        "T_C": 0.1,
+        "Q_total_mL_min": 0.1,
+        "C_cat_M": 0.0001,
+        "C_EGDA_M": 0.0001
+      },
+      "continuous_maxiter": 40,
+      "continuous_restarts": 2
+    },
+    "GOVERNOR": {
+      "alpha_campaign": 0.05,
+      "discrimination_prob": 0.9,
+      "qc_fail_fraction": 0.25,
+      "chi2_dof_ratio_override": 25.0,
+      "systematic_allowance_nmr": 0.47,
+      "systematic_allowance_direct": 0.0
+    },
+    "QC_GATE": {
+      "enabled_for_nmr": true,
+      "max_retries": 1,
+      "max_reject_fraction": 0.5
+    },
+    "ADVANCED_DESIGN": {
+      "top_k": 3,
+      "n_particles": 16,
+      "n_outer": 24,
+      "alpha_param": 1.0,
+      "beta_model": 1.0,
+      "beta_model_discrimination": 4.0
+    },
+    "SPATIAL": {
+      "candidate_grid_size": 41,
+      "z_min_fraction": 0.02,
+      "z_max_fraction": 1.0,
+      "min_spacing_fraction": 0.02,
+      "continuous_refinement": false,
+      "marginal_information_threshold": null
+    },
+    "TRANSFER_TRUE": {
+      "enabled": true,
+      "Q_sample_mL_min": 0.5,
+      "V_fixed_mL": 0.15,
+      "geometry": "constant",
+      "v_per_m_mL": 0.0,
+      "rtd": "gamma",
+      "n_tanks": 4.0,
+      "n_quad": 5,
+      "T_line_C": 25.0,
+      "react_in_line": true,
+      "carryover": true,
+      "flush_volumes": 3.0
+    },
+    "NMR_NUISANCE_TRUE": {
+      "enabled": true,
+      "noise_sigma": 0.1,
+      "shift_drift_ppm": 0.004,
+      "shift_jitter_ppm": 0.001,
+      "linewidth_rel_sigma": 0.08,
+      "baseline_offset": 0.02,
+      "baseline_curve": 0.03,
+      "phase_error_deg": 2.0,
+      "gain_drift_rel_sigma": 0.01,
+      "response_factors": {
+        "EGMA": 1.02
+      },
+      "t1_s": {
+        "EGDA": 2.5,
+        "EGMA": 2.8,
+        "EG": 3.5,
+        "AcOH": 4.5,
+        "H2O": 3.0
+      },
+      "gaussian_fraction": 0.15,
+      "j_mismatch_hz": 0.15,
+      "static_shift_ppm": 0.0008,
+      "noise_ar1": 0.3,
+      "baseline_cubic": 0.01
+    },
+    "ACQ": {
+      "spectrometer_MHz": 80.168,
+      "nmr_temperature_C": 27.0,
+      "ppm_min": 0.0,
+      "ppm_max": 12.0,
+      "n_points": 2048,
+      "acquisition_time_s": 4.096,
+      "repetition_time_s": 15.0,
+      "n_scans": 1,
+      "engine": "analytic",
+      "fwhm_sharp_hz": 1.5,
+      "fwhm_broad_hz": 30.0,
+      "j_hz": 4.7,
+      "water_suppression_factor": 1.0,
+      "flow_response_enabled": false,
+      "analytical_flow_mL_min": 0.5,
+      "premag_volume_mL": 0.4
+    },
+    "NOISE_DIRECT": {
+      "sigma_abs_M": 0.004,
+      "sigma_rel": 0.02,
+      "rho_overlap": 0.3,
+      "overlap_pair": [
+        "EGDA",
+        "EGMA"
+      ]
+    },
+    "RESOURCE_COSTS": {
+      "stabilization_volumes": 3.0,
+      "temp_change_s_per_K": 20.0,
+      "temp_ambient_C": 25.0,
+      "nmr_acquisition_s": 60.0,
+      "capillary_speed_m_s": 0.002,
+      "flush_time_s": 30.0,
+      "sample_volume_mL": 0.3,
+      "flush_volume_mL": 0.45,
+      "rho_cp_J_per_mL_K": 4.18,
+      "energy_ramp_J_per_K": 500.0,
+      "lambda_time_per_s": 0.0,
+      "lambda_material_per_mol": 0.0,
+      "lambda_waste_per_mL": 0.0,
+      "lambda_energy_per_kJ": 0.0,
+      "lambda_switch": 0.0,
+      "lambda_motion_per_m": 0.0
+    },
+    "T_REF_C": 60.0,
+    "N_PORTS": 10
+  },
+  "execution": {
+    "n_workers_resolved": 11,
+    "threads_per_worker": 1,
+    "cpu_count": 12,
+    "start_method": "spawn",
+    "platform": "darwin"
+  },
+  "runtimes_s": {
+    "S1_ideal": 448.3694019317627,
+    "S2_nmr": 363.20411682128906,
+    "S3_transport": 832.3764069080353,
+    "S3ab_delay": 587.3622980117798,
+    "S3ab_rtd": 578.8489291667938,
+    "S4a_ambiguity": 469.76564383506775,
+    "S4b_identifiable": 327.5399761199951,
+    "S4c_out_of_domain": 227.24579405784607,
+    "S5_inadequacy": 383.68468022346497,
+    "S6_resources": 1177.7744958400726,
+    "S7_spatial_modes": 603.1528210639954
+  },
+  "per_round_false_inadequacy_S1_S2": 0.21711568938193343,
+  "governor_validation": {
+    "n_seeds": 40,
+    "false_inadequacy_campaign_rate": 0.575,
+    "detection_probability": 0.925,
+    "detection_rounds": [
+      3,
+      3,
+      2,
+      4,
+      4,
+      3,
+      2,
+      3,
+      3,
+      2,
+      2,
+      3,
+      2,
+      3,
+      2,
+      3,
+      4,
+      3,
+      4,
+      3,
+      3,
+      2,
+      2,
+      3,
+      2,
+      2,
+      3,
+      3,
+      3,
+      2,
+      2,
+      4,
+      3,
+      2,
+      2,
+      2,
+      4
+    ],
+    "median_detection_round": 3.0,
+    "runtime_s": 374.39599108695984
+  },
+  "truth": {
+    "k1_ref": 0.001,
+    "Ea1_J": 40000.0,
+    "k2_ref": 0.00065,
+    "Ea2_J": 48000.0,
+    "K1_ref": 0.9,
+    "K2_ref": 0.07
+  },
+  "geometry": {
+    "length_m": 0.2,
+    "diameter_m": 0.007,
+    "packing_enabled": false,
+    "bed_void_fraction": 1.0
+  },
+  "design": {
+    "T_C_levels": [
+      40,
+      60,
+      80,
+      100,
+      120,
+      140,
+      160
+    ],
+    "Q_total_mL_min_levels": [
+      0.5,
+      2.0,
+      8.0
+    ],
+    "C_cat_M_levels": [
+      0.1,
+      0.5,
+      1.0,
+      2.0
+    ],
+    "C_EGDA_M_levels": [
+      0.1,
+      0.5,
+      1.0,
+      2.0
+    ],
+    "C_EGDA_M": 1.0,
+    "fixed_design_T_C": [
+      40,
+      60,
+      80,
+      100,
+      120,
+      140,
+      160
+    ],
+    "nominal_Q_total_mL_min": 1.0,
+    "nominal_C_cat_M": 0.5,
+    "continuous_bounds": {
+      "T_C": [
+        40.0,
+        160.0
+      ],
+      "Q_total_mL_min": [
+        0.5,
+        8.0
+      ],
+      "C_cat_M": [
+        0.1,
+        2.0
+      ],
+      "C_EGDA_M": [
+        0.1,
+        2.0
+      ]
+    }
+  },
+  "scenarios": {
+    "S1_ideal": {
+      "name": "S1_ideal",
+      "description": "correct model, ideal direct observation, no transport",
+      "observation_mode": "direct",
+      "nmr_mode": "ideal",
+      "transfer": {
+        "enabled": false,
+        "Q_sample_mL_min": 0.5,
+        "V_fixed_mL": 0.15,
+        "geometry": "constant",
+        "v_per_m_mL": 0.0,
+        "rtd": "delta",
+        "n_tanks": 4.0,
+        "n_quad": 5,
+        "T_line_C": null,
+        "react_in_line": true,
+        "carryover": false,
+        "flush_volumes": 3.0
+      },
+      "family": [
+        "rev-pitzer"
+      ],
+      "strategies": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F"
+      ],
+      "resource_costs": null,
+      "baseline_bridge_kwargs": {},
+      "f_variants": {},
+      "track_correct_model": null,
+      "truth_override": {},
+      "budget_override": null,
+      "well_specified": false
+    },
+    "S2_nmr": {
+      "name": "S2_nmr",
+      "description": "synthetic 80 MHz spectra (truth-model mismatch active) + deconvolution covariance",
+      "observation_mode": "nmr",
+      "nmr_mode": "realistic",
+      "transfer": {
+        "enabled": false,
+        "Q_sample_mL_min": 0.5,
+        "V_fixed_mL": 0.15,
+        "geometry": "constant",
+        "v_per_m_mL": 0.0,
+        "rtd": "delta",
+        "n_tanks": 4.0,
+        "n_quad": 5,
+        "T_line_C": null,
+        "react_in_line": true,
+        "carryover": false,
+        "flush_volumes": 3.0
+      },
+      "family": [
+        "rev-pitzer"
+      ],
+      "strategies": [
+        "B",
+        "D",
+        "F"
+      ],
+      "resource_costs": null,
+      "baseline_bridge_kwargs": {},
+      "f_variants": {},
+      "track_correct_model": null,
+      "truth_override": {},
+      "budget_override": null,
+      "well_specified": false
+    },
+    "S3_transport": {
+      "name": "S3_transport",
+      "description": "NMR + transport: delay, RTD, in-line reaction, carryover",
+      "observation_mode": "nmr",
+      "nmr_mode": "realistic",
+      "transfer": {
+        "enabled": true,
+        "Q_sample_mL_min": 0.5,
+        "V_fixed_mL": 0.15,
+        "geometry": "constant",
+        "v_per_m_mL": 0.0,
+        "rtd": "gamma",
+        "n_tanks": 4.0,
+        "n_quad": 5,
+        "T_line_C": 25.0,
+        "react_in_line": true,
+        "carryover": true,
+        "flush_volumes": 3.0
+      },
+      "family": [
+        "rev-pitzer"
+      ],
+      "strategies": [
+        "D",
+        "F-uncorr",
+        "F"
+      ],
+      "resource_costs": null,
+      "baseline_bridge_kwargs": {},
+      "f_variants": {
+        "F-uncorr": {
+          "transport_aware": false
+        },
+        "F": {
+          "transport_aware": true
+        }
+      },
+      "track_correct_model": null,
+      "truth_override": {},
+      "budget_override": null,
+      "well_specified": false
+    },
+    "S3ab_delay": {
+      "name": "S3ab_delay",
+      "description": "transport ablation: mean delay + in-line reaction only (plug RTD, no carryover)",
+      "observation_mode": "nmr",
+      "nmr_mode": "realistic",
+      "transfer": {
+        "enabled": true,
+        "Q_sample_mL_min": 0.5,
+        "V_fixed_mL": 0.15,
+        "geometry": "constant",
+        "v_per_m_mL": 0.0,
+        "rtd": "delta",
+        "n_tanks": 4.0,
+        "n_quad": 5,
+        "T_line_C": 25.0,
+        "react_in_line": true,
+        "carryover": false,
+        "flush_volumes": 3.0
+      },
+      "family": [
+        "rev-pitzer"
+      ],
+      "strategies": [
+        "D",
+        "F"
+      ],
+      "resource_costs": null,
+      "baseline_bridge_kwargs": {},
+      "f_variants": {
+        "F": {
+          "transport_aware": true
+        }
+      },
+      "track_correct_model": null,
+      "truth_override": {},
+      "budget_override": null,
+      "well_specified": false
+    },
+    "S3ab_rtd": {
+      "name": "S3ab_rtd",
+      "description": "transport ablation: delay + gamma RTD dispersion (no carryover)",
+      "observation_mode": "nmr",
+      "nmr_mode": "realistic",
+      "transfer": {
+        "enabled": true,
+        "Q_sample_mL_min": 0.5,
+        "V_fixed_mL": 0.15,
+        "geometry": "constant",
+        "v_per_m_mL": 0.0,
+        "rtd": "gamma",
+        "n_tanks": 4.0,
+        "n_quad": 5,
+        "T_line_C": 25.0,
+        "react_in_line": true,
+        "carryover": false,
+        "flush_volumes": 3.0
+      },
+      "family": [
+        "rev-pitzer"
+      ],
+      "strategies": [
+        "D",
+        "F"
+      ],
+      "resource_costs": null,
+      "baseline_bridge_kwargs": {},
+      "f_variants": {
+        "F": {
+          "transport_aware": true
+        }
+      },
+      "track_correct_model": null,
+      "truth_override": {},
+      "budget_override": null,
+      "well_specified": false
+    },
+    "S4a_ambiguity": {
+      "name": "S4a_ambiguity",
+      "description": "HARD model discrimination: pitzer vs dilute vs irreversible (may honestly end undecided)",
+      "observation_mode": "nmr",
+      "nmr_mode": "realistic",
+      "transfer": {
+        "enabled": false,
+        "Q_sample_mL_min": 0.5,
+        "V_fixed_mL": 0.15,
+        "geometry": "constant",
+        "v_per_m_mL": 0.0,
+        "rtd": "delta",
+        "n_tanks": 4.0,
+        "n_quad": 5,
+        "T_line_C": null,
+        "react_in_line": true,
+        "carryover": false,
+        "flush_volumes": 3.0
+      },
+      "family": [
+        "rev-pitzer",
+        "rev-dilute",
+        "irreversible"
+      ],
+      "strategies": [
+        "D",
+        "F"
+      ],
+      "resource_costs": null,
+      "baseline_bridge_kwargs": {},
+      "f_variants": {},
+      "track_correct_model": "rev-pitzer",
+      "truth_override": {},
+      "budget_override": 10,
+      "well_specified": false
+    },
+    "S4b_identifiable": {
+      "name": "S4b_identifiable",
+      "description": "WELL-SPECIFIED correct-model recovery: reversible (rev-pitzer) vs irreversible under the STANDARD benchmark truth - no per-scenario truth override, so nothing was tuned; the 20 cm CPR reaches phi ~ 1 at the hot/slow corner, so reverse kinetics are observable and the learner must find that region",
+      "observation_mode": "nmr",
+      "nmr_mode": "realistic",
+      "transfer": {
+        "enabled": false,
+        "Q_sample_mL_min": 0.5,
+        "V_fixed_mL": 0.15,
+        "geometry": "constant",
+        "v_per_m_mL": 0.0,
+        "rtd": "delta",
+        "n_tanks": 4.0,
+        "n_quad": 5,
+        "T_line_C": null,
+        "react_in_line": true,
+        "carryover": false,
+        "flush_volumes": 3.0
+      },
+      "family": [
+        "rev-pitzer",
+        "irreversible"
+      ],
+      "strategies": [
+        "D",
+        "F"
+      ],
+      "resource_costs": null,
+      "baseline_bridge_kwargs": {},
+      "f_variants": {},
+      "track_correct_model": "rev-pitzer",
+      "truth_override": {},
+      "budget_override": 8,
+      "well_specified": true
+    },
+    "S4c_out_of_domain": {
+      "name": "S4c_out_of_domain",
+      "description": "OUT-OF-DOMAIN / MODEL-MISSPECIFICATION (NOT a correct-model-recovery test): truth K2=0.002 lies BELOW the candidate parameter bound (0.0155), so the reversible candidate cannot represent it and K2 pins to its bound by construction",
+      "observation_mode": "nmr",
+      "nmr_mode": "realistic",
+      "transfer": {
+        "enabled": false,
+        "Q_sample_mL_min": 0.5,
+        "V_fixed_mL": 0.15,
+        "geometry": "constant",
+        "v_per_m_mL": 0.0,
+        "rtd": "delta",
+        "n_tanks": 4.0,
+        "n_quad": 5,
+        "T_line_C": null,
+        "react_in_line": true,
+        "carryover": false,
+        "flush_volumes": 3.0
+      },
+      "family": [
+        "rev-pitzer",
+        "irreversible"
+      ],
+      "strategies": [
+        "F"
+      ],
+      "resource_costs": null,
+      "baseline_bridge_kwargs": {},
+      "f_variants": {},
+      "track_correct_model": "rev-pitzer",
+      "truth_override": {
+        "K1_ref": 0.15,
+        "K2_ref": 0.002
+      },
+      "budget_override": 8,
+      "well_specified": false
+    },
+    "S5_inadequacy": {
+      "name": "S5_inadequacy",
+      "description": "correct model REMOVED from the family; truth is an explicitly OUT-OF-DOMAIN strongly reversible ester (K1=0.15, K2=0.002) that NO candidate can represent - the irreversible-only family has no K parameters at all",
+      "observation_mode": "nmr",
+      "nmr_mode": "realistic",
+      "transfer": {
+        "enabled": false,
+        "Q_sample_mL_min": 0.5,
+        "V_fixed_mL": 0.15,
+        "geometry": "constant",
+        "v_per_m_mL": 0.0,
+        "rtd": "delta",
+        "n_tanks": 4.0,
+        "n_quad": 5,
+        "T_line_C": null,
+        "react_in_line": true,
+        "carryover": false,
+        "flush_volumes": 3.0
+      },
+      "family": [
+        "irreversible"
+      ],
+      "strategies": [
+        "D",
+        "F-noGovernor",
+        "F"
+      ],
+      "resource_costs": null,
+      "baseline_bridge_kwargs": {
+        "reversible": false
+      },
+      "f_variants": {
+        "F-noGovernor": {
+          "use_governor": false
+        },
+        "F": {}
+      },
+      "track_correct_model": null,
+      "truth_override": {
+        "K1_ref": 0.15,
+        "K2_ref": 0.002
+      },
+      "budget_override": null,
+      "well_specified": false
+    },
+    "S6_resources": {
+      "name": "S6_resources",
+      "description": "resource-aware design: lambda sweep -> Pareto frontier",
+      "observation_mode": "nmr",
+      "nmr_mode": "realistic",
+      "transfer": {
+        "enabled": false,
+        "Q_sample_mL_min": 0.5,
+        "V_fixed_mL": 0.15,
+        "geometry": "constant",
+        "v_per_m_mL": 0.0,
+        "rtd": "delta",
+        "n_tanks": 4.0,
+        "n_quad": 5,
+        "T_line_C": null,
+        "react_in_line": true,
+        "carryover": false,
+        "flush_volumes": 3.0
+      },
+      "family": [
+        "rev-pitzer"
+      ],
+      "strategies": [
+        "D",
+        "F",
+        "F-res-0.5x",
+        "F-res-1x",
+        "F-res-2x",
+        "F-res-4x"
+      ],
+      "resource_costs": null,
+      "baseline_bridge_kwargs": {},
+      "f_variants": {
+        "F": {},
+        "F-res-0.5x": {
+          "costs": {
+            "stabilization_volumes": 3.0,
+            "temp_change_s_per_K": 20.0,
+            "temp_ambient_C": 25.0,
+            "nmr_acquisition_s": 60.0,
+            "capillary_speed_m_s": 0.002,
+            "flush_time_s": 30.0,
+            "sample_volume_mL": 0.3,
+            "flush_volume_mL": 0.45,
+            "rho_cp_J_per_mL_K": 4.18,
+            "energy_ramp_J_per_K": 500.0,
+            "lambda_time_per_s": 0.001,
+            "lambda_material_per_mol": 25.0,
+            "lambda_waste_per_mL": 0.0025,
+            "lambda_energy_per_kJ": 0.025,
+            "lambda_switch": 0.5,
+            "lambda_motion_per_m": 1.0
+          }
+        },
+        "F-res-1x": {
+          "costs": {
+            "stabilization_volumes": 3.0,
+            "temp_change_s_per_K": 20.0,
+            "temp_ambient_C": 25.0,
+            "nmr_acquisition_s": 60.0,
+            "capillary_speed_m_s": 0.002,
+            "flush_time_s": 30.0,
+            "sample_volume_mL": 0.3,
+            "flush_volume_mL": 0.45,
+            "rho_cp_J_per_mL_K": 4.18,
+            "energy_ramp_J_per_K": 500.0,
+            "lambda_time_per_s": 0.002,
+            "lambda_material_per_mol": 50.0,
+            "lambda_waste_per_mL": 0.005,
+            "lambda_energy_per_kJ": 0.05,
+            "lambda_switch": 1.0,
+            "lambda_motion_per_m": 2.0
+          }
+        },
+        "F-res-2x": {
+          "costs": {
+            "stabilization_volumes": 3.0,
+            "temp_change_s_per_K": 20.0,
+            "temp_ambient_C": 25.0,
+            "nmr_acquisition_s": 60.0,
+            "capillary_speed_m_s": 0.002,
+            "flush_time_s": 30.0,
+            "sample_volume_mL": 0.3,
+            "flush_volume_mL": 0.45,
+            "rho_cp_J_per_mL_K": 4.18,
+            "energy_ramp_J_per_K": 500.0,
+            "lambda_time_per_s": 0.004,
+            "lambda_material_per_mol": 100.0,
+            "lambda_waste_per_mL": 0.01,
+            "lambda_energy_per_kJ": 0.1,
+            "lambda_switch": 2.0,
+            "lambda_motion_per_m": 4.0
+          }
+        },
+        "F-res-4x": {
+          "costs": {
+            "stabilization_volumes": 3.0,
+            "temp_change_s_per_K": 20.0,
+            "temp_ambient_C": 25.0,
+            "nmr_acquisition_s": 60.0,
+            "capillary_speed_m_s": 0.002,
+            "flush_time_s": 30.0,
+            "sample_volume_mL": 0.3,
+            "flush_volume_mL": 0.45,
+            "rho_cp_J_per_mL_K": 4.18,
+            "energy_ramp_J_per_K": 500.0,
+            "lambda_time_per_s": 0.008,
+            "lambda_material_per_mol": 200.0,
+            "lambda_waste_per_mL": 0.02,
+            "lambda_energy_per_kJ": 0.2,
+            "lambda_switch": 4.0,
+            "lambda_motion_per_m": 8.0
+          }
+        }
+      },
+      "track_correct_model": null,
+      "truth_override": {},
+      "budget_override": null,
+      "well_specified": false
+    },
+    "S7_spatial_modes": {
+      "name": "S7_spatial_modes",
+      "description": "spatial policy comparison under identical physics: fixed_equal vs optimized_batch vs adaptive_sequential",
+      "observation_mode": "nmr",
+      "nmr_mode": "realistic",
+      "transfer": {
+        "enabled": false,
+        "Q_sample_mL_min": 0.5,
+        "V_fixed_mL": 0.15,
+        "geometry": "constant",
+        "v_per_m_mL": 0.0,
+        "rtd": "delta",
+        "n_tanks": 4.0,
+        "n_quad": 5,
+        "T_line_C": null,
+        "react_in_line": true,
+        "carryover": false,
+        "flush_volumes": 3.0
+      },
+      "family": [
+        "rev-pitzer"
+      ],
+      "strategies": [
+        "F-zfixed",
+        "F-zbatch",
+        "F-zadaptive"
+      ],
+      "resource_costs": null,
+      "baseline_bridge_kwargs": {},
+      "f_variants": {
+        "F-zfixed": {
+          "spatial_mode": "fixed_equal"
+        },
+        "F-zbatch": {
+          "spatial_mode": "optimized"
+        },
+        "F-zadaptive": {
+          "spatial_mode": "adaptive_sequential"
+        }
+      },
+      "track_correct_model": null,
+      "truth_override": {},
+      "budget_override": null,
+      "well_specified": false
+    }
+  },
+  "nmr_nuisance_true": {
+    "enabled": true,
+    "noise_sigma": 0.1,
+    "shift_drift_ppm": 0.004,
+    "shift_jitter_ppm": 0.001,
+    "linewidth_rel_sigma": 0.08,
+    "baseline_offset": 0.02,
+    "baseline_curve": 0.03,
+    "phase_error_deg": 2.0,
+    "gain_drift_rel_sigma": 0.01,
+    "response_factors": {
+      "EGMA": 1.02
+    },
+    "t1_s": {
+      "EGDA": 2.5,
+      "EGMA": 2.8,
+      "EG": 3.5,
+      "AcOH": 4.5,
+      "H2O": 3.0
+    },
+    "gaussian_fraction": 0.15,
+    "j_mismatch_hz": 0.15,
+    "static_shift_ppm": 0.0008,
+    "noise_ar1": 0.3,
+    "baseline_cubic": 0.01
+  },
+  "acquisition": {
+    "spectrometer_MHz": 80.168,
+    "nmr_temperature_C": 27.0,
+    "ppm_min": 0.0,
+    "ppm_max": 12.0,
+    "n_points": 2048,
+    "acquisition_time_s": 4.096,
+    "repetition_time_s": 15.0,
+    "n_scans": 1,
+    "engine": "analytic",
+    "fwhm_sharp_hz": 1.5,
+    "fwhm_broad_hz": 30.0,
+    "j_hz": 4.7,
+    "water_suppression_factor": 1.0,
+    "flow_response_enabled": false,
+    "analytical_flow_mL_min": 0.5,
+    "premag_volume_mL": 0.4
+  },
+  "transfer_true": {
+    "enabled": true,
+    "Q_sample_mL_min": 0.5,
+    "V_fixed_mL": 0.15,
+    "geometry": "constant",
+    "v_per_m_mL": 0.0,
+    "rtd": "gamma",
+    "n_tanks": 4.0,
+    "n_quad": 5,
+    "T_line_C": 25.0,
+    "react_in_line": true,
+    "carryover": true,
+    "flush_volumes": 3.0
+  }
+}

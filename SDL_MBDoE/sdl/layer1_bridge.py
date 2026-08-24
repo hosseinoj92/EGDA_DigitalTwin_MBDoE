@@ -54,6 +54,7 @@ from pfr_twin import (                                   # noqa: E402
     ReactorGeometry, SolverSettings, Stream, mix_streams, simulate_pfr,
     analytical_profiles, default_kinetics,
 )
+from pfr_twin.mixer import h_plus_concentration          # noqa: E402
 from pfr_twin.parameters import R_GAS, SPECIES           # noqa: E402
 from pfr_twin.reactor import nu_matrix                   # noqa: E402
 
@@ -194,6 +195,13 @@ class Layer1Bridge:
         tau_extra = np.broadcast_to(np.asarray(extra_tau_s, dtype=float),
                                     z_m.shape).copy()
         T_line_K = float(T_extra_K) if T_extra_K is not None else T_K
+        # SPECIATION FOLLOWS THE TEMPERATURE.  The post-withdrawal batch step
+        # runs at the LINE temperature, so its catalytic [H+] must be the one
+        # that total sulfate supports THERE - Ka2 is strongly temperature
+        # dependent (the whole reason ka2_model="tdep" exists), and carrying
+        # the reactor-temperature [H+] into a cooled line would evaluate the
+        # rate constants at one temperature and the catalyst at another.
+        c_h_line = self._h_plus_at(inlet, kin, T_line_K)
         if self.engine == "analytical":
             tau = z_m / u_vel + tau_extra
             prof = analytical_profiles(inlet, kappa1, kappa2, tau)
@@ -202,8 +210,26 @@ class Layer1Bridge:
             prof = {sp: np.interp(z_m, res.x_m, res.conc[sp]) for sp in res.conc}
             if np.any(tau_extra > 0.0):
                 prof = self._advance_batch(prof, model, T_line_K,
-                                           inlet.c_h_plus, tau_extra)
+                                           c_h_line, tau_extra)
         return np.concatenate([np.atleast_1d(prof[sp]) for sp in species])
+
+    @staticmethod
+    def _h_plus_at(inlet, kin: KineticParameters, T_K: float) -> float:
+        """Catalytic proton concentration that the inlet's TOTAL SULFATE
+        supports at temperature T_K.
+
+        Total sulfate is conserved when a sample is cooled; the speciation
+        that sulfate adopts is not, because Ka2 moves by orders of magnitude
+        over this temperature range.  The alkaline route has no equilibrium
+        (NaOH is fully dissociated and is consumed stoichiometrically), so it
+        is returned unchanged."""
+        if kin.catalyst != "H2SO4" or inlet.c_h2so4 <= 0.0:
+            return inlet.c_cat0
+        if kin.h_plus_model == "stoichiometric":
+            return kin.n_eff_protons * inlet.c_h2so4      # T-independent
+        c_h, _notes = h_plus_concentration(inlet.c_h2so4,
+                                           inlet.conc["H2O"], T_K, kin)
+        return float(c_h)
 
     def _advance_batch(self, port_conc: Dict[str, np.ndarray],
                        model: KineticModel, T_K: float, c_h_plus: float,

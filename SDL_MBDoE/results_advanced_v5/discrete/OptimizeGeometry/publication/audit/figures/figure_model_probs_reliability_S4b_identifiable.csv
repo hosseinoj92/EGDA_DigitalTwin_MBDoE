@@ -1,0 +1,17 @@
+scenario,strategy,model,round,median_probability,n_seeds
+S4b_identifiable,F,irreversible,1,0.5003947422058552,40
+S4b_identifiable,F,irreversible,2,0.48803748879650305,38
+S4b_identifiable,F,irreversible,3,0.0,38
+S4b_identifiable,F,irreversible,4,0.0,38
+S4b_identifiable,F,irreversible,5,0.0,36
+S4b_identifiable,F,irreversible,6,0.0,36
+S4b_identifiable,F,irreversible,7,0.0,36
+S4b_identifiable,F,irreversible,8,0.0,35
+S4b_identifiable,F,rev-pitzer,1,0.49960525779414466,40
+S4b_identifiable,F,rev-pitzer,2,0.5119625112034969,38
+S4b_identifiable,F,rev-pitzer,3,1.0,38
+S4b_identifiable,F,rev-pitzer,4,1.0,38
+S4b_identifiable,F,rev-pitzer,5,1.0,36
+S4b_identifiable,F,rev-pitzer,6,1.0,36
+S4b_identifiable,F,rev-pitzer,7,1.0,36
+S4b_identifiable,F,rev-pitzer,8,1.0,35

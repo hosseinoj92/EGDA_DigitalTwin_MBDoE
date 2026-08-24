@@ -191,7 +191,7 @@ SPATIAL = {
 # ------------------------------------------------------------------------- #
 #: name -> the module-level object a runner may override.  Dicts are updated
 #: key by key; frozen dataclasses are rebuilt with dataclasses.replace.
-_OVERRIDABLE = ("GEOMETRY", "GEOMETRY_DESIGN", "COMPARISON",
+_OVERRIDABLE = ("GEOMETRY", "GEOMETRY_DESIGN", "COMPARISON", "VALIDITY",
                 "TRUTH", "DESIGN", "DESIGN_SPACE", "GOVERNOR",
                 "QC_GATE", "ADVANCED_DESIGN", "SPATIAL", "TRANSFER_TRUE",
                 "NMR_NUISANCE_TRUE", "ACQ", "NOISE_DIRECT", "RESOURCE_COSTS",
@@ -346,6 +346,20 @@ GEOMETRY_DESIGN = {
 
 
 # ------------------------------------------------------------------------- #
+# PLUG-FLOW VALIDITY OF THE REACTOR IN USE
+# ------------------------------------------------------------------------- #
+# The geometry optimizer rejects candidate reactors above
+# GEOMETRY_DESIGN["max_radial_ratio"].  This applies the SAME standard to
+# whichever reactor the campaign actually runs in, including the declared
+# default, so the framework cannot hold designed geometries to a criterion
+# its own baseline fails.
+#   "warn"   report loudly and continue (default: nothing silently breaks)
+#   "error"  refuse to run an invalid reactor
+#   "ignore" no check (deliberate non-ideal study)
+VALIDITY = {"policy": "warn"}
+
+
+# ------------------------------------------------------------------------- #
 # CONVENTIONAL-VS-OPTIMIZED COMPARISON
 # ------------------------------------------------------------------------- #
 # Which strategy plays "the conventional method" in each scenario - the
@@ -401,7 +415,7 @@ def _geometry_candidates() -> List[Dict]:
     return out
 
 
-def _radial_ratio(geom: Dict) -> float:
+def _radial_ratio(geom: Dict, q_mL_min: Optional[float] = None) -> float:
     """Open-tube plug-flow validity ratio t_rad/tau = Q/(pi D L eps) at the
     reference design's nominal flow (Layer 1's diagnostic; the bore
     cancels).  Packed beds return 0.0: the beads break the laminar
@@ -410,8 +424,82 @@ def _radial_ratio(geom: Dict) -> float:
     if geom.get("packing_enabled", False):
         return 0.0
     from pfr_twin.parameters import DIFFUSIVITY_LIQ
-    q_m3s = float(DESIGN["nominal_Q_total_mL_min"]) * 1e-6 / 60.0
-    return q_m3s / (np.pi * DIFFUSIVITY_LIQ * float(geom["length_m"]))
+    q = (float(q_mL_min) if q_mL_min is not None
+         else float(DESIGN["nominal_Q_total_mL_min"]))
+    q_m3s = q * 1e-6 / 60.0
+    eps = (float(geom.get("bed_void_fraction", 1.0))
+           if geom.get("packing_enabled", False) else 1.0)
+    return q_m3s / (np.pi * DIFFUSIVITY_LIQ * float(geom["length_m"]) * eps)
+
+
+def reactor_validity_rows(geom: Optional[Dict] = None,
+                          flows: Optional[Sequence[float]] = None
+                          ) -> List[Dict]:
+    """Plug-flow validity of the reactor ACTUALLY IN USE, at every flow the
+    design space can command.
+
+    The geometry optimizer already refuses candidate reactors whose
+    radial-mixing ratio exceeds `max_radial_ratio`.  The same standard has
+    to be applied to the PRINCIPAL reactor, or the framework is holding
+    designed geometries to a criterion its own baseline does not meet - and
+    since the axial position-to-age mapping is the entire information
+    source, a segregated-streamline reactor undermines every profile
+    measurement, not just a diagnostic."""
+    g = geom if geom is not None else GEOMETRY
+    qs = flows if flows is not None else DESIGN["Q_total_mL_min_levels"]
+    thr = float(GEOMETRY_DESIGN["max_radial_ratio"])
+    packed = bool(g.get("packing_enabled", False))
+    eps = float(g.get("bed_void_fraction", 1.0)) if packed else 1.0
+    rows = []
+    for q in sorted(float(x) for x in qs):
+        ratio = (0.0 if packed
+                 else _radial_ratio({**g, "packing_enabled": False}, q))
+        rows.append({
+            "length_m": float(g["length_m"]),
+            "diameter_m": float(g["diameter_m"]),
+            "packed": int(packed), "bed_void_fraction": eps,
+            "Q_total_mL_min": q,
+            "t_rad_over_tau": ratio,
+            "threshold": thr,
+            "plug_flow_valid": int(ratio <= thr),
+            "regime": ("packed bed (beads break the streamlines)" if packed
+                       else "plug flow acceptable" if ratio <= thr
+                       else "partial radial mixing" if ratio <= 10.0
+                       else "RADIALLY SEGREGATED STREAMLINES"),
+        })
+    return rows
+
+
+def assert_reactor_validity(geom: Optional[Dict] = None,
+                            policy: Optional[str] = None) -> List[Dict]:
+    """Apply VALIDITY['policy'] to the reactor in use.  Returns the rows so
+    the caller can archive them."""
+    rows = reactor_validity_rows(geom)
+    pol = (policy or VALIDITY.get("policy", "warn")).lower()
+    bad = [r for r in rows if not r["plug_flow_valid"]]
+    if bad and pol != "ignore":
+        g = rows[0]
+        worst = max(bad, key=lambda r: r["t_rad_over_tau"])
+        msg = (
+            f"PLUG-FLOW VALIDITY: the reactor in use "
+            f"({g['length_m'] * 100:.0f} cm x {g['diameter_m'] * 1e3:.1f} mm, "
+            f"{'packed' if g['packed'] else 'OPEN tube'}) exceeds the "
+            f"framework's own t_rad/tau <= {g['threshold']:g} criterion at "
+            f"{len(bad)}/{len(rows)} of the design flows "
+            f"(worst {worst['t_rad_over_tau']:.0f} at "
+            f"{worst['Q_total_mL_min']:g} mL/min).  Laminar streamlines are "
+            f"then radially segregated, so axial position maps to a "
+            f"DISTRIBUTION of ages rather than a single tau - and that "
+            f"mapping is the framework's entire information source.  "
+            f"Remedies: pack the tube "
+            f"(GEOMETRY['packing_enabled']=True, eps~0.4), lengthen it "
+            f"(the ratio is Q/(pi D L eps) - the bore does not help), or "
+            f"accept the non-ideality explicitly by raising "
+            f"GEOMETRY_DESIGN['max_radial_ratio'].")
+        if pol == "error":
+            raise ValueError(msg)
+        print("  WARNING: " + msg)
+    return rows
 
 
 def _reference_campaign_cost(geom: Dict, budget: int) -> Dict[str, float]:
@@ -904,9 +992,12 @@ def make_lab(spec: ScenarioSpec, seed: int,
                          nmr_mode=spec.nmr_mode,
                          store_spectra=store_spectra),
         ACQ, NMR_NUISANCE_TRUE, spec.transfer,
-        costs if costs is not None
-        else (spec.resource_costs if spec.resource_costs is not None
-              else RESOURCE_COSTS),
+        # SYNCHRONIZED with the spectrometer settings: the campaign clock
+        # and the acquisition contract are one model, so n_scans /
+        # acquisition_time_s move the metered time as they physically must
+        (costs if costs is not None
+         else (spec.resource_costs if spec.resource_costs is not None
+               else RESOURCE_COSTS)).with_acquisition(ACQ),
         seed=seed, noise_direct=NOISE_DIRECT)
 
 

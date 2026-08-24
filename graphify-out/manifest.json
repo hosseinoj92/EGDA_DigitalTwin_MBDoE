@@ -180,8 +180,8 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl/layer1_bridge.py": {
-    "mtime": 1786528094.7727215,
-    "ast_hash": "1d2e76121356a1dd2d2ccfb363e38894",
+    "mtime": 1787048106.6113453,
+    "ast_hash": "b1b7b6b5388e393c070d1726c58a0f53",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl/observation.py": {
@@ -330,8 +330,8 @@
     "semantic_hash": "e482f36bc966704211f79b44861f7d96"
   },
   "README.md": {
-    "mtime": 1786537718.8308275,
-    "ast_hash": "67d6df7049e5e983ff66026bac65d138",
+    "mtime": 1787049173.497837,
+    "ast_hash": "a34dd7f68a1322ea415bc3f561224a28",
     "semantic_hash": ""
   },
   "SDL_MBDoE/README.md": {
@@ -435,13 +435,13 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/run_advanced_benchmark.py": {
-    "mtime": 1786537370.4552264,
-    "ast_hash": "cccc3c83bbb3ae6f70762953d8048a7f",
+    "mtime": 1787048157.408393,
+    "ast_hash": "9159c1032ff85cf9b5260d9ad0253c5b",
     "semantic_hash": ""
   },
   "SDL_MBDoE/run_advanced_campaign.py": {
-    "mtime": 1786537370.4377482,
-    "ast_hash": "845b6006628c9957d2c9fc842018a212",
+    "mtime": 1787048157.3944714,
+    "ast_hash": "6096489c0bd73958cd7847386b382348",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/__init__.py": {
@@ -460,8 +460,8 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/benchmark.py": {
-    "mtime": 1786537330.7024498,
-    "ast_hash": "0b5be2f60956c7ff112dd1ef6628160a",
+    "mtime": 1787048141.6646547,
+    "ast_hash": "27be0b492016341c30e675e3f43069a0",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/controller.py": {
@@ -470,8 +470,8 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/instrument.py": {
-    "mtime": 1786231200.9671915,
-    "ast_hash": "f68421ce582e96c223c1b35056038c16",
+    "mtime": 1787048106.6261315,
+    "ast_hash": "1373ca6f86ab4940625b27606568c10d",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/model_ensemble.py": {
@@ -490,8 +490,8 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/resources.py": {
-    "mtime": 1786203679.5977387,
-    "ast_hash": "7b4093394836d7663d136faf00ad10f4",
+    "mtime": 1787048054.3032095,
+    "ast_hash": "30575fc077e185a2d6aef8361d79f4ae",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/spatial_design.py": {
@@ -500,8 +500,8 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/spectral.py": {
-    "mtime": 1786204052.8732958,
-    "ast_hash": "424e1adce598b5c235925db77dbeccb4",
+    "mtime": 1787048001.2091796,
+    "ast_hash": "ce7c36584f359d731e60c708c0513437",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/spectral_fit.py": {
@@ -630,8 +630,8 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_design_space.py": {
-    "mtime": 1786533175.2345233,
-    "ast_hash": "e7ab2860861625ac7fd573663d196a98",
+    "mtime": 1787048451.133235,
+    "ast_hash": "d4b30d992a47f41bd329e7637572931a",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/efficiency.py": {
@@ -642,6 +642,466 @@
   "SDL_MBDoE/tests/test_comparison.py": {
     "mtime": 1786537422.3326774,
     "ast_hash": "ad50d6c248f2a5d2c13ad1c48d8674de",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/reproducibility_manifest.json": {
+    "mtime": 1786554410.4795663,
+    "ast_hash": "cd39e35ba081cc0214cb063bd5e51a9b",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/run_integrity_report.json": {
+    "mtime": 1786554410.221556,
+    "ast_hash": "0e0593493c37ba41e6bc9e2ddeeba71d",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/benchmark_config.json": {
+    "mtime": 1786554410.2236907,
+    "ast_hash": "6e484620d77e8e842caccfbd39ac04e8",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/governor_validation.json": {
+    "mtime": 1786554227.9581897,
+    "ast_hash": "9e852e05bbc6271b67cf3526a15c7e66",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/tests/test_acquisition.py": {
+    "mtime": 1787048228.968356,
+    "ast_hash": "689659fccf920b79e4c6f7490590657a",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/strategy_table.txt": {
+    "mtime": 1786554217.6887317,
+    "ast_hash": "49588b3f5a58b0b3879539f1e06c8903",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S1_ideal_locf.png": {
+    "mtime": 1786554341.1154532,
+    "ast_hash": "f4056f0459e572797d0b9bf252b5bcb2",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S1_ideal_observed.png": {
+    "mtime": 1786554341.4755483,
+    "ast_hash": "2bb7c5ec5ec145f0849c52896f566a4d",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S2_nmr_locf.png": {
+    "mtime": 1786554341.7521508,
+    "ast_hash": "c71c4d529b3a9de5168456e017d682a5",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S2_nmr_observed.png": {
+    "mtime": 1786554342.0805266,
+    "ast_hash": "b4aaf3a5ea10cd332aaf21b03d08023b",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S3_transport_locf.png": {
+    "mtime": 1786554342.4040077,
+    "ast_hash": "07a4c2f20fbeb78794b014b545a5c2d0",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S3_transport_observed.png": {
+    "mtime": 1786554342.6863568,
+    "ast_hash": "dfede88de73fb62f2b914cd9fbb72548",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S3ab_delay_locf.png": {
+    "mtime": 1786554343.0056665,
+    "ast_hash": "37e400e541050bc65e70dda931369d14",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S3ab_delay_observed.png": {
+    "mtime": 1786554343.3270931,
+    "ast_hash": "649c5272746188ba04d7009ed31e16e6",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S3ab_rtd_locf.png": {
+    "mtime": 1786554343.5932488,
+    "ast_hash": "52e6b728a81b604fb7241d92cea46c5c",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S3ab_rtd_observed.png": {
+    "mtime": 1786554343.9082866,
+    "ast_hash": "c3ad2e0a65e1d13de7dc105479f63305",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S4a_ambiguity_locf.png": {
+    "mtime": 1786554344.2194064,
+    "ast_hash": "daaebd28e8721d77e013ebf872f79cf3",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S4a_ambiguity_observed.png": {
+    "mtime": 1786554344.594397,
+    "ast_hash": "b10eb1aa474f50430232606fbbd13bcc",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S4b_identifiable_locf.png": {
+    "mtime": 1786554344.958353,
+    "ast_hash": "5cf3a253924027892308feb41b033b37",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S4b_identifiable_observed.png": {
+    "mtime": 1786554345.3057923,
+    "ast_hash": "725806cfd5142fbbd019e13ae7131e3d",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S4c_out_of_domain_locf.png": {
+    "mtime": 1786554345.6745434,
+    "ast_hash": "d47c1db5ad477432c29f97ba1160935d",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S4c_out_of_domain_observed.png": {
+    "mtime": 1786554346.0066996,
+    "ast_hash": "b5f42939bfe0c5de531a29d63af688f5",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S5_inadequacy_locf.png": {
+    "mtime": 1786554346.2700033,
+    "ast_hash": "4f318bc0576a653c05085f4166e1c207",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S5_inadequacy_observed.png": {
+    "mtime": 1786554346.5903554,
+    "ast_hash": "e84345c15955efb96aa68d0cea962718",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S6_resources_locf.png": {
+    "mtime": 1786554346.960641,
+    "ast_hash": "e118f7798a63e8bc77fdc4b6097c11dd",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S7_spatial_modes_locf.png": {
+    "mtime": 1786554347.5863218,
+    "ast_hash": "956fb8009c266e96815758bd26b6ee87",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S7_spatial_modes_observed.png": {
+    "mtime": 1786554347.908464,
+    "ast_hash": "0a9c2890594d67702ed8ba97e2270ed9",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S1_ideal.png": {
+    "mtime": 1786554400.6406121,
+    "ast_hash": "199e96f97f7346bab34e03182ae2a41e",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S2_nmr.png": {
+    "mtime": 1786554401.119181,
+    "ast_hash": "0e01dd3ea96d06fd5d707a87df8755cf",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S3_transport.png": {
+    "mtime": 1786554401.5282607,
+    "ast_hash": "1aebc9ce333bbec3b991963198cad689",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S3ab_delay.png": {
+    "mtime": 1786554401.9670372,
+    "ast_hash": "86025331d55c397e7070739bccde14c0",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S3ab_rtd.png": {
+    "mtime": 1786554402.3539917,
+    "ast_hash": "3a4e84e378c337b17e791c63adc6a395",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S4a_ambiguity.png": {
+    "mtime": 1786554402.8033047,
+    "ast_hash": "f7ee68c56b5450d6c57db4a55d1b351b",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S4c_out_of_domain.png": {
+    "mtime": 1786554403.704968,
+    "ast_hash": "aa54dbf8963e67eab78bd93c6eb7f4ed",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S5_inadequacy.png": {
+    "mtime": 1786554404.1396005,
+    "ast_hash": "aa26bdabf528dec7c02ae28c666e4eb0",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S7_spatial_modes.png": {
+    "mtime": 1786554405.0923579,
+    "ast_hash": "01ff3c3a726b29da1603f15909e121f0",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_model_probs_reliability_S4b_identifiable.png": {
+    "mtime": 1786554348.0901759,
+    "ast_hash": "804fca88b209a857403898798c008033",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_model_probs_reliability_S4c_out_of_domain.png": {
+    "mtime": 1786554348.1850853,
+    "ast_hash": "6a09a11c52f6c07c9c0b209fd6130162",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_pareto_S6_labeled.png": {
+    "mtime": 1786554348.4546707,
+    "ast_hash": "58da4667de02c1dda54e05edde88726a",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_spatial_value.png": {
+    "mtime": 1786554405.6162174,
+    "ast_hash": "fc1c7dc3c248f2f3745ec166d388b86b",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S1_ideal.png": {
+    "mtime": 1786554400.9384155,
+    "ast_hash": "fe1c980dad4ee13a56533df246a35974",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S2_nmr.png": {
+    "mtime": 1786554401.3529263,
+    "ast_hash": "329875252694fd8d629d3e5a8432b311",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S3_transport.png": {
+    "mtime": 1786554401.7570083,
+    "ast_hash": "75819bba005bdce176a17a72dd392fd5",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S3ab_delay.png": {
+    "mtime": 1786554402.1866705,
+    "ast_hash": "a32a70de32c515025c3b31455171fb26",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S3ab_rtd.png": {
+    "mtime": 1786554402.571225,
+    "ast_hash": "ef6f0474edc80900a552fa8a74bdf0c4",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S4a_ambiguity.png": {
+    "mtime": 1786554403.0279744,
+    "ast_hash": "d6702bbf685b513d06df95dfbfa56f51",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S4b_identifiable.png": {
+    "mtime": 1786554403.4838395,
+    "ast_hash": "3ef716ea5ce358f12b9a820817bbffd7",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S4c_out_of_domain.png": {
+    "mtime": 1786554403.9320827,
+    "ast_hash": "2ed136871e4cbd32b9a0c288c8d3b89a",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S5_inadequacy.png": {
+    "mtime": 1786554404.431213,
+    "ast_hash": "9736dbcdb51ac1b2b9539eee0e6bedf2",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S6_resources.png": {
+    "mtime": 1786554404.9026003,
+    "ast_hash": "ea32e442fbd658f073f3f01f2e39998a",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S7_spatial_modes.png": {
+    "mtime": 1786554405.3965356,
+    "ast_hash": "0bd2a71d75b987a7cd85203783647c59",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S1_ideal_per_round.png": {
+    "mtime": 1786554218.21813,
+    "ast_hash": "0adf045aa26aabd11c8113c9cc1f184b",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S1_ideal_per_time.png": {
+    "mtime": 1786554218.7108402,
+    "ast_hash": "c091ad0a93cd54e014d38ae81a4a040a",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S2_nmr_per_acquisition.png": {
+    "mtime": 1786554219.1796715,
+    "ast_hash": "e4e6943faddfc0a4f6481f4628425838",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S2_nmr_per_round.png": {
+    "mtime": 1786554218.9267235,
+    "ast_hash": "7d73e4a205ece806d4fef34cb3069df3",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S2_nmr_per_time.png": {
+    "mtime": 1786554219.3875792,
+    "ast_hash": "32b60f6e21377a0be1fcd2f8ec03f608",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3_transport_per_acquisition.png": {
+    "mtime": 1786554219.8659794,
+    "ast_hash": "c8e4ca6358fbd2887519321b89b30645",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3_transport_per_round.png": {
+    "mtime": 1786554219.6519802,
+    "ast_hash": "325655580d8bc45be0d8b258160d737e",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3_transport_per_time.png": {
+    "mtime": 1786554220.126366,
+    "ast_hash": "e292d95e2d2b73ac7b192d41c6dc2cbc",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3ab_delay_per_acquisition.png": {
+    "mtime": 1786554220.5872943,
+    "ast_hash": "3cd78905dbfdee91e5de2f55f2141739",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3ab_delay_per_round.png": {
+    "mtime": 1786554220.3335261,
+    "ast_hash": "be59d99c5fb6bac2532678f3ab1128b8",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3ab_delay_per_time.png": {
+    "mtime": 1786554220.7901628,
+    "ast_hash": "4c8cc72ef7bdde1459b989bb3b1239eb",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3ab_rtd_per_acquisition.png": {
+    "mtime": 1786554221.2553642,
+    "ast_hash": "806fad880fccd5de73bbfd62b5f800f1",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3ab_rtd_per_round.png": {
+    "mtime": 1786554221.0484455,
+    "ast_hash": "df68dfd3fb282c0b5a67f263b5c731e8",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3ab_rtd_per_time.png": {
+    "mtime": 1786554221.5103552,
+    "ast_hash": "c8d8bbe62f27c82f1adedef42b4d6121",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4a_ambiguity_per_acquisition.png": {
+    "mtime": 1786554221.9862192,
+    "ast_hash": "8e35361fed3718e4930afb83c64c5024",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4a_ambiguity_per_round.png": {
+    "mtime": 1786554221.7259977,
+    "ast_hash": "ac1bf75f7e007947188c1d53299502ad",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4a_ambiguity_per_time.png": {
+    "mtime": 1786554222.19499,
+    "ast_hash": "f8b2c9e73304ccb9469ddfb3e52a4fe0",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4b_identifiable_per_acquisition.png": {
+    "mtime": 1786554222.6598146,
+    "ast_hash": "86da0cb8ad350b14905490dffe82d11c",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4b_identifiable_per_round.png": {
+    "mtime": 1786554222.452321,
+    "ast_hash": "bdcdb81f96b7845621ccdfc3beba0b68",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4b_identifiable_per_time.png": {
+    "mtime": 1786554222.9120371,
+    "ast_hash": "7cd5cd429dd36dd871719623282f8670",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4c_out_of_domain_per_acquisition.png": {
+    "mtime": 1786554223.3667448,
+    "ast_hash": "ec8cfc1c1910bcf72ce46f4af19bcab0",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4c_out_of_domain_per_round.png": {
+    "mtime": 1786554223.1140118,
+    "ast_hash": "f18f84c129179dadb7c259a76b07d238",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4c_out_of_domain_per_time.png": {
+    "mtime": 1786554223.5613,
+    "ast_hash": "dc791868e68ef7ca82931b0be7df3973",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S5_inadequacy_per_acquisition.png": {
+    "mtime": 1786554224.1008039,
+    "ast_hash": "66cb0981a6d8c97cc2a0a7ff9093a9fb",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S5_inadequacy_per_round.png": {
+    "mtime": 1786554223.8345273,
+    "ast_hash": "69f1769c79c6e8aadfee7a350bd39e3a",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S5_inadequacy_per_time.png": {
+    "mtime": 1786554224.3211694,
+    "ast_hash": "ba09fe7ee184def915b69e2d3dc67f0c",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S6_resources_per_acquisition.png": {
+    "mtime": 1786554224.8086627,
+    "ast_hash": "65ca50c33c5b6e581e5da81552c81455",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S6_resources_per_round.png": {
+    "mtime": 1786554224.589575,
+    "ast_hash": "4669c4215b7ccdcaa501f235cbd64a06",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S6_resources_per_time.png": {
+    "mtime": 1786554225.0741346,
+    "ast_hash": "e186a81219ffce4b9a8ea7b7b25f6402",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S7_spatial_modes_per_acquisition.png": {
+    "mtime": 1786554225.5606098,
+    "ast_hash": "62c1f23434ea7af81be4337ee0fb8248",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S7_spatial_modes_per_round.png": {
+    "mtime": 1786554225.296237,
+    "ast_hash": "1d756c8ec02a40ff5eb1c39b298a7b8f",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S7_spatial_modes_per_time.png": {
+    "mtime": 1786554225.7719526,
+    "ast_hash": "78003af7a942751eae81384e42116c1c",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_governor_S5.png": {
+    "mtime": 1786554228.075353,
+    "ast_hash": "bb7140a5473de97ec4930a833eaae8cd",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_model_probs_S4a_ambiguity.png": {
+    "mtime": 1786554226.0067143,
+    "ast_hash": "2fca7eaae04d38054443548233e495ab",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_model_probs_S4c_out_of_domain.png": {
+    "mtime": 1786554226.420026,
+    "ast_hash": "bc456ad959e6203c3cc37c4bbea435d2",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_params_S1_ideal_F.png": {
+    "mtime": 1786554226.7879462,
+    "ast_hash": "ce358c17e845134f3b224449681ca9c9",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_params_S2_nmr_F.png": {
+    "mtime": 1786554227.17735,
+    "ast_hash": "b11b56b45bd29f1149a646795517c577",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_params_S3_transport_F.png": {
+    "mtime": 1786554227.9570143,
+    "ast_hash": "1a82470c85a2b8afea436c38d74264e7",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_params_S4b_identifiable_F.png": {
+    "mtime": 1786554227.560513,
+    "ast_hash": "f4ec73945d53e04d85e4b9f03d3d736e",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_pareto_S6.png": {
+    "mtime": 1786554228.3324776,
+    "ast_hash": "382c9faf2a339bdf0a6a838840084517",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_spatial_modes_S7.png": {
+    "mtime": 1786554228.6745377,
+    "ast_hash": "7e9aa851d6cee9849e4943b88edbacce",
     "semantic_hash": ""
   }
 }

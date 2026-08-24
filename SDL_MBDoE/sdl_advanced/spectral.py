@@ -46,6 +46,7 @@ from math import comb
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
+from functools import lru_cache
 
 # ---------------------------------------------------------------------------
 # Species-name mapping: Layer 1 <-> the D/M/G/aa/w keys of sim_nmr(2).py.
@@ -98,9 +99,20 @@ class AcquisitionSettings:
                                          # of reactor/transfer temperatures)
     ppm_min: float = 0.0
     ppm_max: float = 12.0
-    n_points: int = 4096                 # spectrum grid / complex FID points
-    acquisition_time_s: float = 4.096    # FID mode only; dwell = at/n_points
-    repetition_time_s: float = 15.0      # recycle time (flow/T1 model)
+    #: size of the FINAL returned ppm grid.  This is a DISPLAY/processing
+    #: choice only - it is NOT the number of physically acquired FID points
+    #: and it is NOT the FFT length.  Conflating the three is what let a
+    #: configuration claim 4.096 s while simulating 2.129 s.
+    n_points: int = 4096
+    #: REQUESTED physical FID duration (FID engine only - see below).
+    acquisition_time_s: float = 4.096
+    #: optional explicit override of the acquired complex-point count; None
+    #: derives it from acquisition_time_s x spectral_width_hz
+    n_acquired_complex: Optional[int] = None
+    #: optional explicit FFT length (zero filling); None picks the next
+    #: power of two at or above the acquired count
+    fft_points: Optional[int] = None
+    repetition_time_s: float = 15.0      # recycle delay between scans
     n_scans: int = 1
     engine: str = "analytic"             # "analytic" | "fid"
     fwhm_sharp_hz: float = 1.5           # CAL: carbon-bound linewidth
@@ -120,6 +132,184 @@ class AcquisitionSettings:
 
     def ppm_grid(self) -> np.ndarray:
         return np.linspace(self.ppm_min, self.ppm_max, self.n_points)
+
+    # ---- physical acquisition contract (FID engine) ------------------- #
+    # COMPLEX-SAMPLING CONVENTION, stated once so no hidden factor of two
+    # can creep in: the receiver samples a COMPLEX point every dwell time,
+    # quadrature detection gives a spectral width SW = 1/dwell covering the
+    # full ppm window, and N_acquired complex points occupy
+    # N_acquired x dwell seconds of real instrument time.  Zero filling
+    # lengthens the FFT only - it adds no time, no signal and no noise.
+    #
+    # The ANALYTIC engine builds the frequency-domain lineshape directly
+    # and therefore has no acquisition time at all: none of these
+    # quantities affect it, and it must NOT be described as simulating a
+    # finite acquisition.  They are physical FID settings.
+
+    #: relative tolerance when an explicit n_acquired_complex is checked
+    #: against the requested acquisition time (one dwell period, i.e. the
+    #: rounding you cannot avoid when the product is not an integer)
+    ACQUISITION_ROUNDING_TOL: float = 1.0
+
+    @property
+    def spectral_width_hz(self) -> float:
+        """SW = (ppm window) x (spectrometer frequency)."""
+        return (self.ppm_max - self.ppm_min) * self.spectrometer_MHz
+
+    @property
+    def dwell_time_s(self) -> float:
+        """Complex dwell = 1 / SW."""
+        return 1.0 / self.spectral_width_hz
+
+    @property
+    def resolved_n_acquired_complex(self) -> int:
+        """Number of COMPLEX FID points actually sampled."""
+        if self.n_acquired_complex is not None:
+            return int(self.n_acquired_complex)
+        return max(1, int(round(self.acquisition_time_s
+                                * self.spectral_width_hz)))
+
+    @property
+    def actual_acquisition_time_s(self) -> float:
+        """What the instrument really spends: N_acquired x dwell.  Differs
+        from `acquisition_time_s` by at most one dwell period, because the
+        point count is an integer."""
+        return self.resolved_n_acquired_complex * self.dwell_time_s
+
+    @property
+    def resolved_fft_points(self) -> int:
+        """FFT length >= acquired points; default is the next power of two
+        (zero filling, which interpolates the spectrum but adds no
+        information)."""
+        n_acq = self.resolved_n_acquired_complex
+        if self.fft_points is not None:
+            return int(self.fft_points)
+        return int(2 ** int(np.ceil(np.log2(max(n_acq, 2)))))
+
+    @property
+    def frequency_resolution_hz(self) -> float:
+        """Digital bin spacing of the zero-filled spectrum, SW / N_fft.
+        The TRUE resolution is 1/actual_acquisition_time_s; zero filling
+        makes the grid finer without resolving anything new."""
+        return self.spectral_width_hz / self.resolved_fft_points
+
+    def acquisition_report(self) -> Dict[str, float]:
+        """Requested AND actual acquisition quantities, for the run record.
+
+        Serializing both is what makes it impossible for an archive to
+        claim one acquisition time while having simulated another."""
+        return {
+            "engine": self.engine,
+            "requested_acquisition_time_s": float(self.acquisition_time_s),
+            "actual_acquisition_time_s": float(self.actual_acquisition_time_s),
+            "spectral_width_hz": float(self.spectral_width_hz),
+            "dwell_time_s": float(self.dwell_time_s),
+            "resolved_n_acquired_complex": int(
+                self.resolved_n_acquired_complex),
+            "resolved_fft_points": int(self.resolved_fft_points),
+            "final_spectrum_points": int(self.n_points),
+            "frequency_resolution_hz": float(self.frequency_resolution_hz),
+            "true_resolution_hz": float(1.0 / self.actual_acquisition_time_s),
+            "n_scans": int(self.n_scans),
+            "repetition_time_s": float(self.repetition_time_s),
+            "acquisition_time_affects_spectrum": self.engine == "fid",
+        }
+
+    def __post_init__(self) -> None:
+        if self.spectrometer_MHz <= 0.0:
+            raise ValueError("spectrometer_MHz must be positive.")
+        if self.ppm_max <= self.ppm_min:
+            raise ValueError("ppm_max must exceed ppm_min.")
+        if int(self.n_points) < 2:
+            raise ValueError("n_points (final ppm grid) must be at least 2.")
+        if self.acquisition_time_s <= 0.0:
+            raise ValueError("acquisition_time_s must be positive.")
+        if int(self.n_scans) < 1:
+            raise ValueError("n_scans must be at least 1.")
+        if self.repetition_time_s < 0.0:
+            raise ValueError("repetition_time_s must be non-negative.")
+        if self.engine not in ("analytic", "fid"):
+            raise ValueError(f"Unknown NMR engine '{self.engine}'.")
+        if self.n_acquired_complex is not None:
+            if int(self.n_acquired_complex) < 1:
+                raise ValueError("n_acquired_complex must be at least 1.")
+            implied = int(self.n_acquired_complex) * self.dwell_time_s
+            n_dwells = abs(implied - self.acquisition_time_s) \
+                / self.dwell_time_s
+            if n_dwells > self.ACQUISITION_ROUNDING_TOL:
+                raise ValueError(
+                    f"n_acquired_complex={self.n_acquired_complex} implies an "
+                    f"acquisition time of {implied:.6g} s, but "
+                    f"acquisition_time_s={self.acquisition_time_s:.6g} s was "
+                    f"requested ({n_dwells:.1f} dwell periods apart; the "
+                    f"documented tolerance is "
+                    f"{self.ACQUISITION_ROUNDING_TOL:g}).  Set one or the "
+                    f"other, or make them consistent: "
+                    f"{self.acquisition_time_s:.6g} s x "
+                    f"{self.spectral_width_hz:.6g} Hz = "
+                    f"{self.acquisition_time_s * self.spectral_width_hz:.2f} "
+                    f"complex points.")
+        if self.fft_points is not None:
+            if int(self.fft_points) < self.resolved_n_acquired_complex:
+                raise ValueError(
+                    f"fft_points={self.fft_points} is smaller than the "
+                    f"{self.resolved_n_acquired_complex} acquired complex "
+                    f"points - that would TRUNCATE acquired data, which is "
+                    f"not zero filling.  Use fft_points >= "
+                    f"{self.resolved_n_acquired_complex}.")
+
+
+# --------------------------------------------------------------------------- #
+# Receiver-noise bookkeeping for the FID engine
+# --------------------------------------------------------------------------- #
+@lru_cache(maxsize=32)
+def _noise_grid_factor(n_acq: int, n_fft: int, n_points: int,
+                       ppm_min: float, ppm_max: float,
+                       hz_per_ppm: float) -> float:
+    """Std-dev change caused by RESAMPLING the FFT-bin noise onto the display
+    grid, computed exactly (no Monte Carlo, no fitted constant).
+
+    Zero filling makes neighbouring FFT bins correlated, and `np.interp`
+    then mixes two of them per output point, so the noise standard
+    deviation on the returned grid is not the per-bin one.  Both pieces are
+    known in closed form.
+
+    With per-component time-domain variance sigma_t^2 on N_acq acquired
+    points, zero-filled to N_fft:
+
+        Cov(Re S_j, Re S_k) = sigma_t^2 * sum_{m < N_acq} cos(2 pi (j-k) m / N_fft)
+
+    a Dirichlet kernel.  Writing rho = Cov(adjacent) / Var(bin), an output
+    point that lands a fraction w between two adjacent bins has variance
+
+        Var(bin) * [ (1-w)^2 + w^2 + 2 w (1-w) rho ].
+
+    Averaging that over the display grid gives the squared factor returned
+    here.  It equals 1 when the display grid coincides with the FFT grid,
+    and is < 1 whenever the display grid is coarser (the usual case).
+
+    Dividing the injected time-domain noise by this factor makes the
+    RETURNED spectrum carry exactly the requested `noise_sigma` - the same
+    contract the analytic engine satisfies trivially by adding noise
+    directly to its output grid.  Without it the two engines disagree on
+    what `noise_sigma` means, and the FID-truth validation suite would be
+    comparing spectra at different effective SNR.
+    """
+    m = np.arange(n_acq)
+    var_bin = float(n_acq)                       # sum cos(0) = N_acq
+    cov_adj = float(np.sum(np.cos(2.0 * np.pi * m / n_fft)))
+    rho = cov_adj / var_bin if var_bin > 0 else 0.0
+
+    center = 0.5 * (ppm_min + ppm_max)
+    freq = np.fft.fftshift(np.fft.fftfreq(n_fft, d=1.0 /
+                                          ((ppm_max - ppm_min) * hz_per_ppm)))
+    ppm_axis = center + freq / hz_per_ppm
+    grid = np.linspace(ppm_min, ppm_max, n_points)
+    idx = np.clip(np.searchsorted(ppm_axis, grid) - 1, 0, len(ppm_axis) - 2)
+    span = ppm_axis[idx + 1] - ppm_axis[idx]
+    w = np.clip((grid - ppm_axis[idx]) / span, 0.0, 1.0)
+    var_rel = (1.0 - w) ** 2 + w ** 2 + 2.0 * w * (1.0 - w) * rho
+    return float(np.sqrt(np.mean(var_rel)))
 
 
 # ASSUMED T1 values, s.  Plausible order-of-magnitude for small molecules in
@@ -352,14 +542,17 @@ class NMRSimulator:
         receiver noise -> zero-order phase -> FFT -> real spectrum on the
         SAME ppm grid and amplitude convention as the analytic engine."""
         acq = self.acq
-        n = acq.n_points
-        sw_hz = (acq.ppm_max - acq.ppm_min) * acq.hz_per_ppm
-        dt = 1.0 / sw_hz                                    # complex dwell
-        t = np.arange(n) * dt
+        # PHYSICAL acquisition: N_acq complex points, one per dwell period.
+        # n_points (the display grid) and the FFT length are deliberately
+        # NOT used here - see AcquisitionSettings for the convention.
+        n_acq = acq.resolved_n_acquired_complex
+        n_fft = acq.resolved_fft_points
+        dt = acq.dwell_time_s
+        t = np.arange(n_acq) * dt
         center_ppm = 0.5 * (acq.ppm_min + acq.ppm_max)
         nu = self.nuisance
         g_frac = nu.gaussian_fraction if nu.enabled else 0.0
-        fid = np.zeros(n, dtype=complex)
+        fid = np.zeros(n_acq, dtype=complex)
         for ln in lines:
             f = (ln.ppm - center_ppm) * acq.hz_per_ppm      # offset, Hz
             r2 = np.pi * ln.fwhm_hz                          # 1/T2*
@@ -370,22 +563,49 @@ class NMRSimulator:
                 a_g = (np.pi * ln.fwhm_hz) ** 2 / (4.0 * np.log(2.0))
                 env = (1.0 - g_frac) * env + g_frac * np.exp(-a_g * t ** 2)
             fid += ln.area * env * np.exp(2j * np.pi * f * t)
-        fid[0] *= 0.5                                        # half first point
         if rng is not None and noise_sigma > 0.0:
-            # equivalent frequency-domain sigma = noise_sigma (area/ppm units)
-            sig_t = noise_sigma * np.sqrt(n / 2.0) / (acq.hz_per_ppm * dt * n)
-            eps = (rng.standard_normal(n) + 1j * rng.standard_normal(n))
+            # RECEIVER NOISE, generated ONLY on acquired samples.
+            #
+            # Derivation (complex convention, per-component time-domain std
+            # sigma_t).  The FFT of the zero-filled record is
+            #     S_j = sum_{k < N_acq} fid_k exp(-2 pi i j k / N_fft),
+            # so Var[Re S_j] = N_acq sigma_t^2: the ZERO-FILLED points
+            # contribute nothing, which is exactly why enlarging fft_points
+            # cannot improve SNR.  The spectrum is scaled by
+            # (dt * 2 * hz_per_ppm), giving
+            #     sigma_bin = 2 dt hz_per_ppm sqrt(N_acq) sigma_t.
+            # `_NOISE_GRID_FACTOR` then corrects for the variance reduction
+            # of resampling that (bin-correlated) noise onto the coarser
+            # display grid, so the RETURNED spectrum carries exactly
+            # `noise_sigma` - the same contract the analytic engine honours
+            # by construction.  Both factors are verified numerically in
+            # tests/test_acquisition.py.
+            grid_factor = _noise_grid_factor(
+                n_acq, n_fft, acq.n_points, acq.ppm_min, acq.ppm_max,
+                acq.hz_per_ppm)
+            sig_t = (noise_sigma / grid_factor
+                     / (2.0 * dt * acq.hz_per_ppm * np.sqrt(n_acq)))
+            eps = (rng.standard_normal(n_acq)
+                   + 1j * rng.standard_normal(n_acq))
             phi_ar = nu.noise_ar1 if nu.enabled else 0.0
             if phi_ar > 0.0:                 # colored (AR1) receiver noise
-                for k in range(1, n):
+                for k in range(1, n_acq):
                     eps[k] += phi_ar * eps[k - 1]
-                eps *= np.sqrt(1.0 - phi_ar ** 2)
+                eps *= np.sqrt(1.0 - phi_ar ** 2)   # unit marginal variance
             fid += sig_t * eps
+        # Half-first-point: the standard correction for a one-sided
+        # transform, applied to the COMPLETE record (signal + noise) as a
+        # spectrometer does - still appropriate, since the DC bias it
+        # removes is a property of sampling from t = 0 and is independent of
+        # how many points follow.
+        fid[0] *= 0.5
         fid *= np.exp(1j * phase_rad)
+        # ZERO FILLING to n_fft >= n_acq interpolates the spectrum; it adds
+        # no acquisition time, no signal and no noise.
         # x2: the one-sided FID transform carries half the two-sided
         # Lorentzian area; the half-first-point correction fixes the DC bias
-        spec = np.fft.fftshift(np.fft.fft(fid)) * dt * 2.0   # -> per-Hz units
-        freq = np.fft.fftshift(np.fft.fftfreq(n, d=dt))
+        spec = np.fft.fftshift(np.fft.fft(fid, n=n_fft)) * dt * 2.0
+        freq = np.fft.fftshift(np.fft.fftfreq(n_fft, d=dt))
         ppm_axis = center_ppm + freq / acq.hz_per_ppm
         y = np.interp(self.acq.ppm_grid(), ppm_axis,
                       spec.real * acq.hz_per_ppm)            # per-ppm units

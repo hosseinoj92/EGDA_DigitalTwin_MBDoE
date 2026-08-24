@@ -1939,6 +1939,68 @@ audit's `blind_predictions_long.csv` uses the same scoring bridge, so it
 decomposes exactly the reported number. With geometry design off, the
 scoring bridge is the identical object and the legacy path is untouched.
 
+#### Three corrections from external review
+
+**1. Plug-flow validity is now checked on the reactor in use.** The geometry
+optimizer refuses candidate reactors above t_rad/τ = 10, but the principal
+20 cm open tube runs at **13.3 – 212** across the design flows — the
+framework was holding designed geometries to a criterion its own baseline
+fails. Since axial position → age is the entire information source, a
+radially segregated tube undermines every profile measurement, not just a
+diagnostic. `assert_reactor_validity` now applies the same test to whichever
+reactor actually runs, writes `reactor_validity.csv`, and honours
+`KNOBS["VALIDITY"]["policy"]` (`warn` default / `error` / `ignore`).
+
+The shipped configuration still **fails** it and says so loudly. Packing the
+tube (`GEOMETRY["packing_enabled"] = True`, ε ≈ 0.4) is the fix and makes the
+flagship configuration satisfy its own criterion — but ε also shortens τ,
+which changes conversions and therefore every published number, so it is
+left as a deliberate decision rather than a silent default change.
+
+**2. Transfer-line speciation follows the transfer-line temperature.** The
+post-withdrawal step evaluated rate constants at the line temperature while
+carrying [H⁺] from the *reactor* temperature — catalyst and kinetics at two
+different temperatures, in a framework that ships `ka2_model="tdep"`
+precisely because Ka₂ moves strongly with T. Total sulfate is conserved on
+cooling; its speciation is not. `Layer1Bridge._h_plus_at` re-solves [H⁺] at
+the line temperature and **both** the truth-side propagator and the
+inference-side correction call it, so no artificial mismatch is introduced.
+At 1 M catalyst, 160 °C → 25 °C moves [H⁺] from 0.514 to 0.605 M (+18 %).
+
+**3. The NMR acquisition contract is now physical.** `acquisition_time_s`
+was documented as setting the dwell but never read: the FID engine used
+`n_points` at dwell 1/SW, so a configuration declaring 4.096 s simulated
+**2.129 s**, and changing it did nothing. One field was serving as the
+acquired-sample count, the FFT length *and* the display grid. They are now
+separate, on an explicit complex-sampling convention:
+
+| Quantity | Benchmark value |
+|---|---|
+| `spectral_width_hz` = ppm window × ν₀ | 962.016 Hz |
+| `dwell_time_s` = 1/SW | 1.0395 ms |
+| `resolved_n_acquired_complex` = round(AT × SW) | 3940 |
+| `actual_acquisition_time_s` = N·Δt | 4.0956 s |
+| `resolved_fft_points` (zero filling) | 4096 |
+| `n_points` (display grid only) | 2048 |
+
+Zero filling adds no time, no signal and **no noise** — the receiver noise is
+generated only on acquired samples, with the scaling derived from
+Var[Re S_j] = N_acq σ_t² and corrected for display-grid resampling by an
+exact Dirichlet-kernel factor (no fitted constant). Tests confirm the
+returned spectrum carries the requested σ to within 5 % and that enlarging
+`fft_points` cannot improve SNR. The **analytic engine is bit-identical** to
+before and is documented as having no acquisition time at all.
+
+NMR measurement time is decomposed accordingly:
+`t_spectrum = overhead + n_scans × (recycle + acquisition)`, synchronized
+from `AcquisitionSettings` so the campaign clock cannot disagree with the
+spectrometer. The default overhead (40.9 s) is the residue of the historical
+lumped 60 s, so the shipped clock is unchanged but its composition is now
+explicit; `legacy_fixed_nmr_time_s` restores the old flat value under a
+clear label. `benchmark_config.json` records **requested and actual**
+acquisition quantities, so an archive cannot claim 4.096 s while having
+simulated 2.129 s.
+
 #### The publication audit trail
 
 `CONFIG["audit"] = True` adds a complete, publication-ready record of *how*
@@ -2017,10 +2079,10 @@ second would move the campaign.
 
 ```bash
 cd SDL_MBDoE
-for f in tests/*.py; do python $f; done      # 18 files, all standalone
+for f in tests/*.py; do python $f; done      # 19 files, all standalone
 ```
 
-**171 tests across 18 files, all standalone-runnable and pytest-compatible.**
+**186 tests across 19 files, all standalone-runnable and pytest-compatible.**
 The acceptance criteria they pin down include: existing Layer 1/2 tests unchanged;
 `fixed_equal` ≡ the legacy port layout; reactor-length rescaling; optimized
 positions in-bounds/spaced/unique/deterministic; zero-noise deconvolution
@@ -2049,6 +2111,7 @@ boundary-aware evidence reliability; and survivorship-free aggregation.
 | `test_resource_accounting.py` | 7 | `test_measurement_fault.py` | 4 |
 | `test_parallel.py` | 13 | `test_audit_regression.py` | 13 |
 | `test_design_space.py` | 16 | `test_comparison.py` | 18 |
+| `test_acquisition.py` | 15 | | |
 
 ### 7.7 Troubleshooting
 
@@ -2168,7 +2231,7 @@ SDL_MBDoE/
 ├── run_advanced_campaign.py       Layer 3 demo (Figures A–D)
 ├── run_advanced_benchmark.py      Monte Carlo benchmark (smoke/demo/publication)
 ├── results_advanced_v3/publication/   the §6 run: 40 seeds x budget 8 x 11 scenarios
-└── tests/                             171 tests, 18 files
+└── tests/                             186 tests, 19 files
     ├── self_test.py               20 baseline tests (unchanged)
     ├── test_geometry_packing.py   geometry/packing/observability/ladder (12)
     ├── test_nmr_calibration.py    one public calibration artifact + gate (12)
@@ -2186,7 +2249,8 @@ SDL_MBDoE/
     ├── test_parallel.py           parallel == serial, byte for byte (13)
     ├── test_audit_regression.py   audit ON == audit OFF, exactly (13)
     ├── test_design_space.py       continuous design + knobs + T_line (16)
-    └── test_comparison.py         efficiency analysis + geometry design (18)
+    ├── test_comparison.py         efficiency analysis + geometry design (18)
+    └── test_acquisition.py        acquisition contract, validity, speciation (15)
 
 EGDA_NMR_sim/sim_nmr(2).py         standalone spectrum visualization tool
                                    (NOT used inside the campaign loop)

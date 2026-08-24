@@ -81,7 +81,7 @@ CONFIG = {
     # completed discrete / reactor-temperature-line run and must not be
     # overwritten.  v5 is the first run with the configurable transfer-line
     # temperature (25 C) and the optional continuous design space.
-    "outdir": "results_advanced_v5/publication",
+    "outdir": "results_advanced_v5/discrete/OptimizeGeometry/publication",
     # optional overrides of the mode defaults (None -> use MODES[mode]):
     "seeds": None,
     "budget": None,
@@ -156,16 +156,16 @@ KNOBS = {
     "DESIGN": {
         "T_C_levels": [40, 60, 80, 100, 120, 140, 160],
         "Q_total_mL_min_levels": [0.5, 2.0, 8.0],
-        "C_cat_M_levels": [0.5, 1.0],
-        "C_EGDA_M_levels": [1.0],
-        "C_EGDA_M": 1.0,
+        "C_cat_M_levels": [0.1, 0.5, 1.0, 2.0],
+        "C_EGDA_M_levels": [0.1, 0.5, 1.0, 2.0],
+        "C_EGDA_M": 1.0,                                    # For the fixed-design baseline, the optimizer is not allowed to change it.
         "fixed_design_T_C": [40, 60, 80, 100, 120, 140, 160],
         "nominal_Q_total_mL_min": 1.0,
         "nominal_C_cat_M": 0.5,
         "continuous_bounds": {"T_C": [40.0, 160.0],
                               "Q_total_mL_min": [0.5, 8.0],
-                              "C_cat_M": [0.5, 1.0],
-                              "C_EGDA_M": [1.0, 1.0]},   # lo == hi -> fixed
+                              "C_cat_M": [0.1, 2.0],
+                              "C_EGDA_M": [0.1, 2.0]},   # lo == hi -> fixed
     },
     # CONTINUOUS vs DISCRETE design.  False = the classical grid-only
     # campaign (the published v3 behaviour).  True = the optimizer may
@@ -192,12 +192,12 @@ KNOBS = {
     # in the DECLARED reference reactor (the learned parameters are
     # intrinsic - geometry changes tau(z), never the constants).
     "GEOMETRY_DESIGN": {
-        "enabled": False,
+        "enabled": True,
         "mode": "per_campaign",       # "per_experiment" raises: not implemented
-        "bounds": {"length_m": [0.05, 0.60],
-                   "diameter_m": [0.002, 0.012]},
-        "levels": {"length_m": [0.10, 0.20, 0.40, 0.60],
-                   "diameter_m": [0.004, 0.007, 0.010]},
+        "bounds": {"length_m": [0.06, 0.60],
+                   "diameter_m": [0.004, 0.008]},
+        "levels": {"length_m": [0.06,0.10, 0.20, 0.40, 0.60],
+                   "diameter_m": [0.004, 0.006, 0.008]},
         "resolution": {"length_m": 0.005, "diameter_m": 0.0005},
         "switch_cost_s": 1800.0,
         # Ideality: an open laminar tube violates plug flow when
@@ -207,7 +207,7 @@ KNOBS = {
         # every geometry as a PACKED bed (spherical beads, eps ~ 0.4), the
         # standard engineering fix, which is treated as plug-flow valid
         # under the documented d_p <= d/10, L/d_p >= 100 assumption.
-        "packing": "auto",            # "auto" | True | False
+        "packing": False,            # "auto" | True | False
         "bed_void_fraction": 0.40,
         "max_radial_ratio": 10.0,
         # sizing objective = logdet F(reference design) - resource penalty
@@ -219,6 +219,21 @@ KNOBS = {
                               "lambda_waste_per_mL": 5e-3,
                               "lambda_energy_per_kJ": 0.05},
     },
+
+    # ---- plug-flow validity of the reactor IN USE ------------------------ #
+    # The geometry optimizer rejects candidates above max_radial_ratio; this
+    # applies the same standard to whichever reactor actually runs, so the
+    # baseline is not exempt from the criterion the framework enforces
+    # elsewhere.  "warn" | "error" | "ignore".
+    #
+    # NOTE: the shipped 20 cm OPEN tube FAILS this at every design flow
+    # (t_rad/tau = 13-212 vs a threshold of 10).  Packing it
+    # (GEOMETRY["packing_enabled"] = True, bed_void_fraction 0.4) is the
+    # engineering fix and makes the flagship configuration satisfy its own
+    # criterion; it also shortens tau by eps, which changes conversions and
+    # therefore every published number - a deliberate decision, not a
+    # silent default change.
+    "VALIDITY": {"policy": "warn"},
 
     # ---- conventional-vs-optimized comparison ---------------------------- #
     # Which strategy plays "the conventional method" the methodology must
@@ -263,7 +278,20 @@ KNOBS = {
         "spectrometer_MHz": 80.168,
         "nmr_temperature_C": 27.0,
         "n_points": 2048,
+        # REQUESTED FID duration.  The spectral width is fixed by the ppm
+        # window x spectrometer frequency, so the acquired complex-point
+        # count is round(acquisition_time_s x SW) and the ACTUAL duration
+        # differs by at most one dwell period.  Both are recorded in
+        # benchmark_config.json.  Affects the "fid" engine only - the
+        # analytic engine builds the frequency-domain lineshape directly and
+        # has no acquisition time.
         "acquisition_time_s": 4.096,
+        # None -> derived from acquisition_time_s (recommended).  Setting it
+        # explicitly is validated against the requested time.
+        "n_acquired_complex": None,
+        # None -> next power of two >= acquired points.  Zero filling adds
+        # no time, no signal and no noise.
+        "fft_points": None,
         "repetition_time_s": 15.0,
         "n_scans": 1,
         "engine": "analytic",          # "analytic" | "fid"
@@ -330,7 +358,16 @@ KNOBS = {
         "stabilization_volumes": 3.0,
         "temp_change_s_per_K": 20.0,
         "temp_ambient_C": 25.0,
-        "nmr_acquisition_s": 60.0,
+        # NMR measurement time is DECOMPOSED (see resources.py): the
+        # spectrum duration is overhead + n_scans x (recycle + acquisition),
+        # with the physical terms synchronized from ACQ automatically.  Only
+        # the overhead is a free parameter here; its default is the residue
+        # of the historical lumped 60 s at the shipped acquisition, so the
+        # shipped campaign clock is unchanged but now explicit.
+        "nmr_fixed_overhead_s": 40.9,
+        # LEGACY COMPATIBILITY (labelled): set a number to force a fixed
+        # per-spectrum duration and ignore the decomposition entirely.
+        "legacy_fixed_nmr_time_s": None,
         "capillary_speed_m_s": 0.002,
         "flush_time_s": 30.0,
         "sample_volume_mL": 0.3,
@@ -501,6 +538,10 @@ def main() -> None:
             f"{bm.GEOMETRY['length_m'] * 100:.0f} cm reference reactor")
         _write_rows(bm.geometry_sizing_table(budget),
                     os.path.join(outdir, "geometry_sizing.csv"))
+    # plug-flow validity of the reactor actually in use, at every design
+    # flow - the same criterion the geometry optimizer enforces
+    validity_rows = bm.assert_reactor_validity(geom_scan)
+    _write_rows(validity_rows, os.path.join(outdir, "reactor_validity.csv"))
     diag_bridge = Layer1Bridge(geom_scan, t_ref_K, activity_model="pitzer")
     scan_conds = [OperatingConditions(T, q / 2, q / 2, 1.0, c)
                   for T in (40.0, 100.0, 160.0)
@@ -866,6 +907,13 @@ def main() -> None:
                           if k in scenarios},
             "nmr_nuisance_true": dataclasses.asdict(bm.NMR_NUISANCE_TRUE),
             "acquisition": dataclasses.asdict(bm.ACQ),
+            # REQUESTED **and** ACTUAL acquisition quantities: an archive
+            # cannot claim one acquisition time while having simulated
+            # another (spectral.AcquisitionSettings.acquisition_report)
+            "acquisition_resolved": bm.ACQ.acquisition_report(),
+            "reactor_validity": validity_rows,
+            "nmr_measurement_time": bm.RESOURCE_COSTS.with_acquisition(
+                bm.ACQ).nmr_time_report(),
             "transfer_true": dataclasses.asdict(bm.TRANSFER_TRUE),
         }, fh, indent=2, default=str)
     if audit_on:

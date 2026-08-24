@@ -142,6 +142,11 @@ class AdvancedVirtualLaboratory:
         model = KineticModel(kin)
         inlet = self._bridge._inlet(u, kin)
         T_K = (T_line_C if T_line_C is not None else u.T_C) + 273.15
+        # The line runs at its OWN temperature, so the catalytic [H+] is the
+        # one total sulfate supports THERE - not the reactor's.  Same
+        # correction as the inference side (Layer1Bridge._h_plus_at), so the
+        # two remain structurally comparable.
+        c_h_line = self._bridge._h_plus_at(inlet, kin, T_K)
 
         def propagate(conc: Dict[str, float], tau_s: float
                       ) -> Dict[str, float]:
@@ -149,7 +154,7 @@ class AdvancedVirtualLaboratory:
                 return dict(conc)
             arr = {sp: np.array([conc.get(sp, 0.0)]) for sp in L1_SPECIES}
             out = self._bridge._advance_batch(arr, model, T_K,
-                                              inlet.c_h_plus, tau_s)
+                                              c_h_line, tau_s)
             return {sp: float(out[sp][0]) for sp in L1_SPECIES}
 
         return propagate

@@ -1,0 +1,975 @@
+{
+  "complete": true,
+  "problems": [],
+  "n_round_rows": 10325,
+  "n_campaigns": 1320,
+  "n_duplicate_round_rows": 0,
+  "n_rows_with_nonfinite_param_err": 0,
+  "seeds_expected": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40
+  ],
+  "budget": 8,
+  "by_scenario_strategy": [
+    {
+      "scenario": "S1_ideal",
+      "strategy": "A",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 0,
+      "faulted_seeds": [],
+      "n_short_campaigns": 0,
+      "short_campaigns": []
+    },
+    {
+      "scenario": "S1_ideal",
+      "strategy": "B",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 0,
+      "faulted_seeds": [],
+      "n_short_campaigns": 0,
+      "short_campaigns": []
+    },
+    {
+      "scenario": "S1_ideal",
+      "strategy": "C",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 0,
+      "faulted_seeds": [],
+      "n_short_campaigns": 0,
+      "short_campaigns": []
+    },
+    {
+      "scenario": "S1_ideal",
+      "strategy": "D",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 0,
+      "faulted_seeds": [],
+      "n_short_campaigns": 0,
+      "short_campaigns": []
+    },
+    {
+      "scenario": "S1_ideal",
+      "strategy": "E",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 0,
+      "faulted_seeds": [],
+      "n_short_campaigns": 0,
+      "short_campaigns": []
+    },
+    {
+      "scenario": "S1_ideal",
+      "strategy": "F",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 0,
+      "faulted_seeds": [],
+      "n_short_campaigns": 0,
+      "short_campaigns": []
+    },
+    {
+      "scenario": "S2_nmr",
+      "strategy": "B",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 0,
+      "faulted_seeds": [],
+      "n_short_campaigns": 0,
+      "short_campaigns": []
+    },
+    {
+      "scenario": "S2_nmr",
+      "strategy": "D",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 0,
+      "faulted_seeds": [],
+      "n_short_campaigns": 0,
+      "short_campaigns": []
+    },
+    {
+      "scenario": "S2_nmr",
+      "strategy": "F",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 3,
+      "faulted_seeds": [
+        5,
+        15,
+        25
+      ],
+      "n_short_campaigns": 3,
+      "short_campaigns": [
+        {
+          "seed": 5,
+          "rounds_completed": 4,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 5; campaign paused"
+        },
+        {
+          "seed": 15,
+          "rounds_completed": 5,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 8 positions in round 6; campaign paused"
+        },
+        {
+          "seed": 25,
+          "rounds_completed": 6,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 7; campaign paused"
+        }
+      ]
+    },
+    {
+      "scenario": "S3_transport",
+      "strategy": "D",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 0,
+      "faulted_seeds": [],
+      "n_short_campaigns": 0,
+      "short_campaigns": []
+    },
+    {
+      "scenario": "S3_transport",
+      "strategy": "F-uncorr",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 2,
+      "faulted_seeds": [
+        5,
+        15
+      ],
+      "n_short_campaigns": 2,
+      "short_campaigns": [
+        {
+          "seed": 5,
+          "rounds_completed": 4,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 5; campaign paused"
+        },
+        {
+          "seed": 15,
+          "rounds_completed": 5,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 8 positions in round 6; campaign paused"
+        }
+      ]
+    },
+    {
+      "scenario": "S3_transport",
+      "strategy": "F",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 2,
+      "faulted_seeds": [
+        1,
+        15
+      ],
+      "n_short_campaigns": 2,
+      "short_campaigns": [
+        {
+          "seed": 1,
+          "rounds_completed": 5,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 9 positions in round 6; campaign paused"
+        },
+        {
+          "seed": 15,
+          "rounds_completed": 5,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 8 positions in round 6; campaign paused"
+        }
+      ]
+    },
+    {
+      "scenario": "S3ab_delay",
+      "strategy": "D",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 0,
+      "faulted_seeds": [],
+      "n_short_campaigns": 0,
+      "short_campaigns": []
+    },
+    {
+      "scenario": "S3ab_delay",
+      "strategy": "F",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 2,
+      "faulted_seeds": [
+        15,
+        29
+      ],
+      "n_short_campaigns": 2,
+      "short_campaigns": [
+        {
+          "seed": 15,
+          "rounds_completed": 5,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 8 positions in round 6; campaign paused"
+        },
+        {
+          "seed": 29,
+          "rounds_completed": 6,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 7; campaign paused"
+        }
+      ]
+    },
+    {
+      "scenario": "S3ab_rtd",
+      "strategy": "D",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 0,
+      "faulted_seeds": [],
+      "n_short_campaigns": 0,
+      "short_campaigns": []
+    },
+    {
+      "scenario": "S3ab_rtd",
+      "strategy": "F",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 2,
+      "faulted_seeds": [
+        15,
+        29
+      ],
+      "n_short_campaigns": 2,
+      "short_campaigns": [
+        {
+          "seed": 15,
+          "rounds_completed": 5,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 8 positions in round 6; campaign paused"
+        },
+        {
+          "seed": 29,
+          "rounds_completed": 6,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 7; campaign paused"
+        }
+      ]
+    },
+    {
+      "scenario": "S4a_ambiguity",
+      "strategy": "D",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 10,
+      "n_faulted": 0,
+      "faulted_seeds": [],
+      "n_short_campaigns": 0,
+      "short_campaigns": []
+    },
+    {
+      "scenario": "S4a_ambiguity",
+      "strategy": "F",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 10,
+      "n_faulted": 3,
+      "faulted_seeds": [
+        1,
+        9,
+        15
+      ],
+      "n_short_campaigns": 3,
+      "short_campaigns": [
+        {
+          "seed": 1,
+          "rounds_completed": 9,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 10; campaign paused"
+        },
+        {
+          "seed": 9,
+          "rounds_completed": 7,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 8; campaign paused"
+        },
+        {
+          "seed": 15,
+          "rounds_completed": 4,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 7 positions in round 5; campaign paused"
+        }
+      ]
+    },
+    {
+      "scenario": "S4b_identifiable",
+      "strategy": "D",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 0,
+      "faulted_seeds": [],
+      "n_short_campaigns": 0,
+      "short_campaigns": []
+    },
+    {
+      "scenario": "S4b_identifiable",
+      "strategy": "F",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 5,
+      "faulted_seeds": [
+        1,
+        5,
+        9,
+        15,
+        29
+      ],
+      "n_short_campaigns": 5,
+      "short_campaigns": [
+        {
+          "seed": 1,
+          "rounds_completed": 4,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 5; campaign paused"
+        },
+        {
+          "seed": 5,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 8 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 9,
+          "rounds_completed": 7,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 8; campaign paused"
+        },
+        {
+          "seed": 15,
+          "rounds_completed": 4,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 7 positions in round 5; campaign paused"
+        },
+        {
+          "seed": 29,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 2; campaign paused"
+        }
+      ]
+    },
+    {
+      "scenario": "S4c_out_of_domain",
+      "strategy": "F",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 2,
+      "faulted_seeds": [
+        5,
+        29
+      ],
+      "n_short_campaigns": 2,
+      "short_campaigns": [
+        {
+          "seed": 5,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 8 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 29,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 2; campaign paused"
+        }
+      ]
+    },
+    {
+      "scenario": "S5_inadequacy",
+      "strategy": "D",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 0,
+      "faulted_seeds": [],
+      "n_short_campaigns": 0,
+      "short_campaigns": []
+    },
+    {
+      "scenario": "S5_inadequacy",
+      "strategy": "F-noGovernor",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 4,
+      "faulted_seeds": [
+        5,
+        7,
+        29,
+        35
+      ],
+      "n_short_campaigns": 4,
+      "short_campaigns": [
+        {
+          "seed": 5,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 8 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 7,
+          "rounds_completed": 7,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 7 positions in round 8; campaign paused"
+        },
+        {
+          "seed": 29,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 35,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 2; campaign paused"
+        }
+      ]
+    },
+    {
+      "scenario": "S5_inadequacy",
+      "strategy": "F",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 4,
+      "faulted_seeds": [
+        5,
+        7,
+        29,
+        35
+      ],
+      "n_short_campaigns": 4,
+      "short_campaigns": [
+        {
+          "seed": 5,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 8 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 7,
+          "rounds_completed": 7,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 7 positions in round 8; campaign paused"
+        },
+        {
+          "seed": 29,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 35,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 2; campaign paused"
+        }
+      ]
+    },
+    {
+      "scenario": "S6_resources",
+      "strategy": "D",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 0,
+      "faulted_seeds": [],
+      "n_short_campaigns": 0,
+      "short_campaigns": []
+    },
+    {
+      "scenario": "S6_resources",
+      "strategy": "F",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 3,
+      "faulted_seeds": [
+        5,
+        15,
+        25
+      ],
+      "n_short_campaigns": 3,
+      "short_campaigns": [
+        {
+          "seed": 5,
+          "rounds_completed": 4,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 5; campaign paused"
+        },
+        {
+          "seed": 15,
+          "rounds_completed": 5,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 8 positions in round 6; campaign paused"
+        },
+        {
+          "seed": 25,
+          "rounds_completed": 6,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 7; campaign paused"
+        }
+      ]
+    },
+    {
+      "scenario": "S6_resources",
+      "strategy": "F-res-0.5x",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 1,
+      "faulted_seeds": [
+        15
+      ],
+      "n_short_campaigns": 1,
+      "short_campaigns": [
+        {
+          "seed": 15,
+          "rounds_completed": 5,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 6; campaign paused"
+        }
+      ]
+    },
+    {
+      "scenario": "S6_resources",
+      "strategy": "F-res-1x",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 2,
+      "faulted_seeds": [
+        1,
+        26
+      ],
+      "n_short_campaigns": 2,
+      "short_campaigns": [
+        {
+          "seed": 1,
+          "rounds_completed": 4,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 5; campaign paused"
+        },
+        {
+          "seed": 26,
+          "rounds_completed": 7,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 8; campaign paused"
+        }
+      ]
+    },
+    {
+      "scenario": "S6_resources",
+      "strategy": "F-res-2x",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 1,
+      "faulted_seeds": [
+        5
+      ],
+      "n_short_campaigns": 1,
+      "short_campaigns": [
+        {
+          "seed": 5,
+          "rounds_completed": 2,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 3; campaign paused"
+        }
+      ]
+    },
+    {
+      "scenario": "S6_resources",
+      "strategy": "F-res-4x",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 0,
+      "faulted_seeds": [],
+      "n_short_campaigns": 0,
+      "short_campaigns": []
+    },
+    {
+      "scenario": "S7_spatial_modes",
+      "strategy": "F-zfixed",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 3,
+      "faulted_seeds": [
+        1,
+        5,
+        15
+      ],
+      "n_short_campaigns": 3,
+      "short_campaigns": [
+        {
+          "seed": 1,
+          "rounds_completed": 4,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 5; campaign paused"
+        },
+        {
+          "seed": 5,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 15,
+          "rounds_completed": 5,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 8 positions in round 6; campaign paused"
+        }
+      ]
+    },
+    {
+      "scenario": "S7_spatial_modes",
+      "strategy": "F-zbatch",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 3,
+      "faulted_seeds": [
+        5,
+        15,
+        25
+      ],
+      "n_short_campaigns": 3,
+      "short_campaigns": [
+        {
+          "seed": 5,
+          "rounds_completed": 4,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 5; campaign paused"
+        },
+        {
+          "seed": 15,
+          "rounds_completed": 5,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 8 positions in round 6; campaign paused"
+        },
+        {
+          "seed": 25,
+          "rounds_completed": 6,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 6 positions in round 7; campaign paused"
+        }
+      ]
+    },
+    {
+      "scenario": "S7_spatial_modes",
+      "strategy": "F-zadaptive",
+      "seeds_expected": 40,
+      "seeds_completed": 40,
+      "seeds_missing": [],
+      "rounds_planned": 8,
+      "n_faulted": 40,
+      "faulted_seeds": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40
+      ],
+      "n_short_campaigns": 40,
+      "short_campaigns": [
+        {
+          "seed": 1,
+          "rounds_completed": 2,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 3; campaign paused"
+        },
+        {
+          "seed": 2,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 3,
+          "rounds_completed": 2,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 3; campaign paused"
+        },
+        {
+          "seed": 4,
+          "rounds_completed": 3,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 4; campaign paused"
+        },
+        {
+          "seed": 5,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 6,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 7,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 8,
+          "rounds_completed": 2,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 3; campaign paused"
+        },
+        {
+          "seed": 9,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 10,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 11,
+          "rounds_completed": 6,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 7; campaign paused"
+        },
+        {
+          "seed": 12,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 13,
+          "rounds_completed": 4,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 5; campaign paused"
+        },
+        {
+          "seed": 14,
+          "rounds_completed": 3,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 4; campaign paused"
+        },
+        {
+          "seed": 15,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 16,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 17,
+          "rounds_completed": 6,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 7; campaign paused"
+        },
+        {
+          "seed": 18,
+          "rounds_completed": 5,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 6; campaign paused"
+        },
+        {
+          "seed": 19,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 20,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 21,
+          "rounds_completed": 2,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 3; campaign paused"
+        },
+        {
+          "seed": 22,
+          "rounds_completed": 2,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 3; campaign paused"
+        },
+        {
+          "seed": 23,
+          "rounds_completed": 4,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 5; campaign paused"
+        },
+        {
+          "seed": 24,
+          "rounds_completed": 4,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 5; campaign paused"
+        },
+        {
+          "seed": 25,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 26,
+          "rounds_completed": 2,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 3; campaign paused"
+        },
+        {
+          "seed": 27,
+          "rounds_completed": 5,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 6; campaign paused"
+        },
+        {
+          "seed": 28,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 29,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 30,
+          "rounds_completed": 3,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 4; campaign paused"
+        },
+        {
+          "seed": 31,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 32,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 33,
+          "rounds_completed": 5,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 6; campaign paused"
+        },
+        {
+          "seed": 34,
+          "rounds_completed": 2,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 3; campaign paused"
+        },
+        {
+          "seed": 35,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 36,
+          "rounds_completed": 3,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 4; campaign paused"
+        },
+        {
+          "seed": 37,
+          "rounds_completed": 6,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 7; campaign paused"
+        },
+        {
+          "seed": 38,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        },
+        {
+          "seed": 39,
+          "rounds_completed": 4,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 5; campaign paused"
+        },
+        {
+          "seed": 40,
+          "rounds_completed": 1,
+          "stop_reason": "MEASUREMENT_FAULT: QC rejected 1 positions in round 2; campaign paused"
+        }
+      ]
+    }
+  ]
+}

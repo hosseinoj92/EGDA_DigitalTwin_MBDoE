@@ -13,7 +13,7 @@ candidate outside the admissible box is rejected, never merely penalized).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Dict, List, Optional
 
 import numpy as np
@@ -26,7 +26,31 @@ class ResourceCosts:
     stabilization_volumes: float = 3.0     # reactor volumes to steady state
     temp_change_s_per_K: float = 20.0      # CAL: thermostat ramp rate
     temp_ambient_C: float = 25.0
-    nmr_acquisition_s: float = 60.0        # per spectrum (n_scans folded in)
+    # ---- NMR measurement time, decomposed ------------------------------ #
+    # Previously ONE lumped `nmr_acquisition_s = 60 s` per spectrum, which
+    # was independent of acquisition_time_s / repetition_time_s / n_scans -
+    # so an archive could report an acquisition setting that had no effect
+    # on the campaign clock.  The duration is now
+    #
+    #   t_spectrum = fixed_overhead + n_scans * (recycle + acquisition)
+    #
+    # The physical terms are SYNCHRONIZED from AcquisitionSettings (see
+    # `from_acquisition`), so the spectrometer settings and the campaign
+    # clock cannot disagree.  The overhead is everything the pulse program
+    # does not cover - sample settling in the flow cell, lock/shim, transfer
+    # to the console, processing - and is a CAL assumption: its default is
+    # the residue of the old lumped 60 s at the shipped acquisition
+    # (60 - 1 x (15 + 4.0956) = 40.9 s), so the shipped campaign clock is
+    # unchanged while its composition is now explicit.
+    nmr_fixed_overhead_s: float = 40.9
+    nmr_recycle_s: float = 15.0            # recycle delay between scans
+    nmr_n_scans: int = 1
+    nmr_acquisition_time_s: float = 4.0956  # ACTUAL, from AcquisitionSettings
+    #: LEGACY COMPATIBILITY, clearly labelled: when set, this fixed
+    #: per-spectrum duration is used verbatim and the decomposition above is
+    #: ignored.  Provided only to reproduce archives produced before the
+    #: decomposition existed; it is never the default.
+    legacy_fixed_nmr_time_s: Optional[float] = None
     capillary_speed_m_s: float = 0.002     # CAL: capillary drive speed
     flush_time_s: float = 30.0             # per position change
     sample_volume_mL: float = 0.3          # withdrawn per acquisition
@@ -41,6 +65,41 @@ class ResourceCosts:
     lambda_energy_per_kJ: float = 0.0
     lambda_switch: float = 0.0             # per operating-condition change
     lambda_motion_per_m: float = 0.0       # per m of capillary travel
+
+
+    @property
+    def nmr_spectrum_time_s(self) -> float:
+        """Wall-clock time for ONE spectrum, decomposed as documented."""
+        if self.legacy_fixed_nmr_time_s is not None:
+            return float(self.legacy_fixed_nmr_time_s)
+        return (float(self.nmr_fixed_overhead_s)
+                + max(int(self.nmr_n_scans), 1)
+                * (float(self.nmr_recycle_s)
+                   + float(self.nmr_acquisition_time_s)))
+
+    def nmr_time_report(self) -> Dict[str, float]:
+        """The decomposition, for the run record."""
+        return {"nmr_spectrum_time_s": self.nmr_spectrum_time_s,
+                "nmr_fixed_overhead_s": float(self.nmr_fixed_overhead_s),
+                "nmr_recycle_s": float(self.nmr_recycle_s),
+                "nmr_n_scans": int(self.nmr_n_scans),
+                "nmr_acquisition_time_s": float(self.nmr_acquisition_time_s),
+                "legacy_fixed_nmr_time_s": self.legacy_fixed_nmr_time_s,
+                "model": ("LEGACY fixed per-spectrum time"
+                          if self.legacy_fixed_nmr_time_s is not None
+                          else "overhead + n_scans x (recycle + acquisition)")}
+
+    def with_acquisition(self, acq) -> "ResourceCosts":
+        """Synchronize the physical timing terms with the spectrometer
+        settings, so the campaign clock and the acquisition contract can
+        never drift apart.  `acq` is an AcquisitionSettings; only its
+        ACTUAL acquisition time is used (the requested value differs by up
+        to one dwell period)."""
+        return replace(self,
+                       nmr_recycle_s=float(acq.repetition_time_s),
+                       nmr_n_scans=int(acq.n_scans),
+                       nmr_acquisition_time_s=float(
+                           acq.actual_acquisition_time_s))
 
 
 @dataclass
@@ -126,7 +185,7 @@ class ResourceMeter:
         travel = (abs(z_m - self._last_z_m)
                   if self._last_z_m is not None else 0.0)
         move_s = travel / max(c.capillary_speed_m_s, 1e-12)
-        acq_s = c.nmr_acquisition_s + c.flush_time_s + move_s
+        acq_s = c.nmr_spectrum_time_s + c.flush_time_s + move_s
         feed_mL = Q_total_mL_min / 60.0 * acq_s
         self.events.append(ResourceEvent(
             "reacquisition" if retry else "acquisition", {
@@ -182,7 +241,7 @@ class ResourceMeter:
         travel = float(abs(z_sorted[0] - z_start)
                        + np.sum(np.abs(np.diff(z_sorted))))
         n_acq = len(z_sorted)
-        acq_s = n_acq * (c.nmr_acquisition_s + c.flush_time_s) \
+        acq_s = n_acq * (c.nmr_spectrum_time_s + c.flush_time_s) \
             + travel / max(c.capillary_speed_m_s, 1e-12)
         time_s = ramp_s + stab_s + acq_s
         feed_mL = Q_total_mL_min / 60.0 * time_s
