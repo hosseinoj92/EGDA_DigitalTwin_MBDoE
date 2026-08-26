@@ -982,7 +982,9 @@ def main() -> None:
     total_units = bm.total_cost_units(scenarios, seeds, budget,
                                       len(gov_seeds))
     use_bar = bool(cfg.get("progress", True)) and tqdm is not None
-    bar = (tqdm(total=round(total_units), unit="wu", dynamic_ncols=True,
+    # float total, NOT round(): the updates are floats and their sum is
+    # exactly total_units, so a rounded total lets the bar overshoot 100 %
+    bar = (tqdm(total=float(total_units), unit="wu", dynamic_ncols=True,
                 smoothing=0.05,
                 bar_format="{l_bar}{bar}| {percentage:3.0f}% "
                            "[elapsed {elapsed} | remaining {remaining}]")
@@ -991,7 +993,11 @@ def main() -> None:
 
     def _tick(scenario, strategy, seed, b):
         if bar is not None:
-            bar.update(bm.campaign_cost_units(strategy, b))
+            # clamped to what is left: `sum()` and repeated `+=` over the
+            # same floats can disagree in the last bits, and a bar that
+            # ends at 100.0000001 % emits a warning instead of a result
+            bar.update(min(bm.campaign_cost_units(strategy, b),
+                           max(bar.total - bar.n, 0.0)))
             bar.set_description(f"{scenario}/{strategy} seed{seed}")
 
     # ---- parallel plan --------------------------------------------------- #

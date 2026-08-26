@@ -51,6 +51,11 @@ import time
 
 import numpy as np
 
+try:                                    # progress bar (optional dependency)
+    from tqdm.auto import tqdm
+except ImportError:                     # pragma: no cover - fallback
+    tqdm = None
+
 from sdl import Layer1Bridge
 from sdl_advanced import audit_export as aex
 from sdl_advanced import benchmark as bm
@@ -78,6 +83,15 @@ CONFIG = {
     # Monte-Carlo size of the instrument-level quantification-recovery
     # figure (its own generator, run after the campaign)
     "n_recovery_mc": 120,
+    # Weighted progress bar over the strategies, with % done and an ETA.
+    # One tick per COMPLETED campaign, weighted by
+    # bm.campaign_cost_units(strategy, budget) - equal weights would look
+    # stalled on F, which costs roughly seven times an A campaign.
+    "progress": True,
+    # Per-round campaign lines.  Left ON by default: this runner exists to
+    # watch ONE campaign in detail, and the bar is drawn on stderr while
+    # these go to stdout, so they coexist.  Turn it off for a clean bar.
+    "verbose_rounds": True,
 }
 
 # ========================================================================= #
@@ -664,18 +678,41 @@ def main() -> None:
     truth_predict = _truth_predictor(spec, geom)
     store_spectra = spec.observation_mode == "nmr"
 
+    # ---- progress bar ---------------------------------------------------- #
+    # Weighted by the SAME per-strategy cost model the benchmark's bar uses,
+    # so the percentage tracks work rather than campaign count.  It is pure
+    # telemetry: it reads a clock and a counter and touches nothing else.
+    verbose_rounds = bool(cfg.get("verbose_rounds", True))
+    total_units = sum(bm.campaign_cost_units(s, budget) for s in strategies)
+    # float total, NOT round(): the updates are floats and their sum is
+    # exactly total_units, so a rounded total lets the bar overshoot 100 %
+    bar = (tqdm(total=float(total_units), unit="wu", dynamic_ncols=True,
+                smoothing=0.05,
+                bar_format="{l_bar}{bar}| {percentage:3.0f}% "
+                           "[elapsed {elapsed} | remaining {remaining}]")
+           if bool(cfg.get("progress", True)) and tqdm is not None else None)
+    say = (lambda msg: (tqdm.write(msg) if bar is not None else print(msg)))
+
     recs = []
     for strategy in strategies:
-        print(f"\nStrategy {strategy}:")
+        if bar is not None:
+            bar.set_description(f"{spec.name}/{strategy}")
+        say(f"\nStrategy {strategy}:")
         # ONE passive recorder per campaign: it collects what cannot be
         # recovered afterwards (discarded design candidates, the spatial
         # information curves, per-round timings) and changes nothing -
         # tests/test_audit_regression.py asserts the bit-identity.
         recorder = AuditRecorder(spec.name, strategy, seed, bm.SPECIES)
         res, lab, extra = bm.run_one_campaign(
-            spec, strategy, seed, budget, verbose=True,
+            spec, strategy, seed, budget, verbose=verbose_rounds,
             store_spectra=store_spectra, recorder=recorder,
             store_transfer_log=True)
+        if bar is not None:
+            # clamped to what is left: `sum()` and repeated `+=` over the
+            # same floats can disagree in the last bits, and a bar that
+            # ends at 100.0000001 % emits a warning instead of a result
+            bar.update(min(bm.campaign_cost_units(strategy, budget),
+                           max(bar.total - bar.n, 0.0)))
         # ---- POST-CAMPAIGN derivation (audit_export.py) ------------------ #
         spatial_mode = _spatial_mode_of(spec, strategy)
         audit = aex.collect_campaign(
@@ -697,6 +734,14 @@ def main() -> None:
             truth=dict(spec.truth), truth_predict=truth_predict))
 
     # ---- machine-readable record ----------------------------------------- #
+    # The bar closes HERE, not at the end of the run: everything after this
+    # point is reporting, and a bar that sat at 100 % through ten seconds of
+    # figure drawing would be measuring the wrong thing.
+    if bar is not None:
+        bar.n = bar.total          # snap to 100% (the weights are estimates)
+        bar.refresh()
+        bar.close()
+        bar = None
     print("\n" + "-" * 74)
     print("Campaign record")
     out = _write_tables(recs, paths)
