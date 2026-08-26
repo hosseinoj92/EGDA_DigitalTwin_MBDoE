@@ -435,8 +435,8 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/run_advanced_benchmark.py": {
-    "mtime": 1787739857.7433844,
-    "ast_hash": "30a51392f6f0fbacd36074831e543da3",
+    "mtime": 1787747210.196864,
+    "ast_hash": "ac23f5e6adc803e2c414096221afea1e",
     "semantic_hash": ""
   },
   "SDL_MBDoE/run_advanced_campaign.py": {
@@ -460,8 +460,8 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/benchmark.py": {
-    "mtime": 1787739848.9613695,
-    "ast_hash": "cbf91bd25789108bf3819fc0484a3f96",
+    "mtime": 1787744583.990971,
+    "ast_hash": "b4a1aad91d56546266791330d8c72c6f",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/controller.py": {
@@ -605,13 +605,13 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/audit_export.py": {
-    "mtime": 1787739857.7293413,
-    "ast_hash": "c477b17e7cd9309d179c60de45379075",
+    "mtime": 1787744567.148021,
+    "ast_hash": "6e6a91c6eac917ce393c36a980669ee2",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/audit_summary.py": {
-    "mtime": 1787673692.7990599,
-    "ast_hash": "df749be16f63c2abd42e3a1f033fd799",
+    "mtime": 1787747274.2863622,
+    "ast_hash": "fbf94e13fcf9e661d993219febf872f2",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/nmr_examples.py": {
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/efficiency.py": {
-    "mtime": 1787673692.799572,
-    "ast_hash": "9de53efc1b65aba4af3fdc2a19e37477",
+    "mtime": 1787747274.2859397,
+    "ast_hash": "88463f043abd689f48b1c3a6b0283acb",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_comparison.py": {
@@ -1120,8 +1120,8 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/campaign_export.py": {
-    "mtime": 1787742396.1905518,
-    "ast_hash": "fa310c35caba8711d8604ca9a72f2473",
+    "mtime": 1787744567.1623747,
+    "ast_hash": "11cbfe465901170c973a1dc141cf01e9",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/campaign_figures.py": {
@@ -1287,6 +1287,26 @@
   "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_transport_ablation.png": {
     "mtime": 1787673692.7950635,
     "ast_hash": "a6d63c3ea3d4a2b49b4765f29c7bb1d8",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/sdl_advanced/benchmark_export.py": {
+    "mtime": 1787747274.2866397,
+    "ast_hash": "515e7d1cc0001e6e34eed201ba3bfdf9",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/sdl_advanced/benchmark_figures.py": {
+    "mtime": 1787747150.5719728,
+    "ast_hash": "82879e349f98ecd1b5fc74129ee8e3c0",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/sdl_advanced/benchmark_html.py": {
+    "mtime": 1787746131.1974738,
+    "ast_hash": "815aa685413523a4be2e1dc32dec58bf",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/tests/test_benchmark_report.py": {
+    "mtime": 1787747385.5019257,
+    "ast_hash": "7d43670babac7c6787405ebf48564ad9",
     "semantic_hash": ""
   }
 }

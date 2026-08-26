@@ -70,6 +70,8 @@ import numpy as np
 
 from sdl.campaign import StrategyResult
 
+from . import audit_export as aex
+
 #: subdirectories of the campaign output root
 LAYOUT = ("config", "data", "figures", "spectra", "report")
 
@@ -859,47 +861,12 @@ def transfer_rows(recs: Sequence[CampaignRecord]) -> List[Dict]:
     post-campaign validation artifact and nothing in the loop can see it."""
     rows: List[Dict] = []
     for rec_c in recs:
-        lab = rec_c.lab
-        if not rec_c.has_truth or lab is None or \
-                not hasattr(lab, "reveal_transfer_log"):
+        if not rec_c.has_truth:
             continue
-        log = lab.reveal_transfer_log()
-        for e in log:
-            for sp in e.get("c_reactor_M", {}):
-                c_r = _f(e["c_reactor_M"].get(sp, np.nan))
-                c_c = _f(e.get("c_cell_M", {}).get(sp, np.nan))
-                c_m = _f(e.get("c_measured_M", {}).get(sp, np.nan))
-                sig = _f(e.get("sigma_M", {}).get(sp, np.nan))
-                rows.append({
-                    **rec_c.tag(),
-                    "acquisition_index": int(e.get("acquisition_index", 0)),
-                    "reacquisition": int(e.get("reacquisition", 0)),
-                    "z_m": _f(e.get("z_m", np.nan)),
-                    "z_over_L": (_f(e.get("z_m", np.nan)) / rec_c.length_m
-                                 if rec_c.length_m else float("nan")),
-                    "T_C": _f(e.get("T_C", np.nan)),
-                    "Q_total_mL_min": _f(e.get("Q_total_mL_min", np.nan)),
-                    "C_EGDA_M": _f(e.get("C_EGDA_M", np.nan)),
-                    "C_cat_M": _f(e.get("C_cat_M", np.nan)),
-                    "T_line_C": _f(e.get("T_line_C", np.nan)),
-                    "transfer_enabled": int(e.get("transfer_enabled", 0)),
-                    "mean_tau_line_s": _f(e.get("mean_tau_line_s", np.nan)),
-                    "species": sp,
-                    "c_reactor_true_M": c_r,
-                    "c_cell_true_M": c_c,
-                    "c_measured_M": c_m,
-                    "sigma_M": sig,
-                    "transport_delta_M": c_c - c_r,
-                    "quantification_delta_M": c_m - c_c,
-                    "total_delta_M": c_m - c_r,
-                    "transport_delta_sigma": ((c_c - c_r) / sig
-                                              if sig > 0 else float("nan")),
-                    "quantification_delta_sigma": ((c_m - c_c) / sig
-                                                   if sig > 0
-                                                   else float("nan")),
-                    "qc_flags": ";".join(str(x) for x in
-                                         (e.get("qc_flags") or [])),
-                })
+        # ONE implementation, shared with the benchmark's audit trail
+        rows += aex.transfer_decomposition_rows(
+            rec_c.spec, rec_c.strategy, rec_c.seed, rec_c.lab,
+            rec_c.length_m)
     return rows
 
 

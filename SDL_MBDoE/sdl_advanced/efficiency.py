@@ -41,9 +41,23 @@ function of its input rows.
 
 from __future__ import annotations
 
+import zlib
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
+
+
+def stable_seed(key) -> int:
+    """A reproducible bootstrap seed derived from a column identity.
+
+    NOT `hash()`.  CPython randomizes the hash of strings and of tuples
+    containing them once per process (PYTHONHASHSEED), so a seed derived
+    from `hash()` differs between two runs of the same configuration and the
+    confidence intervals move with it - a reported interval that changes
+    between two reads of the same data is worse than no interval at all.
+    CRC-32 of the key's repr is stable across processes, platforms and
+    Python versions, which is the only property required here."""
+    return int(zlib.crc32(repr(key).encode("utf-8")) & 0x7FFFFFFF)
 
 #: cumulative resource columns carried on every per-round row
 RESOURCE_KEYS = ("time_s", "egda_mol", "acid_mol", "waste_mL", "energy_kJ",
@@ -289,7 +303,7 @@ def summarize_budget_to_target(btt: List[Dict]) -> List[Dict]:
                "frac_reached": n_reached / n_seeds if n_seeds else float("nan")}
         for k in RESOURCE_KEYS:
             a = _agg([r[f"ratio_{k}"] for r in paired],
-                     seed=abs(hash((scen, strat, metric, target, k))) % 2**31)
+                     seed=stable_seed((scen, strat, metric, target, k)))
             row[f"ratio_{k}_median"] = a["median"]
             row[f"ratio_{k}_q25"] = a["q25"]
             row[f"ratio_{k}_q75"] = a["q75"]
@@ -317,7 +331,7 @@ def summarize_matched_resource(mr: List[Dict]) -> List[Dict]:
                "n_seeds": len(sel)}
         for metric in METRICS:
             a = _agg([r[f"improvement_factor_{metric}"] for r in sel],
-                     seed=abs(hash((scen, strat, resource, metric))) % 2**31)
+                     seed=stable_seed((scen, strat, resource, metric)))
             row[f"improvement_{metric}_median"] = a["median"]
             row[f"improvement_{metric}_q25"] = a["q25"]
             row[f"improvement_{metric}_q75"] = a["q75"]

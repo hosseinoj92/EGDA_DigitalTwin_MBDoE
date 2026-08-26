@@ -16,6 +16,8 @@ Table inventory (one dict of row-lists per campaign; the runner concatenates
 across campaigns and writes one CSV each):
 
     design_history            one row per assimilated acquisition
+    transfer_decomposition_long  one row per (acquisition, species), only
+                              where the laboratory kept a transfer log
     model_probabilities_long  one row per (round, candidate model)
     governor_diagnostics_long one row per round
     posterior_covariance_long one row per (round, parameter pair)
@@ -41,8 +43,8 @@ TABLES = ("design_history", "design_candidate_scores",
           "model_probabilities_long", "governor_diagnostics_long",
           "blind_predictions_long", "posterior_covariance_long",
           "identifiability_summary", "nmr_measurements_long",
-          "nmr_calibration_by_seed", "resource_events_long",
-          "controller_timing")
+          "nmr_calibration_by_seed", "transfer_decomposition_long",
+          "resource_events_long", "controller_timing")
 
 
 def _empty() -> Dict[str, List[Dict]]:
@@ -428,6 +430,67 @@ def blind_prediction_rows(spec, strategy: str, seed: int, res,
 
 
 # ------------------------------------------------------------------------- #
+# 6b. transfer-line decomposition (SIMULATION VALIDATION ONLY)
+# ------------------------------------------------------------------------- #
+def transfer_decomposition_rows(spec, strategy: str, seed: int, lab,
+                                length_m: float = 0.0) -> List[Dict]:
+    """Reactor sampling point -> NMR cell -> reported concentration, one row
+    per acquisition and species.
+
+    This is the ONLY place transport distortion and quantification error can
+    be told apart, because it is the only place both intermediate states
+    exist.  Both are truth-side, so the record exists only where the
+    laboratory was asked to keep one (`InstrumentConfig.store_transfer_log`,
+    off by default) and is read through `reveal_transfer_log()`, which
+    counts as a truth reveal exactly like `reveal_truth()`.  Nothing in the
+    closed loop can reach it: the log is private to the instrument and this
+    function runs after the campaign has returned.
+    """
+    rows: List[Dict] = []
+    if lab is None or not hasattr(lab, "reveal_transfer_log"):
+        return rows
+    log = lab.reveal_transfer_log()
+    if not log:
+        return rows
+    L = float(length_m or getattr(lab, "length_m", 0.0) or 0.0)
+    for e in log:
+        z = _f(e.get("z_m", np.nan))
+        for sp in e.get("c_reactor_M", {}):
+            c_r = _f(e["c_reactor_M"].get(sp, np.nan))
+            c_c = _f(e.get("c_cell_M", {}).get(sp, np.nan))
+            c_m = _f(e.get("c_measured_M", {}).get(sp, np.nan))
+            sig = _f(e.get("sigma_M", {}).get(sp, np.nan))
+            rows.append({
+                **_tag(spec, strategy, seed),
+                "acquisition_index": int(e.get("acquisition_index", 0)),
+                "reacquisition": int(e.get("reacquisition", 0)),
+                "z_m": z, "z_over_L": z / L if L else float("nan"),
+                "T_C": _f(e.get("T_C", np.nan)),
+                "Q_total_mL_min": _f(e.get("Q_total_mL_min", np.nan)),
+                "C_EGDA_M": _f(e.get("C_EGDA_M", np.nan)),
+                "C_cat_M": _f(e.get("C_cat_M", np.nan)),
+                "T_line_C": _f(e.get("T_line_C", np.nan)),
+                "transfer_enabled": int(e.get("transfer_enabled", 0)),
+                "mean_tau_line_s": _f(e.get("mean_tau_line_s", np.nan)),
+                "species": sp,
+                "c_reactor_true_M": c_r,
+                "c_cell_true_M": c_c,
+                "c_measured_M": c_m,
+                "sigma_M": sig,
+                "transport_delta_M": c_c - c_r,
+                "quantification_delta_M": c_m - c_c,
+                "total_delta_M": c_m - c_r,
+                "transport_delta_sigma": ((c_c - c_r) / sig if sig > 0
+                                          else float("nan")),
+                "quantification_delta_sigma": ((c_m - c_c) / sig if sig > 0
+                                               else float("nan")),
+                "qc_flags": ";".join(str(x) for x in
+                                     (e.get("qc_flags") or [])),
+            })
+    return rows
+
+
+# ------------------------------------------------------------------------- #
 # 7. resource events
 # ------------------------------------------------------------------------- #
 def resource_event_rows(spec, strategy: str, seed: int, lab) -> List[Dict]:
@@ -507,6 +570,8 @@ def collect_campaign(spec, strategy: str, seed: int, res, lab, extra,
     out["blind_predictions_long"] = blind_prediction_rows(
         spec, strategy, seed, res, conds, z_val, species, y_true,
         scoring_bridge=scoring_bridge)
+    out["transfer_decomposition_long"] = transfer_decomposition_rows(
+        spec, strategy, seed, lab, length_m)
     out["resource_events_long"] = resource_event_rows(spec, strategy, seed,
                                                       lab)
     out["nmr_calibration_by_seed"] = calibration_rows(spec, strategy, seed,

@@ -4,17 +4,41 @@ Main EGDA advanced benchmark (corrected framework, v3 outputs).
 Runs the scenario suite of sdl_advanced.benchmark in one of three modes
 ("smoke" seconds / "demo" default / "publication" many seeds), with
 common-random-number seed lists shared across strategies, and writes a NEW
-results directory (never silently overwriting the previous reference run):
+results directory (never silently overwriting the previous reference run).
 
-  results_advanced_v3/benchmark/
-    benchmark_rounds.csv          every per-round metric, every campaign
-    benchmark_params.csv          per-parameter posterior rows (#13)
-    strategy_table.csv/.txt       distributional summary (median/IQR/CI)
-    paired_comparisons.csv        per-seed paired differences + P(better)
-    governor_validation.json      measured FP rate + detection rounds
-    quantification_validation.csv suites A/B/FID (bias/RMSE/coverage)
-    figure_* ...                  the figure set (see FIGURES in README)
-    benchmark_config.json         exact reproduction record
+THE OUTPUT TREE.  One root - <results_root>/<run_kind>/<run_label>, or an
+explicit CONFIG["outdir"] - organized as:
+
+  config/    run_manifest.json, benchmark_config.json, features_resolved.json,
+             reactor_validity.csv/.txt, geometry_sizing.csv,
+             equilibrium_observability.csv   - what the run was asked to do
+  data/      the RESULT tables: benchmark_rounds.csv, benchmark_params.csv,
+             campaign_status.csv, strategy_table.csv/.txt,
+             paired_comparisons.csv, quantification_validation.csv,
+             governor_validation.json, convergence_summary.csv,
+             run_integrity_report.json, plus the run-level summaries
+             (benchmark_master_summary, parameter_performance_summary,
+             design_selection_distribution, paired_seed_differences,
+             robustness_summary, model_discrimination_summary,
+             nmr_performance_summary, transfer_effect_summary,
+             resource_summary, scenario_strategy_matrix) and
+             data/comparison/ (budget-to-target, matched resource,
+             design trajectories, headline comparison)
+  figures/   overview/ scenarios/ parameters/ design/ measurement/
+             robustness/ resources/
+  audit/     the RAW per-campaign audit trail (design/, inference/,
+             governor/, measurement/, resources/, validation/), the NMR
+             examples and the reproducibility manifest
+  report/    benchmark_report.html - the readable account, generated
+             entirely from the files above
+
+RAW BEATS SUMMARY.  Everything under audit/ and the per-round tables in
+data/ are authoritative; every summary is an aggregate of them, produced
+after the compute phase by pure functions of saved rows.  The reporting
+layer draws no random number beyond the fixed-seed bootstraps the benchmark
+already uses for its own confidence intervals, so it cannot move a
+scientific result - tests/test_audit_regression.py asserts that for matched
+seeds.
 
 Parallelism: set CONFIG["n_workers"].  Campaigns are independent and each is
 a pure function of (scenario, strategy, seed, budget), so they are spread
@@ -68,6 +92,9 @@ except ImportError:                     # pragma: no cover - fallback
 from sdl_advanced import audit_export as aex                      # noqa: E402
 from sdl_advanced import audit_summary as asum                   # noqa: E402
 from sdl_advanced import benchmark as bm                         # noqa: E402
+from sdl_advanced import benchmark_export as bex                 # noqa: E402
+from sdl_advanced import benchmark_figures as bfig               # noqa: E402
+from sdl_advanced import benchmark_html as bhtml                 # noqa: E402
 from sdl_advanced import efficiency as eff                       # noqa: E402
 from sdl_advanced import nmr_examples as nex                     # noqa: E402
 from sdl_advanced import parallel as par                         # noqa: E402
@@ -138,6 +165,13 @@ CONFIG = {
     # nmr_measurements_long.csv and posterior_covariance_long.csv.
     "audit": True,
     "audit_examples": True,     # the three representative NMR spectra
+    # TRUTH-SIDE transfer record for the transport scenarios, which is what
+    # lets the report separate TRANSPORT distortion from NMR QUANTIFICATION
+    # error after the run.  It is a passive, private log read only by the
+    # post-campaign export (`reveal_transfer_log`, counted exactly like
+    # `reveal_truth`), so it changes no result - only memory and disk, and
+    # only for scenarios that actually have a transfer line.
+    "transfer_audit": True,
 }
 
 # ========================================================================= #
@@ -688,21 +722,64 @@ KNOBS = {
     },
 }
 
-#: audit tables grouped into subdirectories so the trail stays navigable
+#: audit tables grouped into subdirectories so the trail stays navigable.
+#: These are the RAW, authoritative per-campaign records; everything the
+#: summary layer produces is an aggregate of them and lives in data/.
 AUDIT_LAYOUT = {
     "design": ("design_history", "design_candidate_scores",
                "spatial_candidate_scores"),
     "inference": ("model_probabilities_long", "posterior_covariance_long",
                   "identifiability_summary"),
     "governor": ("governor_diagnostics_long",),
-    "measurement": ("nmr_measurements_long", "nmr_calibration_by_seed"),
+    "measurement": ("nmr_measurements_long", "nmr_calibration_by_seed",
+                    "transfer_decomposition_long"),
     "resources": ("resource_events_long", "controller_timing"),
     "validation": ("blind_predictions_long",),
 }
 
 
-#: files whose presence means "a run already lives here"
-_RUN_MARKERS = ("benchmark_config.json", "run_manifest.json",
+#: the output tree.  ONE root (the existing results_root / run_kind /
+#: run_label logic decides it); everything below is organized inside it, and
+#: no file is written anywhere else.
+LAYOUT = {
+    "config": ("config",),
+    "data": ("data",),
+    "comparison": ("data", "comparison"),
+    "fig_overview": ("figures", "overview"),
+    "fig_scenarios": ("figures", "scenarios"),
+    "fig_parameters": ("figures", "parameters"),
+    "fig_design": ("figures", "design"),
+    "fig_measurement": ("figures", "measurement"),
+    "fig_robustness": ("figures", "robustness"),
+    "fig_resources": ("figures", "resources"),
+    "audit": ("audit",),
+    "report": ("report",),
+}
+
+
+#: the transport ABLATION LADDER, in the order the effects are switched on.
+#: Only the rungs a run actually contains are used, so a partial scenario
+#: list still produces a meaningful ladder.
+TRANSPORT_LADDER = ("S2_nmr", "S3ab_delay", "S3ab_rtd", "S3_transport")
+
+
+def prepare_layout(outdir: str) -> dict:
+    """Create the subdirectories and return {key: absolute path}."""
+    paths = {"root": outdir}
+    for key, parts in LAYOUT.items():
+        p = os.path.join(outdir, *parts)
+        os.makedirs(p, exist_ok=True)
+        paths[key] = p
+    return paths
+
+
+#: files whose presence means "a run already lives here".  Both the current
+#: layout and the flat layout earlier runs wrote are listed, so an archive
+#: produced by any version of this runner is still protected.
+_RUN_MARKERS = (os.path.join("config", "benchmark_config.json"),
+                os.path.join("config", "run_manifest.json"),
+                os.path.join("data", "benchmark_rounds.csv"),
+                "benchmark_config.json", "run_manifest.json",
                 "benchmark_rounds.csv")
 
 
@@ -763,14 +840,21 @@ def git_provenance() -> dict:
 
 
 def _write_rows(rows, path):
+    """One CSV, returning the path it wrote (or None for an empty table).
+
+    Columns are sorted, so two runs of the same configuration produce
+    byte-comparable files; the return value is what lets the report link
+    exactly the files that exist."""
     if not rows:
-        return
+        return None
     keys = sorted({k for r in rows for k in r})
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w", newline="", encoding="utf-8") as fh:
-        w = csv.DictWriter(fh, fieldnames=keys)
+        w = csv.DictWriter(fh, fieldnames=keys, restval="")
         w.writeheader()
         w.writerows(rows)
     print(f"saved: {os.path.relpath(path)}")
+    return path
 
 
 def _mean_curves(rows, scenario, x_key="round"):
@@ -826,6 +910,7 @@ def main() -> None:
     budget = cfg["budget"] or mode["budget"]
     scenarios = cfg["scenarios"] or mode["scenarios"]
     outdir = resolve_outdir(cfg)
+    paths = prepare_layout(outdir)
     t0 = time.time()
 
     # ---- derive the measurement-systematic allowance ONCE --------------- #
@@ -872,10 +957,10 @@ def main() -> None:
         "features_resolved": resolved_knobs["FEATURES_RESOLVED"],
         "systematic_allowance_derivation": allowance,
     }
-    with open(os.path.join(outdir, "run_manifest.json"), "w",
+    with open(os.path.join(paths["config"], "run_manifest.json"), "w",
               encoding="utf-8") as fh:
         json.dump(manifest, fh, indent=2, default=str)
-    with open(os.path.join(outdir, "features_resolved.json"), "w",
+    with open(os.path.join(paths["config"], "features_resolved.json"), "w",
               encoding="utf-8") as fh:
         json.dump(resolved_knobs["FEATURES_RESOLVED"], fh, indent=2,
                   default=str)
@@ -963,15 +1048,16 @@ def main() -> None:
             f"blind scoring stays in the declared "
             f"{bm.GEOMETRY['length_m'] * 100:.0f} cm reference reactor")
         _write_rows(bm.geometry_sizing_table(budget),
-                    os.path.join(outdir, "geometry_sizing.csv"))
+                    os.path.join(paths["config"], "geometry_sizing.csv"))
     # plug-flow validity of the reactor actually in use, at every design
     # flow - the same criterion the geometry optimizer enforces
     # Rows are ARCHIVED FIRST, then the policy is applied: a run that stops
     # because its reactor is inadmissible must still leave behind the table
     # that says why.
     validity_rows = bm.reactor_validity_rows(geom_scan)
-    _write_rows(validity_rows, os.path.join(outdir, "reactor_validity.csv"))
-    with open(os.path.join(outdir, "reactor_validity.txt"), "w",
+    _write_rows(validity_rows,
+                os.path.join(paths["config"], "reactor_validity.csv"))
+    with open(os.path.join(paths["config"], "reactor_validity.txt"), "w",
               encoding="utf-8") as fh:
         fh.write(bm.rv.explain(geom_scan, bm.permitted_flows(),
                                bm.validity_criteria()))
@@ -982,8 +1068,8 @@ def main() -> None:
                   for T in (40.0, 100.0, 160.0)
                   for q in (0.5, 2.0, 8.0) for c in (0.5, 1.0)]
     scan = obs.domain_scan(diag_bridge, guess, scan_conds)
-    obs.write_scan_csv(scan, os.path.join(outdir,
-                                          "equilibrium_observability.csv"))
+    obs.write_scan_csv(scan, os.path.join(
+        paths["config"], "equilibrium_observability.csv"))
     verdict = obs.verdict(scan)
     print("\nEquilibrium observability over the admissible domain "
           f"(geometry {geom_scan['length_m']*100:.0f} cm x "
@@ -1002,7 +1088,8 @@ def main() -> None:
         [OperatingConditions(160.0, 0.25, 0.25, 1.0, 1.0),
          OperatingConditions(100.0, 0.25, 0.25, 1.0, 1.0),
          OperatingConditions(160.0, 4.0, 4.0, 1.0, 1.0)],
-        os.path.join(outdir, "figure_equilibrium_observability.png"))
+        os.path.join(paths["fig_overview"],
+                     "figure_equilibrium_observability.png"))
 
     # ---- well-specified scenarios: truth must lie inside the candidate box #
     for scen in scenarios:
@@ -1042,7 +1129,8 @@ def main() -> None:
             rows, prows, status, bundle = bm.run_scenario(
                 spec, seeds, budget,
                 verbose=bool(cfg.get("verbose_rounds", False)),
-                progress=_tick, executor=executor, audit=audit_on)
+                progress=_tick, executor=executor, audit=audit_on,
+                transfer_audit=bool(cfg.get("transfer_audit", True)))
             runtimes[scen] = time.time() - t_s
             all_rows.extend(rows)
             all_prows.extend(prows)
@@ -1060,12 +1148,21 @@ def main() -> None:
         if executor is not None:
             executor.shutdown(wait=True)
     # ==== REPORTING PHASE (serial) ======================================= #
+    # Everything below reads FINISHED results.  No campaign code runs, no
+    # RNG is touched except the fixed-seed bootstraps the benchmark already
+    # uses for its own confidence intervals, and nothing here can move a
+    # scientific number.  The raw per-round and audit tables are written
+    # first and stay authoritative; every summary after them is an
+    # aggregate of those files and says so.
 
-    _write_rows(all_rows, os.path.join(outdir, "benchmark_rounds.csv"))
-    _write_rows(all_prows, os.path.join(outdir, "benchmark_params.csv"))
+    # ---- (0) the raw record --------------------------------------------- #
+    _write_rows(all_rows, os.path.join(paths["data"], "benchmark_rounds.csv"))
+    _write_rows(all_prows, os.path.join(paths["data"],
+                                        "benchmark_params.csv"))
     # campaign status: completion / fault / QC counts per strategy x seed,
     # so accuracy is always read next to completion rate (no survivorship)
-    _write_rows(all_status, os.path.join(outdir, "campaign_status.csv"))
+    _write_rows(all_status, os.path.join(paths["data"],
+                                         "campaign_status.csv"))
     for scen in scenarios:
         st = [s for s in all_status if s["scenario"] == scen]
         for strat in sorted({s["strategy"] for s in st}):
@@ -1081,63 +1178,36 @@ def main() -> None:
     for scen in scenarios:
         table.extend(bm.summarize_final(all_rows, scen))
     text = rep.write_strategy_table(
-        table, os.path.join(outdir, "strategy_table.csv"))
+        table, os.path.join(paths["data"], "strategy_table.csv"))
     print("\n" + text)
 
-    # ---- paired comparisons (common random numbers) --------------------- #
-    pairs = []
-    for scen, a, b in (("S1_ideal", "F", "D"), ("S2_nmr", "F", "D"),
-                       ("S3_transport", "F", "D"),
-                       ("S3_transport", "F", "F-uncorr"),
-                       ("S6_resources", "F-res-1x", "F")):
-        if scen in scenarios:
-            for metric in ("blind_rmse_M", "param_err_pct"):
-                pc = bm.paired_comparison(all_rows, scen, a, b, metric)
-                if pc:
-                    pairs.append(pc)
-    _write_rows(pairs, os.path.join(outdir, "paired_comparisons.csv"))
+    # ---- (2) the audit trail, RAW ---------------------------------------- #
+    # Written before any aggregate, because every aggregate below is derived
+    # from these tables and a reader must be able to check one against the
+    # other.
+    audit_tables = (audit_all or {})
+    if audit_on:
+        for sub, tables_ in AUDIT_LAYOUT.items():
+            os.makedirs(os.path.join(paths["audit"], sub), exist_ok=True)
+            for t in tables_:
+                _write_rows(audit_tables.get(t, []),
+                            os.path.join(paths["audit"], sub, f"{t}.csv"))
 
-    # ---- (2,3,4) convergence vs round / acquisitions / time ------------- #
-    for scen in scenarios:
-        if scen not in {r["scenario"] for r in all_rows}:
-            continue
-        curves = _mean_curves(all_rows, scen)
-        rep.figure_e_convergence(
-            curves, "round",
-            os.path.join(outdir, f"figure_conv_{scen}_per_round.png"))
-        for x_key, tag in (("nmr_acquisitions", "per_acquisition"),
-                           ("time_s", "per_time")):
-            cur2 = {s: dict(c, **{x_key: c[x_key]})
-                    for s, c in curves.items()}
-            rep.figure_e_convergence(
-                cur2, x_key,
-                os.path.join(outdir, f"figure_conv_{scen}_{tag}.png"))
+    # ---- (3) run integrity ------------------------------------------------ #
+    integrity = asum.run_integrity_report(all_rows, all_status, scenarios,
+                                          seeds, budget, bm.SCENARIOS)
+    with open(os.path.join(paths["data"], "run_integrity_report.json"),
+              "w") as fh:
+        json.dump(integrity, fh, indent=2, default=str)
+    if not integrity["complete"]:
+        print("  RUN INTEGRITY: " + "; ".join(integrity["problems"]))
+    else:
+        print(f"  run integrity OK: {integrity['n_campaigns']} campaigns, "
+              f"{integrity['n_round_rows']} round rows, no gaps")
 
-    # ---- (6) model probabilities / entropy vs round (S4a, S4b) ---------- #
-    for scen in ("S4a_ambiguity", "S4b_identifiable",
-                 "S4c_out_of_domain"):
-        if scen not in scenarios:
-            continue
-        curves = _mean_curves(all_rows, scen)
-        rep.figure_e_convergence(
-            curves, "round",
-            os.path.join(outdir, f"figure_model_probs_{scen}.png"),
-            panels=(("p_correct", "P(correct model)"),
-                    ("model_entropy", "model entropy / nats"),
-                    ("param_err_pct", "parameter error / %"),
-                    ("blind_rmse_M", "blind RMSE / M")))
-
-    # ---- (7) parameter posterior evolution (#13) ------------------------ #
-    for scen, strat in (("S1_ideal", "F"), ("S2_nmr", "F"),
-                        ("S4b_identifiable", "F"), ("S3_transport", "F")):
-        if scen in scenarios:
-            rep.figure_param_evolution(
-                all_prows, scen, strat,
-                os.path.join(outdir, f"figure_params_{scen}_{strat}.png"))
-
-    # ---- (11) governor diagnostics + MC validation ---------------------- #
-    # (the campaigns themselves ran in the compute phase above)
-    with open(os.path.join(outdir, "governor_validation.json"), "w") as fh:
+    # ---- (4) governor Monte-Carlo validation ------------------------------ #
+    with open(os.path.join(paths["data"], "governor_validation.json"),
+              "w") as fh:
         json.dump(gov, fh, indent=2)
     print(f"\ngovernor MC validation ({len(gov_seeds)} seeds): "
           f"false-inadequacy campaign rate = "
@@ -1152,177 +1222,398 @@ def main() -> None:
     print(f"    detection carried by: {gov['detection_drivers']}")
     if gov["false_alarm_drivers"]:
         print(f"    false alarms carried by: {gov['false_alarm_drivers']}")
-    if "S5_inadequacy" in scenarios:
-        s5 = [r for r in all_rows if r["scenario"] == "S5_inadequacy"]
-        seed0 = seeds[0]
-        naive = [r for r in s5 if r["strategy"] == "D"
-                 and r["seed"] == seed0]
-        govd = [r for r in s5 if r["strategy"] == "F"
-                and r["seed"] == seed0]
-        if naive and govd:
-            trip = next((r["round"] for r in govd
-                         if r["gov_state"] == "MODEL_INADEQUATE"), None)
-            rep.figure_f_inadequacy(
-                [r["round"] for r in naive],
-                [min(r["max_rel_ci_pct"], 1e4) for r in naive],
-                [r["param_err_pct"] for r in naive],
-                [g["gov_score"] for g in govd],
-                [g["gov_state"] for g in govd], trip,
-                os.path.join(outdir, "figure_governor_S5.png"))
 
-    # ---- (12) resource Pareto (S6 lambda sweep) ------------------------- #
-    if "S6_resources" in scenarios:
-        finals6 = _finals(all_rows, "S6_resources")
-        rep.figure_g_resources(
-            {k: v for k, v in finals6.items() if "blind_rmse_M" in v},
-            os.path.join(outdir, "figure_pareto_S6.png"))
-
-    # ---- (13) transport ablation ---------------------------------------- #
-    ab = {}
-    for scen, label in (("S3ab_delay", "delay + reaction (plug)"),
-                        ("S3ab_rtd", "+ RTD dispersion"),
-                        ("S3_transport", "+ carryover (full)")):
-        if scen in scenarios:
-            f = _finals(all_rows, scen)
-            ab[label] = {s: f[s]["blind_rmse_M"] for s in ("D", "F")
-                         if s in f and "blind_rmse_M" in f[s]}
-    if ab:
-        rep.figure_transport_ablation(
-            ab, os.path.join(outdir, "figure_transport_ablation.png"))
-
-    # ---- (14) spatial-mode comparison (S7) ------------------------------ #
-    if "S7_spatial_modes" in scenarios:
-        curves = _mean_curves(all_rows, "S7_spatial_modes")
-        rep.figure_e_convergence(
-            curves, "nmr_acquisitions",
-            os.path.join(outdir, "figure_spatial_modes_S7.png"),
-            panels=(("param_err_pct", "parameter error / %"),
-                    ("blind_rmse_M", "blind RMSE / M"),
-                    ("spatial_samples", "axial samples used"),
-                    ("time_s", "campaign time / s")))
-        # (5) selected z/L by round comes from the demo runner's Figure B;
-        # here the CSV carries the per-round z counts per mode
-
-    # ---- (9,10) quantification validation + spectra --------------------- #
+    # ---- (5) quantification validation ------------------------------------ #
+    qv_rows = []
     if cfg["run_quant_validation"]:
         t_v = time.time()
         results = val.run_validation(bm.ACQ, bm.NMR_NUISANCE_TRUE,
                                      bm.GEOMETRY, bm.T_REF_C + 273.15,
                                      __import__("sdl").literature_guess(
                                          bm.T_REF_C + 273.15), seed=0)
-        _write_rows(val.validation_rows(results),
-                    os.path.join(outdir, "quantification_validation.csv"))
+        qv_rows = val.validation_rows(results)
+        _write_rows(qv_rows, os.path.join(paths["data"],
+                                          "quantification_validation.csv"))
         print(f"quantification validation done in {time.time() - t_v:.0f} s")
 
-    # ==== PUBLICATION AUDIT TRAIL ======================================== #
-    # Pure reporting: everything below reads finished results.  No campaign
-    # code runs, so nothing here can move a scientific number.
-    if audit_on:
-        adir = os.path.join(outdir, "audit")
-        for sub, tables in AUDIT_LAYOUT.items():
-            os.makedirs(os.path.join(adir, sub), exist_ok=True)
-            for t in tables:
-                _write_rows(audit_all.get(t, []),
-                            os.path.join(adir, sub, f"{t}.csv"))
-        # -- convergence summary: observed AND carried-forward ------------ #
-        conv = asum.convergence_summary_rows(all_rows, all_status, budget)
-        _write_rows(conv, os.path.join(adir, "convergence_summary.csv"))
-        # -- scenario-level publication figures --------------------------- #
-        fdir = os.path.join(adir, "figures")
-        os.makedirs(fdir, exist_ok=True)
-        for scen in scenarios:
-            for basis in ("locf", "observed"):
-                rep.figure_convergence_band(
-                    conv, scen,
-                    os.path.join(fdir, f"figure_band_{scen}_{basis}.png"),
-                    basis=basis)
-        for scen in ("S4a_ambiguity", "S4b_identifiable",
-                     "S4c_out_of_domain"):
-            if scen not in scenarios:
+    # ==== AGGREGATION ===================================================== #
+    # One dict of row-lists, keyed by the CSV base name it is written to, so
+    # the tables the report reads and the tables on disk cannot diverge.
+    print("\n=== aggregating the run summary")
+    conv = asum.convergence_summary_rows(all_rows, all_status, budget)
+    paired_seed = bex.paired_seed_rows(all_rows, bm.SCENARIOS)
+    paired_sum = bex.paired_summary_rows(paired_seed)
+    master = bex.master_summary_rows(
+        all_rows, all_status, all_prows,
+        audit_tables.get("model_probabilities_long", []),
+        audit_tables.get("governor_diagnostics_long", []), bm.SCENARIOS)
+    design_hist = audit_tables.get("design_history", [])
+    tables = {
+        "benchmark_master_summary": master,
+        "parameter_performance_summary": bex.parameter_performance_rows(
+            all_prows, audit_tables.get("identifiability_summary", []),
+            audit_tables.get("posterior_covariance_long", [])),
+        "design_selection_distribution": bex.design_selection_rows(
+            design_hist),
+        "design_selection_by_round": bex.design_by_round_rows(design_hist),
+        "paired_seed_differences": paired_seed,
+        "paired_comparison_summary": paired_sum,
+        "robustness_summary": bex.robustness_rows(
+            all_rows, all_status, all_prows,
+            audit_tables.get("governor_diagnostics_long", []),
+            audit_tables.get("nmr_measurements_long", []),
+            audit_tables.get("model_probabilities_long", []), bm.SCENARIOS),
+        "model_discrimination_summary": bex.model_discrimination_rows(
+            audit_tables.get("model_probabilities_long", []), all_rows,
+            bm.SCENARIOS),
+        "nmr_performance_summary": bex.nmr_performance_rows(
+            audit_tables.get("nmr_measurements_long", [])),
+        "nmr_by_round": bex.nmr_by_round_rows(
+            audit_tables.get("nmr_measurements_long", [])),
+        "transfer_effect_summary": bex.transfer_effect_rows(
+            all_rows, TRANSPORT_LADDER, bm.SCENARIOS),
+        "transfer_decomposition_summary":
+            bex.transfer_decomposition_summary_rows(
+                audit_tables.get("transfer_decomposition_long", [])),
+        "resource_summary": bex.resource_summary_rows(
+            all_rows, audit_tables.get("resource_events_long", [])),
+        "scenario_strategy_matrix": bex.matrix_rows(master),
+        "convergence_summary": conv,
+        "quantification_validation": qv_rows,
+        "strategy_table": table,
+    }
+
+    # ---- conventional vs optimized: budget-to-target and matched resource #
+    # Generalized over WHATEVER strategies each scenario defines, compared
+    # against that scenario's own declared reference - never a hard-coded
+    # pair.
+    btt_all, mr_all, traj_all = [], [], []
+    for scen in scenarios:
+        spec = bm.SCENARIOS[scen]
+        ref = bm.reference_strategy(scen)
+        strats = list(spec.strategies)
+        btt_all += eff.budget_to_target_rows(all_rows, scen, strats, ref,
+                                             seeds, bm.COMPARISON["targets"])
+        mr_all += eff.matched_resource_rows(all_rows, scen, strats, ref,
+                                            seeds)
+        traj_all += eff.trajectory_rows(all_rows, design_hist, scen, ref)
+    btt_sum = eff.summarize_budget_to_target(btt_all)
+    mr_sum = eff.summarize_matched_resource(mr_all)
+    tables["headline_comparison"] = eff.headline_rows(btt_sum, mr_sum)
+    comparison_tables = {
+        "budget_to_target": btt_all,
+        "budget_to_target_summary": btt_sum,
+        "accuracy_at_matched_resource": mr_all,
+        "accuracy_at_matched_resource_summary": mr_sum,
+        "design_trajectory": traj_all,
+        "headline_comparison": tables["headline_comparison"],
+    }
+
+    # ---- the legacy paired-comparison table, now over every strategy ----- #
+    pairs = []
+    for scen in scenarios:
+        ref = bm.reference_strategy(scen)
+        for strat in bm.SCENARIOS[scen].strategies:
+            if strat == ref:
                 continue
-            spec = bm.SCENARIOS[scen]
+            for metric in ("blind_rmse_M", "param_err_pct"):
+                pc = bm.paired_comparison(all_rows, scen, strat, ref, metric)
+                if pc:
+                    pairs.append(pc)
+    tables["paired_comparisons"] = pairs
+
+    # ---- write every aggregate ------------------------------------------- #
+    files = {}
+    for name, rows_ in tables.items():
+        files[name] = _write_rows(rows_,
+                                  os.path.join(paths["data"], f"{name}.csv"))
+    for name, rows_ in comparison_tables.items():
+        files[name] = _write_rows(
+            rows_, os.path.join(paths["comparison"], f"{name}.csv"))
+    files.update({
+        "run_manifest": os.path.join(paths["config"], "run_manifest.json"),
+        "benchmark_config": os.path.join(paths["config"],
+                                         "benchmark_config.json"),
+        "features_resolved": os.path.join(paths["config"],
+                                          "features_resolved.json"),
+        "reactor_validity": os.path.join(paths["config"],
+                                         "reactor_validity.csv"),
+        "benchmark_rounds": os.path.join(paths["data"],
+                                         "benchmark_rounds.csv"),
+        "benchmark_params": os.path.join(paths["data"],
+                                         "benchmark_params.csv"),
+        "campaign_status": os.path.join(paths["data"],
+                                        "campaign_status.csv"),
+        "governor_validation": os.path.join(paths["data"],
+                                            "governor_validation.json"),
+        "run_integrity_report": os.path.join(paths["data"],
+                                             "run_integrity_report.json"),
+        "model_probabilities": os.path.join(paths["audit"], "inference",
+                                            "model_probabilities_long.csv"),
+    })
+
+    # ==== FIGURES ========================================================== #
+    print("=== drawing the figure set")
+    figs: dict = {}
+
+    def _put(key, path):
+        if path:
+            figs[key] = path
+
+    # ---- overview -------------------------------------------------------- #
+    _put("overview_accuracy", bfig.figure_overview_accuracy(
+        master, os.path.join(paths["fig_overview"],
+                             "figure_overview_accuracy.png")))
+    for metric, _label, _lower in bex.MATRIX_METRICS:
+        _put(f"matrix_{metric}", bfig.figure_matrix(
+            tables["scenario_strategy_matrix"], metric,
+            os.path.join(paths["fig_overview"], f"figure_matrix_{metric}.png"),
+            log_scale=metric in ("blind_rmse_M_median", "median_time_s_s",
+                                 "max_rel_ci_pct_median")))
+
+    # ---- per-scenario ----------------------------------------------------- #
+    for scen in scenarios:
+        if scen not in {r["scenario"] for r in all_rows}:
+            continue
+        ref = bm.reference_strategy(scen)
+        curves = _mean_curves(all_rows, scen)
+        path = os.path.join(paths["fig_scenarios"],
+                            f"figure_conv_{scen}_per_round.png")
+        rep.figure_e_convergence(curves, "round", path)
+        _put(f"conv_round_{scen}", path)
+        for x_key, tag, key in (("nmr_acquisitions", "per_acquisition",
+                                 "conv_acq"),
+                                ("time_s", "per_time", "conv_time")):
+            path = os.path.join(paths["fig_scenarios"],
+                                f"figure_conv_{scen}_{tag}.png")
+            rep.figure_e_convergence({s: dict(c) for s, c in curves.items()},
+                                     x_key, path)
+            _put(f"{key}_{scen}", path)
+        for basis in ("locf", "observed"):
+            path = os.path.join(paths["fig_scenarios"],
+                                f"figure_band_{scen}_{basis}.png")
+            rep.figure_convergence_band(conv, scen, path, basis=basis)
+            _put(f"band_{basis}_{scen}", path)
+        path = os.path.join(paths["fig_design"],
+                            f"figure_efficiency_{scen}.png")
+        rep.figure_efficiency(all_rows, btt_sum, mr_sum, scen, ref, path)
+        _put(f"efficiency_{scen}", path)
+        path = os.path.join(paths["fig_design"],
+                            f"figure_trajectory_{scen}.png")
+        rep.figure_design_trajectory(traj_all, scen,
+                                     int(bm.COMPARISON["trajectory_seed"]),
+                                     ref, path)
+        _put(f"trajectory_{scen}", path)
+        _put(f"paired_{scen}", bfig.figure_paired_seeds(
+            paired_seed, paired_sum, scen,
+            os.path.join(paths["fig_overview"], f"figure_paired_{scen}.png")))
+        # design behaviour
+        _put(f"design_distribution_{scen}", bfig.figure_design_distribution(
+            tables["design_selection_distribution"], scen,
+            os.path.join(paths["fig_design"],
+                         f"figure_design_distribution_{scen}.png")))
+        _put(f"design_joint_{scen}", bfig.figure_design_joint(
+            design_hist, scen,
+            os.path.join(paths["fig_design"],
+                         f"figure_design_joint_{scen}.png")))
+        _put(f"spatial_density_{scen}", bfig.figure_spatial_density(
+            tables["design_selection_distribution"], scen,
+            os.path.join(paths["fig_design"],
+                         f"figure_spatial_density_{scen}.png")))
+        _put(f"design_by_round_{scen}", bfig.figure_design_by_round(
+            tables["design_selection_by_round"], scen,
+            os.path.join(paths["fig_design"],
+                         f"figure_design_by_round_{scen}.png")))
+        # parameters
+        _put(f"parameter_performance_{scen}", bfig.figure_parameter_performance(
+            tables["parameter_performance_summary"], scen,
+            os.path.join(paths["fig_parameters"],
+                         f"figure_parameter_performance_{scen}.png")))
+        # resources
+        _put(f"resource_summary_{scen}", bfig.figure_resource_summary(
+            tables["resource_summary"], scen,
+            os.path.join(paths["fig_resources"],
+                         f"figure_resource_summary_{scen}.png")))
+        _put(f"resource_components_{scen}", bfig.figure_resource_components(
+            all_rows, scen,
+            os.path.join(paths["fig_resources"],
+                         f"figure_resource_components_{scen}.png")))
+        # model-probability reliability, where the scenario has an ensemble
+        spec = bm.SCENARIOS[scen]
+        if len(getattr(spec, "family", ()) or ()) > 1:
+            path = os.path.join(paths["fig_scenarios"],
+                                f"figure_model_probs_reliability_{scen}.png")
             rep.figure_model_probability_reliability(
-                audit_all.get("model_probabilities_long", []), scen,
-                os.path.join(fdir, f"figure_model_probs_reliability_{scen}.png"),
+                audit_tables.get("model_probabilities_long", []), scen, path,
                 truth_in_family=bool(spec.well_specified),
                 tracked=spec.track_correct_model or "")
-        if "S6_resources" in scenarios:
-            f6 = _finals(all_rows, "S6_resources")
-            rep.figure_pareto_labeled(
-                {k: v for k, v in f6.items() if "blind_rmse_M" in v},
-                os.path.join(fdir, "figure_pareto_S6_labeled.png"))
-        # -- conventional vs optimized: the "what did it buy" analysis ---- #
-        cdir = os.path.join(adir, "comparison")
-        os.makedirs(cdir, exist_ok=True)
-        btt_all, mr_all, traj_all = [], [], []
-        for scen in scenarios:
-            spec = bm.SCENARIOS[scen]
-            ref = bm.reference_strategy(scen)
-            strats = [x for x in spec.strategies]
-            btt = eff.budget_to_target_rows(all_rows, scen, strats, ref,
-                                            seeds, bm.COMPARISON["targets"])
-            mr = eff.matched_resource_rows(all_rows, scen, strats, ref, seeds)
-            traj = eff.trajectory_rows(
-                all_rows, audit_all.get("design_history", []), scen, ref)
-            btt_all += btt
-            mr_all += mr
-            traj_all += traj
-        btt_sum = eff.summarize_budget_to_target(btt_all)
-        mr_sum = eff.summarize_matched_resource(mr_all)
-        _write_rows(btt_all, os.path.join(cdir, "budget_to_target.csv"))
-        _write_rows(btt_sum, os.path.join(cdir, "budget_to_target_summary.csv"))
-        _write_rows(mr_all, os.path.join(cdir, "accuracy_at_matched_resource.csv"))
-        _write_rows(mr_sum, os.path.join(cdir,
-                                         "accuracy_at_matched_resource_summary.csv"))
-        _write_rows(traj_all, os.path.join(cdir, "design_trajectory.csv"))
-        _write_rows(eff.headline_rows(btt_sum, mr_sum),
-                    os.path.join(cdir, "headline_comparison.csv"))
-        for scen in scenarios:
-            ref = bm.reference_strategy(scen)
-            rep.figure_efficiency(
-                all_rows, btt_sum, mr_sum, scen, ref,
-                os.path.join(fdir, f"figure_efficiency_{scen}.png"))
-            rep.figure_design_trajectory(
-                traj_all, scen, int(bm.COMPARISON["trajectory_seed"]), ref,
-                os.path.join(fdir, f"figure_trajectory_{scen}.png"))
-        if "S7_spatial_modes" in scenarios:
-            rep.figure_spatial_value(
-                all_rows, "S7_spatial_modes",
-                os.path.join(fdir, "figure_spatial_value.png"))
+            _put(f"model_probs_reliability_{scen}", path)
+            path = os.path.join(paths["fig_scenarios"],
+                                f"figure_model_probs_{scen}.png")
+            rep.figure_e_convergence(
+                curves, "round", path,
+                panels=(("p_correct", "P(correct model)"),
+                        ("model_entropy", "model entropy / nats"),
+                        ("param_err_pct", "parameter error / %"),
+                        ("blind_rmse_M", "blind RMSE / M")))
+            _put(f"model_probs_{scen}", path)
+        # per-parameter convergence bands, for every strategy that ran
+        for strat in sorted({r["strategy"] for r in all_prows
+                             if r["scenario"] == scen}):
+            path = os.path.join(paths["fig_parameters"],
+                                f"figure_params_{scen}_{strat}.png")
+            rep.figure_param_evolution(all_prows, scen, strat, path)
+            _put(f"param_evolution_{scen}_{strat}", path)
+            for x_key, x_label, tag in (
+                    ("round", "campaign round", "round"),
+                    ("nmr_acquisitions", "NMR acquisitions", "acq"),
+                    ("time_s", "campaign time / s", "time")):
+                _put(f"param_band_{scen}_{strat}_{tag}",
+                     bfig.figure_parameter_bands(
+                         all_prows, scen, strat,
+                         os.path.join(
+                             paths["fig_parameters"],
+                             f"figure_param_band_{scen}_{strat}_{tag}.png"),
+                         x_key=x_key, x_label=x_label, rows=all_rows))
 
-        # -- domain checks ------------------------------------------------- #
+    # ---- cross-cutting ---------------------------------------------------- #
+    _put("precision_vs_accuracy", bfig.figure_precision_vs_accuracy(
+        tables["parameter_performance_summary"],
+        os.path.join(paths["fig_parameters"],
+                     "figure_precision_vs_accuracy.png")))
+    _put("nmr_performance", bfig.figure_nmr_performance(
+        tables["nmr_performance_summary"],
+        os.path.join(paths["fig_measurement"],
+                     "figure_nmr_performance.png")))
+    _put("quantification_validation", bfig.figure_quantification_validation(
+        qv_rows, os.path.join(paths["fig_measurement"],
+                              "figure_quantification_validation.png")))
+    _put("transfer_ablation", bfig.figure_transfer_ablation_ladder(
+        tables["transfer_effect_summary"],
+        os.path.join(paths["fig_measurement"],
+                     "figure_transport_ablation.png")))
+    _put("transfer_decomposition", bfig.figure_transfer_decomposition(
+        tables["transfer_decomposition_summary"],
+        os.path.join(paths["fig_measurement"],
+                     "figure_transfer_decomposition.png")))
+    _put("robustness_dashboard", bfig.figure_robustness_dashboard(
+        tables["robustness_summary"],
+        os.path.join(paths["fig_robustness"],
+                     "figure_robustness_dashboard.png")))
+    _put("governor_validation", bfig.figure_governor_validation(
+        gov, os.path.join(paths["fig_robustness"],
+                          "figure_governor_validation.png")))
+    _put("model_discrimination", bfig.figure_model_discrimination(
+        tables["model_discrimination_summary"],
+        os.path.join(paths["fig_scenarios"],
+                     "figure_model_discrimination.png")))
+
+    # ---- scenario-specific figures the framework already had -------------- #
+    if "S5_inadequacy" in scenarios:
+        s5 = [r for r in all_rows if r["scenario"] == "S5_inadequacy"]
+        seed0 = seeds[0]
+        naive = [r for r in s5 if r["strategy"] == "D" and r["seed"] == seed0]
+        govd = [r for r in s5 if r["strategy"] == "F" and r["seed"] == seed0]
+        if naive and govd:
+            trip = next((r["round"] for r in govd
+                         if r["gov_state"] == "MODEL_INADEQUATE"), None)
+            path = os.path.join(paths["fig_scenarios"],
+                                "figure_governor_S5.png")
+            rep.figure_f_inadequacy(
+                [r["round"] for r in naive],
+                [min(r["max_rel_ci_pct"], 1e4) for r in naive],
+                [r["param_err_pct"] for r in naive],
+                [g["gov_score"] for g in govd],
+                [g["gov_state"] for g in govd], trip, path)
+            _put("governor_S5", path)
+    if "S6_resources" in scenarios:
+        finals6 = _finals(all_rows, "S6_resources")
+        pts = {k: v for k, v in finals6.items() if "blind_rmse_M" in v}
+        path = os.path.join(paths["fig_resources"], "figure_pareto_S6.png")
+        rep.figure_g_resources(pts, path)
+        _put("pareto_S6", path)
+        path = os.path.join(paths["fig_resources"],
+                            "figure_pareto_S6_labeled.png")
+        rep.figure_pareto_labeled(pts, path)
+        _put("pareto_S6_labeled", path)
+    if "S7_spatial_modes" in scenarios:
+        curves = _mean_curves(all_rows, "S7_spatial_modes")
+        path = os.path.join(paths["fig_scenarios"],
+                            "figure_spatial_modes_S7.png")
+        rep.figure_e_convergence(
+            curves, "nmr_acquisitions", path,
+            panels=(("param_err_pct", "parameter error / %"),
+                    ("blind_rmse_M", "blind RMSE / M"),
+                    ("spatial_samples", "axial samples used"),
+                    ("time_s", "campaign time / s")))
+        _put("spatial_S7", path)
+        path = os.path.join(paths["fig_design"], "figure_spatial_value.png")
+        rep.figure_spatial_value(all_rows, "S7_spatial_modes", path)
+        _put("spatial_value", path)
+
+    # ---- the audit trail's own extras ------------------------------------- #
+    if audit_on:
         _write_rows(
             asum.parameter_domain_check_rows(
                 lambda: __import__("sdl").ParameterSpace(
                     t_ref_K=t_ref_K, initial_guess=dict(guess)),
                 scenarios, bm.SCENARIOS, bm.check_truth_in_domain),
-            os.path.join(adir, "parameter_domain_checks.csv"))
-        # -- representative NMR examples (own fixed seed, after the run) -- #
+            os.path.join(paths["data"], "parameter_domain_checks.csv"))
         if cfg.get("audit_examples", True):
-            edir = os.path.join(adir, "nmr_examples")
+            edir = os.path.join(paths["audit"], "nmr_examples")
             _write_rows(nex.generate(bm.ACQ, bm.NMR_NUISANCE_TRUE, edir),
                         os.path.join(edir, "nmr_examples_summary.csv"))
+            path = os.path.join(paths["fig_measurement"],
+                                "figure_nmr_examples.png")
             rep.figure_nmr_examples(
-                nex.spectra_for_plot(bm.ACQ, bm.NMR_NUISANCE_TRUE),
-                os.path.join(fdir, "figure_nmr_examples.png"))
-        # -- run integrity -------------------------------------------------- #
-        integrity = asum.run_integrity_report(all_rows, all_status, scenarios,
-                                              seeds, budget, bm.SCENARIOS)
-        with open(os.path.join(adir, "run_integrity_report.json"), "w") as fh:
-            json.dump(integrity, fh, indent=2, default=str)
-        print(f"saved: {os.path.relpath(os.path.join(adir, 'run_integrity_report.json'))}")
-        if not integrity["complete"]:
-            print("  RUN INTEGRITY: " + "; ".join(integrity["problems"]))
-        else:
-            print(f"  run integrity OK: {integrity['n_campaigns']} campaigns, "
-                  f"{integrity['n_round_rows']} round rows, no gaps")
+                nex.spectra_for_plot(bm.ACQ, bm.NMR_NUISANCE_TRUE), path)
+            _put("nmr_examples", path)
+
+    # ==== THE REPORT ======================================================= #
+    tl = bm.TRANSFER_TRUE
+    bhtml.build_report(
+        os.path.join(paths["report"], "benchmark_report.html"),
+        meta={
+            "run_kind": cfg["run_kind"], "run_label": cfg.get("run_label"),
+            "mode": cfg["mode"], "seeds": ", ".join(str(s) for s in seeds),
+            "n_seeds": len(seeds), "budget": budget,
+            "commit": prov.get("describe") or "unknown",
+            "dirty": bool(prov.get("dirty")),
+            "framework_version": "v6",
+            "design_space": ("continuous within bounds, snapped to the "
+                             "instrument resolution"
+                             if bm.DESIGN_SPACE.get("continuous")
+                             else "discrete factorial grid"),
+            "reactor": (f"L = {geom_scan['length_m'] * 100:.1f} cm, "
+                        f"ID = {geom_scan['diameter_m'] * 1e3:.1f} mm, "
+                        + ("packed bed"
+                           if geom_scan.get("packing_enabled")
+                           else "open tube")
+                        + (" (sized by the geometry optimizer)"
+                           if bm.GEOMETRY_DESIGN.get("enabled", False)
+                           else " (declared)")),
+            "transfer": ("disabled" if not tl.enabled else
+                         (f"T_line = {tl.T_line_C} degC, RTD {tl.rtd}, "
+                          f"carryover {bool(tl.carryover)}, in-line reaction "
+                          f"{bool(tl.react_in_line)}")),
+            "kappa": (f"{allowance['kappa']:.4f} (derived from control data)"
+                      if allowance is not None
+                      else f"{bm.GOVERNOR['systematic_allowance_nmr']} "
+                           f"(pinned in CONFIG)"),
+            "non_default": ", ".join(nd) if nd else "none",
+            "parallelism": par.describe_workers(cfg.get("n_workers", "auto")),
+            "runtime": f"{(time.time() - t0) / 60.0:.1f} min so far",
+        },
+        tables=tables, figures=figs, files=files, gov=gov,
+        integrity=integrity, specs=bm.SCENARIOS, scenarios=list(scenarios))
 
     # ---- reproducibility record ----------------------------------------- #
     fp_rows = [r for r in all_rows
                if r["scenario"] in ("S1_ideal", "S2_nmr")
                and r["strategy"] == "F"]
     n_fp = sum(1 for r in fp_rows if r["gov_state"] == "MODEL_INADEQUATE")
-    with open(os.path.join(outdir, "benchmark_config.json"), "w") as fh:
+    with open(os.path.join(paths["config"], "benchmark_config.json"),
+              "w") as fh:
         json.dump({
             "framework_version": "v6",
             "run_kind": cfg["run_kind"],
@@ -1392,7 +1683,7 @@ def main() -> None:
                   "threads_per_worker": threads,
                   "nmr_example_seed": nex.EXAMPLE_SEED},
             {"runtimes_s": runtimes})
-        mp_path = os.path.join(outdir, "audit",
+        mp_path = os.path.join(paths["audit"],
                                "reproducibility_manifest.json")
         with open(mp_path, "w") as fh:
             json.dump(manifest, fh, indent=2, default=str)

@@ -1991,7 +1991,8 @@ def total_cost_units(scenarios: Sequence[str], seeds: Sequence[int],
 
 
 def campaign_task(scenario_name: str, strategy: str, seed: int, budget: int,
-                  verbose: bool = False, audit: bool = False) -> Dict:
+                  verbose: bool = False, audit: bool = False,
+                  transfer_audit: bool = False) -> Dict:
     """ONE campaign, as a picklable pure function of its four labels.
 
     This is the unit of parallel work.  It takes and returns only primitives
@@ -2025,9 +2026,15 @@ def campaign_task(scenario_name: str, strategy: str, seed: int, budget: int,
     if audit:
         from .audit import AuditRecorder
         recorder = AuditRecorder(spec.name, strategy, seed, SPECIES)
+    # TRUTH-SIDE transfer record: passive, append-only, private to the
+    # instrument, and read only by the post-campaign audit export.  Asked
+    # for only where there is a transfer line to characterize - a scenario
+    # without one would log the same composition twice.
+    keep_transfer = bool(transfer_audit and audit and spec.uses_transfer)
     t0 = time.time()
     res, lab, extra = run_one_campaign(spec, strategy, seed, budget,
-                                       verbose=verbose, recorder=recorder)
+                                       verbose=verbose, recorder=recorder,
+                                       store_transfer_log=keep_transfer)
     r, p = _round_metrics(spec, strategy, res, lab, extra, z_val, y_true)
     stop = getattr(res, "stop_reason", "budget exhausted")
     tot = lab.meter.totals()
@@ -2072,7 +2079,7 @@ def campaign_task(scenario_name: str, strategy: str, seed: int, budget: int,
 
 def run_scenario(spec: ScenarioSpec, seeds: Sequence[int], budget: int,
                  verbose: bool = False, progress=None, executor=None,
-                 audit: bool = False
+                 audit: bool = False, transfer_audit: bool = False
                  ) -> Tuple[List[Dict], List[Dict], List[Dict], Optional[Dict]]:
     """Returns (round rows, per-parameter rows, per-campaign status rows).
 
@@ -2089,7 +2096,8 @@ def run_scenario(spec: ScenarioSpec, seeds: Sequence[int], budget: int,
     the order the serial loop produced.  Passing None keeps the original
     in-process loop exactly as it was."""
     budget = spec.budget_override or budget
-    tasks = [(spec.name, strategy, seed, budget, verbose, audit)
+    tasks = [(spec.name, strategy, seed, budget, verbose, audit,
+              transfer_audit)
              for strategy in spec.strategies for seed in seeds]
 
     # A worker rebuilds the scenario from SCENARIOS[name] (only the name
@@ -2104,7 +2112,7 @@ def run_scenario(spec: ScenarioSpec, seeds: Sequence[int], budget: int,
     def _landed(_i, args, out):
         """Parent-side reporting only; runs in completion order when
         parallel, so nothing saved may depend on it."""
-        _scen, strategy, seed, b, _v, _a = args
+        _scen, strategy, seed, b, _v, _a, _t = args
         if verbose:
             n_done = out["status"]["rounds_completed"]
             print(f"    {spec.name}/{strategy}/seed{seed}: "

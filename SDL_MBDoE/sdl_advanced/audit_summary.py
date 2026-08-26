@@ -41,6 +41,8 @@ from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 
+from .efficiency import stable_seed
+
 METRICS = ("param_err_pct", "blind_rmse_M", "max_rel_ci_pct", "p_correct",
            "model_entropy", "time_s", "egda_mol", "energy_kJ",
            "nmr_acquisitions", "spatial_samples")
@@ -100,8 +102,8 @@ def convergence_summary_rows(rows: List[Dict], status: List[Dict],
                         [float(r.get(metric, np.nan)) for r in sample.values()],
                         dtype=float)
                     fin = vals[np.isfinite(vals)]
-                    lo, hi = _boot_ci_median(fin, seed=abs(hash(
-                        (scen, strat, rnd, metric, basis))) % (2 ** 31))
+                    lo, hi = _boot_ci_median(fin, seed=stable_seed(
+                        (scen, strat, rnd, metric, basis)))
                     out.append({
                         "scenario": scen, "strategy": strat,
                         "round": rnd, "metric": metric, "basis": basis,
