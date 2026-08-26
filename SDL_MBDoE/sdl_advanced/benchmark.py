@@ -1332,7 +1332,8 @@ class BaselineLabAdapter:
 def make_lab(spec: ScenarioSpec, seed: int,
              store_spectra: bool = False,
              costs: Optional[ResourceCosts] = None,
-             geometry: Optional[Dict] = None
+             geometry: Optional[Dict] = None,
+             store_transfer_log: bool = False
              ) -> AdvancedVirtualLaboratory:
     geom = geometry if geometry is not None else GEOMETRY
     # SECOND gate, deliberately redundant with active_geometry(): this is
@@ -1349,6 +1350,7 @@ def make_lab(spec: ScenarioSpec, seed: int,
         InstrumentConfig(observation_mode=spec.observation_mode,
                          nmr_mode=spec.nmr_mode,
                          store_spectra=store_spectra,
+                         store_transfer_log=store_transfer_log,
                          calibrate_responses=bool(
                              QUANTIFICATION["calibrate_responses"])),
         ACQ, NMR_NUISANCE_TRUE, spec.transfer,
@@ -1638,21 +1640,29 @@ def design_for_budget(budget: int) -> Dict:
 
 def run_one_campaign(spec: ScenarioSpec, strategy: str, seed: int,
                      budget: int, verbose: bool = False,
-                     store_spectra: bool = False, recorder=None):
+                     store_spectra: bool = False, recorder=None,
+                     store_transfer_log: bool = False):
     """One (scenario, strategy, seed) campaign.  Returns (result, lab,
     extra).
 
     `recorder`: passive audit sink (sdl_advanced/audit.py) or None.  It is
     handed to the advanced controllers, which report already-computed
     quantities to it; it never influences a decision.  Baselines A-D run
-    unchanged sdl.campaign code and are audited entirely post-campaign."""
+    unchanged sdl.campaign code and are audited entirely post-campaign.
+
+    `store_spectra` / `store_transfer_log`: passive laboratory-side records
+    for the per-campaign report (deconvolution traces, and the truth-side
+    reactor/cell pair behind reveal_transfer_log()).  Both are append-only
+    sinks that draw no random number, so they leave every result
+    unchanged."""
     t_ref_K = T_REF_C + 273.15
     variant = spec.f_variants.get(strategy, {})
     # ONE geometry for the whole campaign: the declared reactor, or the
     # prior-optimal one when geometry is part of the design problem
     geom = active_geometry(budget)
     lab = make_lab(spec, seed, store_spectra=store_spectra,
-                   costs=variant.get("costs"), geometry=geom)
+                   costs=variant.get("costs"), geometry=geom,
+                   store_transfer_log=store_transfer_log)
     ports = fixed_equal_positions(lab.length_m, N_PORTS)
     candidates = build_candidates(DESIGN)
     fixed = build_fixed_design(design_for_budget(budget),

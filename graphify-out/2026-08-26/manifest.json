@@ -1,1292 +1,1107 @@
 {
   ".claude/settings.json": {
-    "mtime": 1787673692.3884172,
+    "mtime": 1785960509.7167873,
     "ast_hash": "4890fb05e0a6f92aaea22f5384b27098",
     "semantic_hash": "4890fb05e0a6f92aaea22f5384b27098"
   },
   ".codex/hooks.json": {
-    "mtime": 1787673692.3899238,
+    "mtime": 1785960516.4513636,
     "ast_hash": "9a8a194f18b439ebce55ad0e4d425bd6",
     "semantic_hash": "9a8a194f18b439ebce55ad0e4d425bd6"
   },
   ".vscode/settings.json": {
-    "mtime": 1787673692.391088,
+    "mtime": 1786525890.5889108,
     "ast_hash": "da5dd46cc9015eadbd3b6e5e2af45682",
     "semantic_hash": "da5dd46cc9015eadbd3b6e5e2af45682"
   },
   "BatchSweep_Analysis/analysis_config.json": {
-    "mtime": 1787673692.3913918,
+    "mtime": 1785914658.0213196,
     "ast_hash": "464a320e98188450f405ccf7ac1d17a9",
     "semantic_hash": "464a320e98188450f405ccf7ac1d17a9"
   },
   "BatchSweep_Analysis/analyze_batch_results.py": {
-    "mtime": 1787673692.3914537,
+    "mtime": 1785914658.021395,
     "ast_hash": "1d6e30bc737e14c0ef8ffa2cce6513af",
     "semantic_hash": "1d6e30bc737e14c0ef8ffa2cce6513af"
   },
   "BatchSweep_Analysis/batchsweep_analysis/__init__.py": {
-    "mtime": 1787673692.3915505,
+    "mtime": 1785914658.0215204,
     "ast_hash": "4eda4c90e99a44e5411224cfafa192ae",
     "semantic_hash": "4eda4c90e99a44e5411224cfafa192ae"
   },
   "BatchSweep_Analysis/batchsweep_analysis/config.py": {
-    "mtime": 1787673692.3916426,
+    "mtime": 1785914658.0228424,
     "ast_hash": "c28167491b3a85175ba088e03454fea9",
     "semantic_hash": "c28167491b3a85175ba088e03454fea9"
   },
   "BatchSweep_Analysis/batchsweep_analysis/io.py": {
-    "mtime": 1787673692.3917532,
+    "mtime": 1785914658.0229971,
     "ast_hash": "5f4aea039dfeb0f7f2a3bdc2d2c4a5e5",
     "semantic_hash": "5f4aea039dfeb0f7f2a3bdc2d2c4a5e5"
   },
   "BatchSweep_Analysis/batchsweep_analysis/physics.py": {
-    "mtime": 1787673692.391882,
+    "mtime": 1785914658.0231404,
     "ast_hash": "f15b2a39496bcf4b17cf05e9923f3dd7",
     "semantic_hash": "f15b2a39496bcf4b17cf05e9923f3dd7"
   },
   "BatchSweep_Analysis/batchsweep_analysis/pipeline.py": {
-    "mtime": 1787673692.3919983,
+    "mtime": 1785914658.0232873,
     "ast_hash": "b967b9fbac0a7a2c7bd474a4adf7f0d1",
     "semantic_hash": "b967b9fbac0a7a2c7bd474a4adf7f0d1"
   },
   "BatchSweep_Analysis/batchsweep_analysis/plots.py": {
-    "mtime": 1787673692.392106,
+    "mtime": 1785914658.023426,
     "ast_hash": "26fa13e500e22a249a0a10d225368e9a",
     "semantic_hash": "26fa13e500e22a249a0a10d225368e9a"
   },
   "BatchSweep_Analysis/batchsweep_analysis/progress.py": {
-    "mtime": 1787673692.3921733,
+    "mtime": 1785914658.023511,
     "ast_hash": "2b55b47be6b9dcd6020ed44e2343a248",
     "semantic_hash": "2b55b47be6b9dcd6020ed44e2343a248"
   },
   "BatchSweep_Analysis/batchsweep_analysis/report.py": {
-    "mtime": 1787673692.3923066,
+    "mtime": 1785914658.023675,
     "ast_hash": "895612d4483c7d45be736b5b1439fc72",
     "semantic_hash": "895612d4483c7d45be736b5b1439fc72"
   },
   "BatchSweep_Analysis/batchsweep_analysis/statistics.py": {
-    "mtime": 1787673692.3924356,
+    "mtime": 1785914658.0238361,
     "ast_hash": "c9c8a3d772113e827b8c50fdf75f00b0",
     "semantic_hash": "c9c8a3d772113e827b8c50fdf75f00b0"
   },
   "BatchSweep_Analysis/docs/build_readme_figures.py": {
-    "mtime": 1787673692.392588,
+    "mtime": 1785914658.0241995,
     "ast_hash": "029287d530c3eecef92c45c61506b1f6",
     "semantic_hash": "029287d530c3eecef92c45c61506b1f6"
   },
   "BatchSweep_Analysis/tests/test_analysis.py": {
-    "mtime": 1787673692.4026659,
+    "mtime": 1785914658.0323036,
     "ast_hash": "d5624d4afaae73bd4a08bc3c2ab0174d",
     "semantic_hash": "d5624d4afaae73bd4a08bc3c2ab0174d"
   },
   "PFR_H2SO4_digital_twin/batch_simulation.py": {
-    "mtime": 1787673692.4032872,
+    "mtime": 1785914658.0336006,
     "ast_hash": "b47dbc773187fb57ccfa5b98835851cb",
     "semantic_hash": "b47dbc773187fb57ccfa5b98835851cb"
   },
   "PFR_H2SO4_digital_twin/batch_temperature_study.py": {
-    "mtime": 1787673692.4034026,
+    "mtime": 1785914658.0337923,
     "ast_hash": "85e44933ccfdcd51ecf21caf79361a2e",
     "semantic_hash": "85e44933ccfdcd51ecf21caf79361a2e"
   },
   "PFR_H2SO4_digital_twin/pfr_twin/__init__.py": {
-    "mtime": 1787673692.403502,
+    "mtime": 1785914658.0339031,
     "ast_hash": "7d88063061d1f2217b0b1a87f0a9ca2c",
     "semantic_hash": "7d88063061d1f2217b0b1a87f0a9ca2c"
   },
   "PFR_H2SO4_digital_twin/pfr_twin/analytical.py": {
-    "mtime": 1787673692.4036112,
+    "mtime": 1785914658.0356796,
     "ast_hash": "df985a7008a38ae468413ecd69b9ddc3",
     "semantic_hash": "df985a7008a38ae468413ecd69b9ddc3"
   },
   "PFR_H2SO4_digital_twin/pfr_twin/batch.py": {
-    "mtime": 1787673692.4037304,
+    "mtime": 1785914658.035871,
     "ast_hash": "0781782ffc59ec469c95c7503e44c486",
     "semantic_hash": "0781782ffc59ec469c95c7503e44c486"
   },
   "PFR_H2SO4_digital_twin/pfr_twin/diagnostics.py": {
-    "mtime": 1787673692.4038408,
+    "mtime": 1786231542.0348477,
     "ast_hash": "3064a36524bfc3d285c1abe221c6d48b",
     "semantic_hash": ""
   },
   "PFR_H2SO4_digital_twin/pfr_twin/kinetics.py": {
-    "mtime": 1787673692.4039402,
+    "mtime": 1785914658.0361178,
     "ast_hash": "d9db9562574512ff44d98f034a1ff154",
     "semantic_hash": "d9db9562574512ff44d98f034a1ff154"
   },
   "PFR_H2SO4_digital_twin/pfr_twin/mixer.py": {
-    "mtime": 1787673692.4040473,
+    "mtime": 1785914658.0363004,
     "ast_hash": "ac5b876af2c072d072691102fdf2c5c1",
     "semantic_hash": "ac5b876af2c072d072691102fdf2c5c1"
   },
   "PFR_H2SO4_digital_twin/pfr_twin/parameters.py": {
-    "mtime": 1787673692.4041314,
+    "mtime": 1786211701.6207697,
     "ast_hash": "b8132b152c522a8ae853efe7679a277a",
     "semantic_hash": ""
   },
   "PFR_H2SO4_digital_twin/pfr_twin/plotting.py": {
-    "mtime": 1787673692.404246,
+    "mtime": 1785914658.0365865,
     "ast_hash": "36515c5bb31e3f0acee20bb30806cc25",
     "semantic_hash": "36515c5bb31e3f0acee20bb30806cc25"
   },
   "PFR_H2SO4_digital_twin/pfr_twin/reactor.py": {
-    "mtime": 1787673692.40435,
+    "mtime": 1786231568.5335557,
     "ast_hash": "cc5477fecdb25f33e274ce85f1abf0fa",
     "semantic_hash": ""
   },
   "PFR_H2SO4_digital_twin/pfr_twin/runio.py": {
-    "mtime": 1787673692.4046865,
+    "mtime": 1785914658.0369127,
     "ast_hash": "edae701f00351058e0d4da14af5f0b61",
     "semantic_hash": "edae701f00351058e0d4da14af5f0b61"
   },
   "PFR_H2SO4_digital_twin/pfr_twin/speciation.py": {
-    "mtime": 1787673692.404931,
+    "mtime": 1785914658.037053,
     "ast_hash": "1347d2502248ace6bd762e345040a964",
     "semantic_hash": "1347d2502248ace6bd762e345040a964"
   },
   "PFR_H2SO4_digital_twin/run_simulation.py": {
-    "mtime": 1787673692.4051585,
+    "mtime": 1785956233.1000147,
     "ast_hash": "92d54418db242123bd7b6da6017c9ea0",
     "semantic_hash": "92d54418db242123bd7b6da6017c9ea0"
   },
   "PFR_H2SO4_digital_twin/run_temperature_study.py": {
-    "mtime": 1787673692.4052753,
+    "mtime": 1785914658.0374649,
     "ast_hash": "76b4236e2c4de888d1a0526371877372",
     "semantic_hash": "76b4236e2c4de888d1a0526371877372"
   },
   "SDL_MBDoE/run_sdl_campaign.py": {
-    "mtime": 1787673692.797131,
+    "mtime": 1785966931.4316118,
     "ast_hash": "cefb0c5c2a68f279bd228de41d6732fa",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl/__init__.py": {
-    "mtime": 1787673692.7973702,
+    "mtime": 1785963963.0156603,
     "ast_hash": "d7adb00e7fd883d35952c1f4b14e0f03",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl/campaign.py": {
-    "mtime": 1787673692.7974324,
+    "mtime": 1785960034.2065878,
     "ast_hash": "0e2ba7723620f4b5a5049c7541e47f91",
     "semantic_hash": "0e2ba7723620f4b5a5049c7541e47f91"
   },
   "SDL_MBDoE/sdl/design.py": {
-    "mtime": 1787673692.7975383,
+    "mtime": 1786528094.772534,
     "ast_hash": "34e3110b7f4abc7f825aa9cd10ca7b1e",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl/inference.py": {
-    "mtime": 1787673692.7978168,
+    "mtime": 1786203357.6223524,
     "ast_hash": "6b958c2f5303e6e780dbdc8bb9e873c6",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl/layer1_bridge.py": {
-    "mtime": 1787673692.797976,
-    "ast_hash": "85073a78c61d418e3007a9f281600d2d",
+    "mtime": 1787048106.6113453,
+    "ast_hash": "b1b7b6b5388e393c070d1726c58a0f53",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl/observation.py": {
-    "mtime": 1787673692.7980523,
+    "mtime": 1786189571.331058,
     "ast_hash": "0dcedbf588e04bb6d63af9eb0d324e8e",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl/parameters.py": {
-    "mtime": 1787673692.798169,
+    "mtime": 1785963801.3010526,
     "ast_hash": "5acbc8b2ce10f4e49b9ebb7436449704",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl/reporting.py": {
-    "mtime": 1787673692.7982666,
+    "mtime": 1785965509.6198828,
     "ast_hash": "9ebc44711dcbc8489475891535636958",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl/truth.py": {
-    "mtime": 1787673692.7983594,
+    "mtime": 1785914658.0428607,
     "ast_hash": "e5484dab63d64bc11e5cb239403d25a7",
     "semantic_hash": "e5484dab63d64bc11e5cb239403d25a7"
   },
   "SDL_MBDoE/tests/self_test.py": {
-    "mtime": 1787673692.8021343,
+    "mtime": 1785965926.1006784,
     "ast_hash": "8d6fb643d70f7989bd523312084dddb5",
     "semantic_hash": ""
   },
   ".claude/CLAUDE.md": {
-    "mtime": 1787673692.3883371,
+    "mtime": 1785960509.716081,
     "ast_hash": "9b31786b637be3c13978bec4c2330752",
     "semantic_hash": "9b31786b637be3c13978bec4c2330752"
   },
   ".claude/skills/graphify/SKILL.md": {
-    "mtime": 1787673692.3887355,
+    "mtime": 1785960509.7157516,
     "ast_hash": "dfb0a6554c4af62df6effc61c6c7d245",
     "semantic_hash": "dfb0a6554c4af62df6effc61c6c7d245"
   },
   ".claude/skills/graphify/references/add-watch.md": {
-    "mtime": 1787673692.3888826,
+    "mtime": 1785960136.5797863,
     "ast_hash": "d59d027fe449f06aa03905a01184e779",
     "semantic_hash": "d59d027fe449f06aa03905a01184e779"
   },
   ".claude/skills/graphify/references/exports.md": {
-    "mtime": 1787673692.3889594,
+    "mtime": 1785960136.5799334,
     "ast_hash": "9da2a2152e60a22f07f05fed5158f287",
     "semantic_hash": "9da2a2152e60a22f07f05fed5158f287"
   },
   ".claude/skills/graphify/references/extraction-spec.md": {
-    "mtime": 1787673692.3890975,
+    "mtime": 1785960136.58025,
     "ast_hash": "42fef56a01698118f7fd722acdadea34",
     "semantic_hash": "42fef56a01698118f7fd722acdadea34"
   },
   ".claude/skills/graphify/references/github-and-merge.md": {
-    "mtime": 1787673692.3891685,
+    "mtime": 1785960136.5803795,
     "ast_hash": "cde13df085e4c492aeb7ba298a996d0d",
     "semantic_hash": "cde13df085e4c492aeb7ba298a996d0d"
   },
   ".claude/skills/graphify/references/hooks.md": {
-    "mtime": 1787673692.3892376,
+    "mtime": 1785960136.5805128,
     "ast_hash": "3f545db6ce646650bb9de588f5512a27",
     "semantic_hash": "3f545db6ce646650bb9de588f5512a27"
   },
   ".claude/skills/graphify/references/query.md": {
-    "mtime": 1787673692.3893566,
+    "mtime": 1785960136.5808125,
     "ast_hash": "3c46f8ad006874260614ed8657d02307",
     "semantic_hash": "3c46f8ad006874260614ed8657d02307"
   },
   ".claude/skills/graphify/references/transcribe.md": {
-    "mtime": 1787673692.3895645,
+    "mtime": 1785960136.5813236,
     "ast_hash": "67b6a5fa6c0974e18f60db9f8932fbd8",
     "semantic_hash": "67b6a5fa6c0974e18f60db9f8932fbd8"
   },
   ".claude/skills/graphify/references/update.md": {
-    "mtime": 1787673692.389668,
+    "mtime": 1785960136.5817204,
     "ast_hash": "9378bd03d56baaf78bd738ab3848f142",
     "semantic_hash": "9378bd03d56baaf78bd738ab3848f142"
   },
   ".codex/skills/graphify/SKILL.md": {
-    "mtime": 1787673692.390168,
+    "mtime": 1785960516.4505463,
     "ast_hash": "9127de0dec724028abc460ddb4db1bb3",
     "semantic_hash": "9127de0dec724028abc460ddb4db1bb3"
   },
   ".codex/skills/graphify/references/add-watch.md": {
-    "mtime": 1787673692.390283,
+    "mtime": 1785960136.5901492,
     "ast_hash": "d59d027fe449f06aa03905a01184e779",
     "semantic_hash": "d59d027fe449f06aa03905a01184e779"
   },
   ".codex/skills/graphify/references/exports.md": {
-    "mtime": 1787673692.3903446,
+    "mtime": 1785960136.590265,
     "ast_hash": "9da2a2152e60a22f07f05fed5158f287",
     "semantic_hash": "9da2a2152e60a22f07f05fed5158f287"
   },
   ".codex/skills/graphify/references/extraction-spec.md": {
-    "mtime": 1787673692.3904731,
+    "mtime": 1785960136.5905154,
     "ast_hash": "bf895ec4d4e40f5f66f7d31c2a9bd4a7",
     "semantic_hash": "bf895ec4d4e40f5f66f7d31c2a9bd4a7"
   },
   ".codex/skills/graphify/references/github-and-merge.md": {
-    "mtime": 1787673692.3905427,
+    "mtime": 1785960136.5906312,
     "ast_hash": "cde13df085e4c492aeb7ba298a996d0d",
     "semantic_hash": "cde13df085e4c492aeb7ba298a996d0d"
   },
   ".codex/skills/graphify/references/hooks.md": {
-    "mtime": 1787673692.390609,
+    "mtime": 1785960136.5933535,
     "ast_hash": "3f545db6ce646650bb9de588f5512a27",
     "semantic_hash": "3f545db6ce646650bb9de588f5512a27"
   },
   ".codex/skills/graphify/references/query.md": {
-    "mtime": 1787673692.3907254,
+    "mtime": 1785960136.5936189,
     "ast_hash": "3c46f8ad006874260614ed8657d02307",
     "semantic_hash": "3c46f8ad006874260614ed8657d02307"
   },
   ".codex/skills/graphify/references/transcribe.md": {
-    "mtime": 1787673692.3908017,
+    "mtime": 1785960136.5937605,
     "ast_hash": "67b6a5fa6c0974e18f60db9f8932fbd8",
     "semantic_hash": "67b6a5fa6c0974e18f60db9f8932fbd8"
   },
   ".codex/skills/graphify/references/update.md": {
-    "mtime": 1787673692.390915,
+    "mtime": 1785960136.593952,
     "ast_hash": "9378bd03d56baaf78bd738ab3848f142",
     "semantic_hash": "9378bd03d56baaf78bd738ab3848f142"
   },
   "AGENTS.md": {
-    "mtime": 1787673692.3911517,
+    "mtime": 1785914658.0209029,
     "ast_hash": "6a47d64fcc136324ca395065a707ef76",
     "semantic_hash": "6a47d64fcc136324ca395065a707ef76"
   },
   "BatchSweep_Analysis/README.md": {
-    "mtime": 1787673692.391312,
+    "mtime": 1785914658.0210896,
     "ast_hash": "9663ef11a22b4d76dfeaaf1c3af9ec52",
     "semantic_hash": "9663ef11a22b4d76dfeaaf1c3af9ec52"
   },
   "CLAUDE.md": {
-    "mtime": 1787673692.4027758,
+    "mtime": 1785914658.0323915,
     "ast_hash": "82efb97a359f5c7290bf2513d14686be",
     "semantic_hash": "82efb97a359f5c7290bf2513d14686be"
   },
   "PFR_H2SO4_digital_twin/README.md": {
-    "mtime": 1787673692.4031725,
+    "mtime": 1785914658.0325823,
     "ast_hash": "f1040f6cac3fbbf2798cd5a6913b9663",
     "semantic_hash": "f1040f6cac3fbbf2798cd5a6913b9663"
   },
   "PFR_H2SO4_digital_twin/requirements.txt": {
-    "mtime": 1787673692.4049933,
+    "mtime": 1785914658.0371482,
     "ast_hash": "e482f36bc966704211f79b44861f7d96",
     "semantic_hash": "e482f36bc966704211f79b44861f7d96"
   },
   "README.md": {
-    "mtime": 1787673692.4055755,
+    "mtime": 1787049173.497837,
     "ast_hash": "a34dd7f68a1322ea415bc3f561224a28",
     "semantic_hash": ""
   },
   "SDL_MBDoE/README.md": {
-    "mtime": 1787673692.4057739,
-    "ast_hash": "aa94db126fcd13ae87f1915900d067ec",
+    "mtime": 1786192141.0537739,
+    "ast_hash": "ce314519240f7fd5332c3bb4ccd75569",
     "semantic_hash": ""
   },
   "SDL_MBDoE/requirements.txt": {
-    "mtime": 1787673692.4061115,
+    "mtime": 1785914658.038087,
     "ast_hash": "f3b39fb68d2607c90b891bbf2bf1ffec",
     "semantic_hash": "f3b39fb68d2607c90b891bbf2bf1ffec"
   },
   "BatchSweep_Analysis/docs/images/axial_egma_peaks.png": {
-    "mtime": 1787673692.3932981,
+    "mtime": 1785914658.024739,
     "ast_hash": "a7fbe3ca3ce7c43d4689c922d7647d32",
     "semantic_hash": "a7fbe3ca3ce7c43d4689c922d7647d32"
   },
   "BatchSweep_Analysis/docs/images/consolidated_scenarios.png": {
-    "mtime": 1787673692.3940954,
+    "mtime": 1785914658.025425,
     "ast_hash": "0bbdb424290857f124512e6c88219e60",
     "semantic_hash": "0bbdb424290857f124512e6c88219e60"
   },
   "BatchSweep_Analysis/docs/images/data_coverage.png": {
-    "mtime": 1787673692.3946404,
+    "mtime": 1785914658.0256639,
     "ast_hash": "16155231cb1f38d49db4f32d7708e823",
     "semantic_hash": "16155231cb1f38d49db4f32d7708e823"
   },
   "BatchSweep_Analysis/docs/images/derived_metrics.png": {
-    "mtime": 1787673692.3958995,
+    "mtime": 1785914658.0269306,
     "ast_hash": "00cad4cec59803b1615cc9169d3e2396",
     "semantic_hash": "00cad4cec59803b1615cc9169d3e2396"
   },
   "BatchSweep_Analysis/docs/images/duplicate_configs.png": {
-    "mtime": 1787673692.396316,
+    "mtime": 1785914658.0271404,
     "ast_hash": "f391e6a514aa44ff6533528aee9b4282",
     "semantic_hash": "f391e6a514aa44ff6533528aee9b4282"
   },
   "BatchSweep_Analysis/docs/images/excluded_or_invalid_scenarios.png": {
-    "mtime": 1787673692.3964963,
+    "mtime": 1785914658.0273597,
     "ast_hash": "b4cad7e4eb8534d9dc8f2a77f0ea6e52",
     "semantic_hash": "b4cad7e4eb8534d9dc8f2a77f0ea6e52"
   },
   "BatchSweep_Analysis/docs/images/geometry_collapse_metrics.png": {
-    "mtime": 1787673692.3970408,
+    "mtime": 1785914658.028005,
     "ast_hash": "10a8a92fed8a650bc5aa046a9d3ed635",
     "semantic_hash": "10a8a92fed8a650bc5aa046a9d3ed635"
   },
   "BatchSweep_Analysis/docs/images/interaction_effects.png": {
-    "mtime": 1787673692.3974102,
+    "mtime": 1785914658.0283914,
     "ast_hash": "ea4cbddc047c3202c7c0aa98d83a7449",
     "semantic_hash": "ea4cbddc047c3202c7c0aa98d83a7449"
   },
   "BatchSweep_Analysis/docs/images/local_elasticities.png": {
-    "mtime": 1787673692.3978605,
+    "mtime": 1785914658.0286973,
     "ast_hash": "d5be39b6edf07c4a85cf36affde5a1fe",
     "semantic_hash": "d5be39b6edf07c4a85cf36affde5a1fe"
   },
   "BatchSweep_Analysis/docs/images/main_effects.png": {
-    "mtime": 1787673692.3981354,
+    "mtime": 1785914658.0290086,
     "ast_hash": "60e9f60d624010542b5688239e472f55",
     "semantic_hash": "60e9f60d624010542b5688239e472f55"
   },
   "BatchSweep_Analysis/docs/images/pareto_front.png": {
-    "mtime": 1787673692.399133,
+    "mtime": 1785914658.029786,
     "ast_hash": "2c7b5126f18b2b8a3217d1eb7f4c4c5d",
     "semantic_hash": "2c7b5126f18b2b8a3217d1eb7f4c4c5d"
   },
   "BatchSweep_Analysis/docs/images/regime_assignments.png": {
-    "mtime": 1787673692.399529,
+    "mtime": 1785914658.0302482,
     "ast_hash": "797c3e97fb7fd3cf6e2cba20465eb731",
     "semantic_hash": "797c3e97fb7fd3cf6e2cba20465eb731"
   },
   "BatchSweep_Analysis/docs/images/regime_summary.png": {
-    "mtime": 1787673692.3997445,
+    "mtime": 1785914658.0305045,
     "ast_hash": "b6b8110724bf20f11ed6fcad5bdd35c4",
     "semantic_hash": "b6b8110724bf20f11ed6fcad5bdd35c4"
   },
   "BatchSweep_Analysis/docs/images/robust_operating_windows.png": {
-    "mtime": 1787673692.4014065,
+    "mtime": 1785914658.0310757,
     "ast_hash": "624376f024f1d8890e888983df747b00",
     "semantic_hash": "624376f024f1d8890e888983df747b00"
   },
   "BatchSweep_Analysis/docs/images/surrogate_validation.png": {
-    "mtime": 1787673692.4019587,
+    "mtime": 1785914658.0313923,
     "ast_hash": "6b325fdec3c966391d714ae29cb469e9",
     "semantic_hash": "6b325fdec3c966391d714ae29cb469e9"
   },
   "BatchSweep_Analysis/docs/images/top_conditions.png": {
-    "mtime": 1787673692.4024432,
+    "mtime": 1785914658.0318944,
     "ast_hash": "5451e36ee63ec85456899517c26ac4b9",
     "semantic_hash": "5451e36ee63ec85456899517c26ac4b9"
   },
   "SDL_MBDoE/sdl/identifiability.py": {
-    "mtime": 1787673692.7977202,
+    "mtime": 1785964295.7730594,
     "ast_hash": "e77623f3ceed97467b09d0e6358d81b3",
     "semantic_hash": ""
   },
   "EGDA_NMR_sim/sim_nmr(2).py": {
-    "mtime": 1787673692.4029384,
+    "mtime": 1786192110.9826086,
     "ast_hash": "25d12bd81aee739bde72d3d1b76f993e",
     "semantic_hash": ""
   },
   "SDL_MBDoE/run_advanced_benchmark.py": {
-    "mtime": 1787739857.7433844,
-    "ast_hash": "30a51392f6f0fbacd36074831e543da3",
+    "mtime": 1787048157.408393,
+    "ast_hash": "9159c1032ff85cf9b5260d9ad0253c5b",
     "semantic_hash": ""
   },
   "SDL_MBDoE/run_advanced_campaign.py": {
-    "mtime": 1787742532.7445657,
-    "ast_hash": "14296f4167cd169c83b89aacd0e8741d",
+    "mtime": 1787048157.3944714,
+    "ast_hash": "6096489c0bd73958cd7847386b382348",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/__init__.py": {
-    "mtime": 1787673692.7984765,
+    "mtime": 1786204408.6261644,
     "ast_hash": "fb5fdbac3321df8a1a4a8b484b7d462d",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/adequacy.py": {
-    "mtime": 1787673692.7986193,
-    "ast_hash": "5b648246d8213d85ed52cf7e997ec30f",
+    "mtime": 1786211988.2455177,
+    "ast_hash": "ae943bc1a11fefd72701878df4c327a6",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/bayes_design.py": {
-    "mtime": 1787739779.4873571,
-    "ast_hash": "db97b27c455fc86c910069ee13abf20f",
+    "mtime": 1786528094.7729027,
+    "ast_hash": "b43e988d5fd0f5b542132bcd682c1851",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/benchmark.py": {
-    "mtime": 1787739848.9613695,
-    "ast_hash": "cbf91bd25789108bf3819fc0484a3f96",
+    "mtime": 1787048141.6646547,
+    "ast_hash": "27be0b492016341c30e675e3f43069a0",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/controller.py": {
-    "mtime": 1787739803.198257,
-    "ast_hash": "620bd25e5dcd52404acbe441ef991171",
+    "mtime": 1786528094.7733629,
+    "ast_hash": "da03ae4960e24d51bf54dc9d08646e9e",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/instrument.py": {
-    "mtime": 1787739834.3519206,
-    "ast_hash": "2eb8134eb1550ce31f87ffccf2fd13ae",
+    "mtime": 1787048106.6261315,
+    "ast_hash": "1373ca6f86ab4940625b27606568c10d",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/model_ensemble.py": {
-    "mtime": 1787673692.8000062,
-    "ast_hash": "134f0a8ea5b3156d27a597f321ea7be1",
+    "mtime": 1786528094.7736137,
+    "ast_hash": "2aca16f55e22e4a877d1403be5ca69b6",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/posterior.py": {
-    "mtime": 1787673692.8005457,
+    "mtime": 1786203833.7262044,
     "ast_hash": "406da97e940b8dbdbdac087618205be5",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/reporting.py": {
-    "mtime": 1787673692.8007555,
+    "mtime": 1786531706.9206002,
     "ast_hash": "ed36b4433f75f450d19b48d3e79ed02c",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/resources.py": {
-    "mtime": 1787673692.800937,
-    "ast_hash": "bf0e076da90d66aa6de6e237d2a7bd9b",
+    "mtime": 1787048054.3032095,
+    "ast_hash": "30575fc077e185a2d6aef8361d79f4ae",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/spatial_design.py": {
-    "mtime": 1787739744.1485937,
-    "ast_hash": "bbe3eb2a24757adc318afe3a6105d938",
+    "mtime": 1786203618.457627,
+    "ast_hash": "3b9d36e541a022b19ac06b76d748e1d2",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/spectral.py": {
-    "mtime": 1787673692.801191,
-    "ast_hash": "151177f886928e318de961239bfcfc5b",
+    "mtime": 1787048001.2091796,
+    "ast_hash": "ce7c36584f359d731e60c708c0513437",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/spectral_fit.py": {
-    "mtime": 1787673692.8013077,
-    "ast_hash": "6536ca235755f29ca96f745a71b63adc",
+    "mtime": 1786298326.6880329,
+    "ast_hash": "a961468d4659f76b6d1abd13df2f239d",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/transfer.py": {
-    "mtime": 1787673692.801531,
+    "mtime": 1786203307.7938838,
     "ast_hash": "38601bacb63cb25e7dc69f3832e5c248",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_adequacy.py": {
-    "mtime": 1787673692.802458,
+    "mtime": 1786212439.1954536,
     "ast_hash": "e294a967f47a6d266b111a381929aa26",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_deconvolution.py": {
-    "mtime": 1787673692.803002,
+    "mtime": 1786204913.3289793,
     "ast_hash": "7cc5a66769167d04e9d6a799487e0710",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_posterior.py": {
-    "mtime": 1787673692.8041596,
+    "mtime": 1786204793.9513702,
     "ast_hash": "f3634a80bc656686e3334d0a100ca549",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_resource_accounting.py": {
-    "mtime": 1787673692.8043687,
+    "mtime": 1786204829.4957116,
     "ast_hash": "1e3d750be33452daa76020e547398f62",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_spatial_design.py": {
-    "mtime": 1787673692.8044896,
+    "mtime": 1786204707.5409937,
     "ast_hash": "52c97b1906febd3318386b25f861a5dc",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_spectral.py": {
-    "mtime": 1787673692.8045907,
+    "mtime": 1786190370.094827,
     "ast_hash": "292f7674a08d37c2e8ebb7a99eefa00d",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_transfer.py": {
-    "mtime": 1787673692.8047318,
+    "mtime": 1786204713.3941746,
     "ast_hash": "1a91b7e224c806cc31063ce2d1f5de5d",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_truth_firewall.py": {
-    "mtime": 1787673692.8048725,
+    "mtime": 1786204866.264498,
     "ast_hash": "59308786027d99dfa6a0b5ea3fa7c214",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/validation.py": {
-    "mtime": 1787673692.8017273,
-    "ast_hash": "a16d6ba60b6f17023300a64f1fe0044d",
+    "mtime": 1786231372.7025607,
+    "ast_hash": "34b42546a4ffa23c5e4388e58c41a934",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_measurement_fault.py": {
-    "mtime": 1787673692.8037694,
-    "ast_hash": "2dfe3cc4a25fe66bd7c027cdd6477e97",
+    "mtime": 1786204677.49459,
+    "ast_hash": "15486607b75003d5d6d0d8adf633a3ff",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_observation_operator.py": {
-    "mtime": 1787673692.8039572,
+    "mtime": 1786204623.6709833,
     "ast_hash": "06bbb24fcfdf563f202d4b0db0f83b0d",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/observability.py": {
-    "mtime": 1787673692.8003128,
+    "mtime": 1786231568.5337422,
     "ast_hash": "5a27c5be6056fcfdbc335d1451bf67e1",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_calibration_governor.py": {
-    "mtime": 1787673692.802748,
+    "mtime": 1786231611.5851016,
     "ast_hash": "c442bb8d2bb78c2c2b2f11ed3fc533aa",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_geometry_packing.py": {
-    "mtime": 1787673692.803673,
-    "ast_hash": "19cdd20b0e91520767a7c5f5c35f268c",
+    "mtime": 1786257435.3610766,
+    "ast_hash": "f7ddc40e5525875eab41098d3945c807",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_nmr_calibration.py": {
-    "mtime": 1787673692.8038578,
-    "ast_hash": "dd331373327c878c75803e63842c848c",
+    "mtime": 1786528094.773949,
+    "ast_hash": "ef0611e30aa4ed4461f0a0129a1efe07",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/parallel.py": {
-    "mtime": 1787673692.8004248,
+    "mtime": 1786296066.410177,
     "ast_hash": "7820349fa46ee9beaa3f33d162a2bb5a",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_parallel.py": {
-    "mtime": 1787673692.804051,
+    "mtime": 1786299062.4180179,
     "ast_hash": "299327a3883b0f460838555c88bce859",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/audit.py": {
-    "mtime": 1787740832.1609375,
-    "ast_hash": "ad4347f34a766d9f06189e4382005734",
+    "mtime": 1786298039.8187392,
+    "ast_hash": "07cb623ade46fc573873960aa2bbf2c8",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/audit_export.py": {
-    "mtime": 1787739857.7293413,
-    "ast_hash": "c477b17e7cd9309d179c60de45379075",
+    "mtime": 1786537330.6849117,
+    "ast_hash": "5860fd58b4874841d3b22678ac624a49",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/audit_summary.py": {
-    "mtime": 1787673692.7990599,
+    "mtime": 1786298495.9353538,
     "ast_hash": "df749be16f63c2abd42e3a1f033fd799",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/nmr_examples.py": {
-    "mtime": 1787673692.800124,
+    "mtime": 1786298338.8382628,
     "ast_hash": "119dfed0257aebd553ee112f0ce39f05",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_audit_regression.py": {
-    "mtime": 1787673692.8025627,
+    "mtime": 1786298552.286981,
     "ast_hash": "3201c4e4622c0fa7366af2d3d78185ba",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl/design_space.py": {
-    "mtime": 1787673692.7976298,
+    "mtime": 1786526941.8923953,
     "ast_hash": "04d8c0487402b0f312a5d630a56f5bc5",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_design_space.py": {
-    "mtime": 1787673692.8034122,
-    "ast_hash": "950f8331c513858af368266719488789",
+    "mtime": 1787048451.133235,
+    "ast_hash": "d4b30d992a47f41bd329e7637572931a",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/efficiency.py": {
-    "mtime": 1787673692.799572,
+    "mtime": 1786531657.518914,
     "ast_hash": "9de53efc1b65aba4af3fdc2a19e37477",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_comparison.py": {
-    "mtime": 1787673692.8028474,
-    "ast_hash": "4c13dba6a9e56d7dbcd0a69a47bb33ba",
+    "mtime": 1786537422.3326774,
+    "ast_hash": "ad50d6c248f2a5d2c13ad1c48d8674de",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/reproducibility_manifest.json": {
-    "mtime": 1787673692.630034,
+    "mtime": 1786554410.4795663,
     "ast_hash": "cd39e35ba081cc0214cb063bd5e51a9b",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/run_integrity_report.json": {
-    "mtime": 1787673692.6957986,
+    "mtime": 1786554410.221556,
     "ast_hash": "0e0593493c37ba41e6bc9e2ddeeba71d",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/benchmark_config.json": {
-    "mtime": 1787673692.7121968,
+    "mtime": 1786554410.2236907,
     "ast_hash": "6e484620d77e8e842caccfbd39ac04e8",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/governor_validation.json": {
-    "mtime": 1787673692.7773468,
+    "mtime": 1786554227.9581897,
     "ast_hash": "9e852e05bbc6271b67cf3526a15c7e66",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_acquisition.py": {
-    "mtime": 1787673692.8023376,
-    "ast_hash": "ab541c6da11e4ef8c6979e2ffdd831ee",
+    "mtime": 1787048228.968356,
+    "ast_hash": "689659fccf920b79e4c6f7490590657a",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/strategy_table.txt": {
-    "mtime": 1787673692.7787447,
+    "mtime": 1786554217.6887317,
     "ast_hash": "49588b3f5a58b0b3879539f1e06c8903",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S1_ideal_locf.png": {
-    "mtime": 1787673692.4596474,
+    "mtime": 1786554341.1154532,
     "ast_hash": "f4056f0459e572797d0b9bf252b5bcb2",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S1_ideal_observed.png": {
-    "mtime": 1787673692.4627883,
+    "mtime": 1786554341.4755483,
     "ast_hash": "2bb7c5ec5ec145f0849c52896f566a4d",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S2_nmr_locf.png": {
-    "mtime": 1787673692.463425,
+    "mtime": 1786554341.7521508,
     "ast_hash": "c71c4d529b3a9de5168456e017d682a5",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S2_nmr_observed.png": {
-    "mtime": 1787673692.4642289,
+    "mtime": 1786554342.0805266,
     "ast_hash": "b4aaf3a5ea10cd332aaf21b03d08023b",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S3_transport_locf.png": {
-    "mtime": 1787673692.4650373,
+    "mtime": 1786554342.4040077,
     "ast_hash": "07a4c2f20fbeb78794b014b545a5c2d0",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S3_transport_observed.png": {
-    "mtime": 1787673692.4657469,
+    "mtime": 1786554342.6863568,
     "ast_hash": "dfede88de73fb62f2b914cd9fbb72548",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S3ab_delay_locf.png": {
-    "mtime": 1787673692.4667866,
+    "mtime": 1786554343.0056665,
     "ast_hash": "37e400e541050bc65e70dda931369d14",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S3ab_delay_observed.png": {
-    "mtime": 1787673692.4674718,
+    "mtime": 1786554343.3270931,
     "ast_hash": "649c5272746188ba04d7009ed31e16e6",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S3ab_rtd_locf.png": {
-    "mtime": 1787673692.4680347,
+    "mtime": 1786554343.5932488,
     "ast_hash": "52e6b728a81b604fb7241d92cea46c5c",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S3ab_rtd_observed.png": {
-    "mtime": 1787673692.468556,
+    "mtime": 1786554343.9082866,
     "ast_hash": "c3ad2e0a65e1d13de7dc105479f63305",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S4a_ambiguity_locf.png": {
-    "mtime": 1787673692.469272,
+    "mtime": 1786554344.2194064,
     "ast_hash": "daaebd28e8721d77e013ebf872f79cf3",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S4a_ambiguity_observed.png": {
-    "mtime": 1787673692.4700944,
+    "mtime": 1786554344.594397,
     "ast_hash": "b10eb1aa474f50430232606fbbd13bcc",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S4b_identifiable_locf.png": {
-    "mtime": 1787673692.471055,
+    "mtime": 1786554344.958353,
     "ast_hash": "5cf3a253924027892308feb41b033b37",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S4b_identifiable_observed.png": {
-    "mtime": 1787673692.4718232,
+    "mtime": 1786554345.3057923,
     "ast_hash": "725806cfd5142fbbd019e13ae7131e3d",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S4c_out_of_domain_locf.png": {
-    "mtime": 1787673692.472629,
+    "mtime": 1786554345.6745434,
     "ast_hash": "d47c1db5ad477432c29f97ba1160935d",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S4c_out_of_domain_observed.png": {
-    "mtime": 1787673692.4732945,
+    "mtime": 1786554346.0066996,
     "ast_hash": "b5f42939bfe0c5de531a29d63af688f5",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S5_inadequacy_locf.png": {
-    "mtime": 1787673692.4738712,
+    "mtime": 1786554346.2700033,
     "ast_hash": "4f318bc0576a653c05085f4166e1c207",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S5_inadequacy_observed.png": {
-    "mtime": 1787673692.4749207,
+    "mtime": 1786554346.5903554,
     "ast_hash": "e84345c15955efb96aa68d0cea962718",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S6_resources_locf.png": {
-    "mtime": 1787673692.4756267,
+    "mtime": 1786554346.960641,
     "ast_hash": "e118f7798a63e8bc77fdc4b6097c11dd",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S7_spatial_modes_locf.png": {
-    "mtime": 1787673692.4763117,
+    "mtime": 1786554347.5863218,
     "ast_hash": "956fb8009c266e96815758bd26b6ee87",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_band_S7_spatial_modes_observed.png": {
-    "mtime": 1787673692.4773028,
+    "mtime": 1786554347.908464,
     "ast_hash": "0a9c2890594d67702ed8ba97e2270ed9",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S1_ideal.png": {
-    "mtime": 1787673692.4780798,
+    "mtime": 1786554400.6406121,
     "ast_hash": "199e96f97f7346bab34e03182ae2a41e",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S2_nmr.png": {
-    "mtime": 1787673692.478544,
+    "mtime": 1786554401.119181,
     "ast_hash": "0e01dd3ea96d06fd5d707a87df8755cf",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S3_transport.png": {
-    "mtime": 1787673692.4791775,
+    "mtime": 1786554401.5282607,
     "ast_hash": "1aebc9ce333bbec3b991963198cad689",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S3ab_delay.png": {
-    "mtime": 1787673692.4805539,
+    "mtime": 1786554401.9670372,
     "ast_hash": "86025331d55c397e7070739bccde14c0",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S3ab_rtd.png": {
-    "mtime": 1787673692.4810135,
+    "mtime": 1786554402.3539917,
     "ast_hash": "3a4e84e378c337b17e791c63adc6a395",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S4a_ambiguity.png": {
-    "mtime": 1787673692.481529,
+    "mtime": 1786554402.8033047,
     "ast_hash": "f7ee68c56b5450d6c57db4a55d1b351b",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S4c_out_of_domain.png": {
-    "mtime": 1787673692.4821808,
+    "mtime": 1786554403.704968,
     "ast_hash": "aa54dbf8963e67eab78bd93c6eb7f4ed",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S5_inadequacy.png": {
-    "mtime": 1787673692.482858,
+    "mtime": 1786554404.1396005,
     "ast_hash": "aa26bdabf528dec7c02ae28c666e4eb0",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_efficiency_S7_spatial_modes.png": {
-    "mtime": 1787673692.4836724,
+    "mtime": 1786554405.0923579,
     "ast_hash": "01ff3c3a726b29da1603f15909e121f0",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_model_probs_reliability_S4b_identifiable.png": {
-    "mtime": 1787673692.4840434,
+    "mtime": 1786554348.0901759,
     "ast_hash": "804fca88b209a857403898798c008033",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_model_probs_reliability_S4c_out_of_domain.png": {
-    "mtime": 1787673692.4844105,
+    "mtime": 1786554348.1850853,
     "ast_hash": "6a09a11c52f6c07c9c0b209fd6130162",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_pareto_S6_labeled.png": {
-    "mtime": 1787673692.4847481,
+    "mtime": 1786554348.4546707,
     "ast_hash": "58da4667de02c1dda54e05edde88726a",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_spatial_value.png": {
-    "mtime": 1787673692.48525,
+    "mtime": 1786554405.6162174,
     "ast_hash": "fc1c7dc3c248f2f3745ec166d388b86b",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S1_ideal.png": {
-    "mtime": 1787673692.4862869,
+    "mtime": 1786554400.9384155,
     "ast_hash": "fe1c980dad4ee13a56533df246a35974",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S2_nmr.png": {
-    "mtime": 1787673692.4867542,
+    "mtime": 1786554401.3529263,
     "ast_hash": "329875252694fd8d629d3e5a8432b311",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S3_transport.png": {
-    "mtime": 1787673692.48735,
+    "mtime": 1786554401.7570083,
     "ast_hash": "75819bba005bdce176a17a72dd392fd5",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S3ab_delay.png": {
-    "mtime": 1787673692.4879074,
+    "mtime": 1786554402.1866705,
     "ast_hash": "a32a70de32c515025c3b31455171fb26",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S3ab_rtd.png": {
-    "mtime": 1787673692.4883428,
+    "mtime": 1786554402.571225,
     "ast_hash": "ef6f0474edc80900a552fa8a74bdf0c4",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S4a_ambiguity.png": {
-    "mtime": 1787673692.4889789,
+    "mtime": 1786554403.0279744,
     "ast_hash": "d6702bbf685b513d06df95dfbfa56f51",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S4b_identifiable.png": {
-    "mtime": 1787673692.4895456,
+    "mtime": 1786554403.4838395,
     "ast_hash": "3ef716ea5ce358f12b9a820817bbffd7",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S4c_out_of_domain.png": {
-    "mtime": 1787673692.4898696,
+    "mtime": 1786554403.9320827,
     "ast_hash": "2ed136871e4cbd32b9a0c288c8d3b89a",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S5_inadequacy.png": {
-    "mtime": 1787673692.4905603,
+    "mtime": 1786554404.431213,
     "ast_hash": "9736dbcdb51ac1b2b9539eee0e6bedf2",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S6_resources.png": {
-    "mtime": 1787673692.4914956,
+    "mtime": 1786554404.9026003,
     "ast_hash": "ea32e442fbd658f073f3f01f2e39998a",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/audit/figures/figure_trajectory_S7_spatial_modes.png": {
-    "mtime": 1787673692.4921036,
+    "mtime": 1786554405.3965356,
     "ast_hash": "0bd2a71d75b987a7cd85203783647c59",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S1_ideal_per_round.png": {
-    "mtime": 1787673692.75181,
+    "mtime": 1786554218.21813,
     "ast_hash": "0adf045aa26aabd11c8113c9cc1f184b",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S1_ideal_per_time.png": {
-    "mtime": 1787673692.7524064,
+    "mtime": 1786554218.7108402,
     "ast_hash": "c091ad0a93cd54e014d38ae81a4a040a",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S2_nmr_per_acquisition.png": {
-    "mtime": 1787673692.7528737,
+    "mtime": 1786554219.1796715,
     "ast_hash": "e4e6943faddfc0a4f6481f4628425838",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S2_nmr_per_round.png": {
-    "mtime": 1787673692.75335,
+    "mtime": 1786554218.9267235,
     "ast_hash": "7d73e4a205ece806d4fef34cb3069df3",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S2_nmr_per_time.png": {
-    "mtime": 1787673692.7544394,
+    "mtime": 1786554219.3875792,
     "ast_hash": "32b60f6e21377a0be1fcd2f8ec03f608",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3_transport_per_acquisition.png": {
-    "mtime": 1787673692.755105,
+    "mtime": 1786554219.8659794,
     "ast_hash": "c8e4ca6358fbd2887519321b89b30645",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3_transport_per_round.png": {
-    "mtime": 1787673692.7558072,
+    "mtime": 1786554219.6519802,
     "ast_hash": "325655580d8bc45be0d8b258160d737e",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3_transport_per_time.png": {
-    "mtime": 1787673692.756315,
+    "mtime": 1786554220.126366,
     "ast_hash": "e292d95e2d2b73ac7b192d41c6dc2cbc",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3ab_delay_per_acquisition.png": {
-    "mtime": 1787673692.7569733,
+    "mtime": 1786554220.5872943,
     "ast_hash": "3cd78905dbfdee91e5de2f55f2141739",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3ab_delay_per_round.png": {
-    "mtime": 1787673692.7573836,
+    "mtime": 1786554220.3335261,
     "ast_hash": "be59d99c5fb6bac2532678f3ab1128b8",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3ab_delay_per_time.png": {
-    "mtime": 1787673692.758033,
+    "mtime": 1786554220.7901628,
     "ast_hash": "4c8cc72ef7bdde1459b989bb3b1239eb",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3ab_rtd_per_acquisition.png": {
-    "mtime": 1787673692.7584503,
+    "mtime": 1786554221.2553642,
     "ast_hash": "806fad880fccd5de73bbfd62b5f800f1",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3ab_rtd_per_round.png": {
-    "mtime": 1787673692.7588828,
+    "mtime": 1786554221.0484455,
     "ast_hash": "df68dfd3fb282c0b5a67f263b5c731e8",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S3ab_rtd_per_time.png": {
-    "mtime": 1787673692.7592757,
+    "mtime": 1786554221.5103552,
     "ast_hash": "c8d8bbe62f27c82f1adedef42b4d6121",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4a_ambiguity_per_acquisition.png": {
-    "mtime": 1787673692.7598712,
+    "mtime": 1786554221.9862192,
     "ast_hash": "8e35361fed3718e4930afb83c64c5024",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4a_ambiguity_per_round.png": {
-    "mtime": 1787673692.7605236,
+    "mtime": 1786554221.7259977,
     "ast_hash": "ac1bf75f7e007947188c1d53299502ad",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4a_ambiguity_per_time.png": {
-    "mtime": 1787673692.7609842,
+    "mtime": 1786554222.19499,
     "ast_hash": "f8b2c9e73304ccb9469ddfb3e52a4fe0",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4b_identifiable_per_acquisition.png": {
-    "mtime": 1787673692.7614536,
+    "mtime": 1786554222.6598146,
     "ast_hash": "86da0cb8ad350b14905490dffe82d11c",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4b_identifiable_per_round.png": {
-    "mtime": 1787673692.7619896,
+    "mtime": 1786554222.452321,
     "ast_hash": "bdcdb81f96b7845621ccdfc3beba0b68",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4b_identifiable_per_time.png": {
-    "mtime": 1787673692.7627366,
+    "mtime": 1786554222.9120371,
     "ast_hash": "7cd5cd429dd36dd871719623282f8670",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4c_out_of_domain_per_acquisition.png": {
-    "mtime": 1787673692.7632902,
+    "mtime": 1786554223.3667448,
     "ast_hash": "ec8cfc1c1910bcf72ce46f4af19bcab0",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4c_out_of_domain_per_round.png": {
-    "mtime": 1787673692.7636635,
+    "mtime": 1786554223.1140118,
     "ast_hash": "f18f84c129179dadb7c259a76b07d238",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S4c_out_of_domain_per_time.png": {
-    "mtime": 1787673692.7642307,
+    "mtime": 1786554223.5613,
     "ast_hash": "dc791868e68ef7ca82931b0be7df3973",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S5_inadequacy_per_acquisition.png": {
-    "mtime": 1787673692.7648108,
+    "mtime": 1786554224.1008039,
     "ast_hash": "66cb0981a6d8c97cc2a0a7ff9093a9fb",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S5_inadequacy_per_round.png": {
-    "mtime": 1787673692.765488,
+    "mtime": 1786554223.8345273,
     "ast_hash": "69f1769c79c6e8aadfee7a350bd39e3a",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S5_inadequacy_per_time.png": {
-    "mtime": 1787673692.7662601,
+    "mtime": 1786554224.3211694,
     "ast_hash": "ba09fe7ee184def915b69e2d3dc67f0c",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S6_resources_per_acquisition.png": {
-    "mtime": 1787673692.7668166,
+    "mtime": 1786554224.8086627,
     "ast_hash": "65ca50c33c5b6e581e5da81552c81455",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S6_resources_per_round.png": {
-    "mtime": 1787673692.7674248,
+    "mtime": 1786554224.589575,
     "ast_hash": "4669c4215b7ccdcaa501f235cbd64a06",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S6_resources_per_time.png": {
-    "mtime": 1787673692.768343,
+    "mtime": 1786554225.0741346,
     "ast_hash": "e186a81219ffce4b9a8ea7b7b25f6402",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S7_spatial_modes_per_acquisition.png": {
-    "mtime": 1787673692.768855,
+    "mtime": 1786554225.5606098,
     "ast_hash": "62c1f23434ea7af81be4337ee0fb8248",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S7_spatial_modes_per_round.png": {
-    "mtime": 1787673692.7693188,
+    "mtime": 1786554225.296237,
     "ast_hash": "1d756c8ec02a40ff5eb1c39b298a7b8f",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_conv_S7_spatial_modes_per_time.png": {
-    "mtime": 1787673692.7698057,
+    "mtime": 1786554225.7719526,
     "ast_hash": "78003af7a942751eae81384e42116c1c",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_governor_S5.png": {
-    "mtime": 1787673692.7705936,
+    "mtime": 1786554228.075353,
     "ast_hash": "bb7140a5473de97ec4930a833eaae8cd",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_model_probs_S4a_ambiguity.png": {
-    "mtime": 1787673692.7710524,
+    "mtime": 1786554226.0067143,
     "ast_hash": "2fca7eaae04d38054443548233e495ab",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_model_probs_S4c_out_of_domain.png": {
-    "mtime": 1787673692.7715838,
+    "mtime": 1786554226.420026,
     "ast_hash": "bc456ad959e6203c3cc37c4bbea435d2",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_params_S1_ideal_F.png": {
-    "mtime": 1787673692.7738116,
+    "mtime": 1786554226.7879462,
     "ast_hash": "ce358c17e845134f3b224449681ca9c9",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_params_S2_nmr_F.png": {
-    "mtime": 1787673692.774649,
+    "mtime": 1786554227.17735,
     "ast_hash": "b11b56b45bd29f1149a646795517c577",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_params_S3_transport_F.png": {
-    "mtime": 1787673692.775732,
+    "mtime": 1786554227.9570143,
     "ast_hash": "1a82470c85a2b8afea436c38d74264e7",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_params_S4b_identifiable_F.png": {
-    "mtime": 1787673692.7762089,
+    "mtime": 1786554227.560513,
     "ast_hash": "f4ec73945d53e04d85e4b9f03d3d736e",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_pareto_S6.png": {
-    "mtime": 1787673692.776507,
+    "mtime": 1786554228.3324776,
     "ast_hash": "382c9faf2a339bdf0a6a838840084517",
     "semantic_hash": ""
   },
   "SDL_MBDoE/results_advanced_v5/discrete/OptimizeGeometry/publication/figure_spatial_modes_S7.png": {
-    "mtime": 1787673692.7771437,
+    "mtime": 1786554228.6745377,
     "ast_hash": "7e9aa851d6cee9849e4943b88edbacce",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/features_resolved.json": {
-    "mtime": 1787673692.7863286,
-    "ast_hash": "d1e918ff147578dbf5df24fb9da8efa9",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/governor_validation.json": {
-    "mtime": 1787673692.7953572,
-    "ast_hash": "f981521979fbaada35701a0cd1172fec",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/run_manifest.json": {
-    "mtime": 1787673692.7963648,
-    "ast_hash": "7539404dcbe2c2b9ba9bc5e60f8c72e2",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/sdl_advanced/campaign_export.py": {
-    "mtime": 1787742396.1905518,
-    "ast_hash": "fa310c35caba8711d8604ca9a72f2473",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/sdl_advanced/campaign_figures.py": {
-    "mtime": 1787742430.1171854,
-    "ast_hash": "376ccfd38aa188ff99fdbdaa11fbf776",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/sdl_advanced/campaign_html.py": {
-    "mtime": 1787742396.204371,
-    "ast_hash": "a66ccf0a114e2d1c3ff4033efe42a0ee",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/sdl_advanced/features.py": {
-    "mtime": 1787673692.7997005,
-    "ast_hash": "b998a61fe1b834436cb6c68313507d35",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/sdl_advanced/reactor_validity.py": {
-    "mtime": 1787673692.8006337,
-    "ast_hash": "8c4e513a7b28e4dde31c594eda6bbb0a",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/tests/test_campaign_report.py": {
-    "mtime": 1787742245.5465224,
-    "ast_hash": "3fe90dfcd60d55ce158eae7d8f31a451",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/tests/test_features.py": {
-    "mtime": 1787673692.8035762,
-    "ast_hash": "079b060fce1f44aad876deef15654830",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/tests/test_reactor_validity.py": {
-    "mtime": 1787673692.8042498,
-    "ast_hash": "d4cb978ad00f86ee4f20a54d990af83b",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/reactor_validity.txt": {
-    "mtime": 1787673692.7962253,
-    "ast_hash": "ac855db70b78e080032cff4da3dd394e",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/strategy_table.txt": {
-    "mtime": 1787673692.796661,
-    "ast_hash": "8742a6233533189f480a5c3e657f04a3",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_band_S1_ideal_locf.png": {
-    "mtime": 1787673692.780478,
-    "ast_hash": "822dc2fef2f85ebebd771dd6c5c6ef4e",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_band_S1_ideal_observed.png": {
-    "mtime": 1787673692.7809966,
-    "ast_hash": "c3459e779b80f8c4105b0165be0c682b",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_band_S3_transport_locf.png": {
-    "mtime": 1787673692.781399,
-    "ast_hash": "beb68ef690ed1f10a7bcc6f7702c03a1",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_band_S3_transport_observed.png": {
-    "mtime": 1787673692.7818289,
-    "ast_hash": "cac2802ea3edd13cf72a3e18f7e39782",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_band_S5_inadequacy_locf.png": {
-    "mtime": 1787673692.7821982,
-    "ast_hash": "f431ba886bf453b7bb515bfd10181906",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_band_S5_inadequacy_observed.png": {
-    "mtime": 1787673692.7825923,
-    "ast_hash": "3fd1c633ae8c96b1b67b72141848dd7d",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_efficiency_S1_ideal.png": {
-    "mtime": 1787673692.782997,
-    "ast_hash": "164dc684d855c97fd1dddb5e77c1b849",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_efficiency_S3_transport.png": {
-    "mtime": 1787673692.783388,
-    "ast_hash": "f7af97afc1fd2bd458055f57033a233e",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_trajectory_S1_ideal.png": {
-    "mtime": 1787673692.7839599,
-    "ast_hash": "7c844c375d339f45e9e4f4a3bf0a454b",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_trajectory_S3_transport.png": {
-    "mtime": 1787673692.7843177,
-    "ast_hash": "531e61ceab54fe761a12bf63d71b1783",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S1_ideal_per_acquisition.png": {
-    "mtime": 1787673692.7867968,
-    "ast_hash": "bd41e1fa93d8d62d8edec32ed576dd94",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S1_ideal_per_round.png": {
-    "mtime": 1787673692.787622,
-    "ast_hash": "8eec2cab437d1adc5e4c9e498e2832d1",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S1_ideal_per_time.png": {
-    "mtime": 1787673692.788114,
-    "ast_hash": "66193058c16dd43b4aed51256e903632",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S3_transport_per_acquisition.png": {
-    "mtime": 1787673692.788549,
-    "ast_hash": "c38168085e19ea0271c66149ebd1dba2",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S3_transport_per_round.png": {
-    "mtime": 1787673692.7892332,
-    "ast_hash": "d99dfdf2bf9106a14d1f4990a0adef4e",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S3_transport_per_time.png": {
-    "mtime": 1787673692.791198,
-    "ast_hash": "ba2fef1f228eb09f046fc86fbc209324",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S5_inadequacy_per_acquisition.png": {
-    "mtime": 1787673692.791574,
-    "ast_hash": "9f2e9078dd28c9b8aa3b55118989c671",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S5_inadequacy_per_round.png": {
-    "mtime": 1787673692.791992,
-    "ast_hash": "a6b7f13fb6c759feee980ea26dfdca50",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S5_inadequacy_per_time.png": {
-    "mtime": 1787673692.7925138,
-    "ast_hash": "66f3c75881cde05214fdc01257d35640",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_equilibrium_observability.png": {
-    "mtime": 1787673692.7929456,
-    "ast_hash": "922b8fd2fd7c48016f70d6cf765fa4e7",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_governor_S5.png": {
-    "mtime": 1787673692.7932978,
-    "ast_hash": "fbf3153e3e2ef81636116287ced9901a",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_params_S1_ideal_F.png": {
-    "mtime": 1787673692.7938545,
-    "ast_hash": "bb2c595cf26f1c7bea9a0b003acc1abd",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_params_S3_transport_F.png": {
-    "mtime": 1787673692.7945523,
-    "ast_hash": "ee27d3e377b3722a0b0bb5eeab6eeacb",
-    "semantic_hash": ""
-  },
-  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_transport_ablation.png": {
-    "mtime": 1787673692.7950635,
-    "ast_hash": "a6d63c3ea3d4a2b49b4765f29c7bb1d8",
     "semantic_hash": ""
   }
 }

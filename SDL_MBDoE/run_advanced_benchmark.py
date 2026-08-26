@@ -690,7 +690,8 @@ KNOBS = {
 
 #: audit tables grouped into subdirectories so the trail stays navigable
 AUDIT_LAYOUT = {
-    "design": ("design_history", "design_candidate_scores"),
+    "design": ("design_history", "design_candidate_scores",
+               "spatial_candidate_scores"),
     "inference": ("model_probabilities_long", "posterior_covariance_long",
                   "identifiability_summary"),
     "governor": ("governor_diagnostics_long",),

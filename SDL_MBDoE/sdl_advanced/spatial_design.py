@@ -42,7 +42,7 @@ length automatically rescales all designs.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -127,6 +127,15 @@ class SpatialDesigner:
         self.cfg = cfg
         self.length_m = float(length_m)
         self.cov_builder = cov_builder
+        #: AUDIT ONLY.  When True, `_greedy` KEEPS the marginal-information
+        #: curve it already evaluated for its own first greedy step, and
+        #: `positions` keeps the refined result, in `last_selection`.  It is
+        #: a write-only slot: no method in this class ever reads it, nothing
+        #: is recomputed to fill it, and no RNG is touched - so a designer
+        #: with the flag on selects exactly the positions it would select
+        #: with the flag off (tests/test_audit_regression.py).
+        self.audit = False
+        self.last_selection: Optional[Dict] = None
 
     # ------------------------------------------------------------------ #
     @property
@@ -154,13 +163,28 @@ class SpatialDesigner:
                   ) -> np.ndarray:
         """Full profile for one condition, according to cfg.mode."""
         cfg = self.cfg
+        if self.audit:
+            self.last_selection = None       # never report a stale curve
         if cfg.mode == "fixed_equal":
-            return fixed_equal_positions(self.length_m, cfg.n_positions)
+            zs_fixed = fixed_equal_positions(self.length_m, cfg.n_positions)
+            if self.audit:
+                grid = self.candidate_grid()
+                self.last_selection = {
+                    "mode": cfg.mode, "z_grid_m": grid,
+                    "marginal_gain_nats": np.full(len(grid), np.nan),
+                    "chosen_z_m": [float(z) for z in zs_fixed],
+                    "chosen_gain_nats": [float("nan")] * len(zs_fixed),
+                    "final_z_m": [float(z) for z in zs_fixed],
+                    "preselected_z_m": []}
+            return zs_fixed
         zs, _gains = self._greedy(field, F0, cfg.n_positions,
                                   early_stop=cfg.allow_profile_early_stop)
         if cfg.continuous_refinement:
             zs = self._refine(field, F0, zs)
-        return np.sort(np.asarray(zs))
+        out = np.sort(np.asarray(zs))
+        if self.audit and self.last_selection is not None:
+            self.last_selection["final_z_m"] = [float(z) for z in out]
+        return out
 
     def next_position(self, field: SensitivityField, F0: np.ndarray,
                       chosen: Sequence[float]) -> Tuple[Optional[float], float]:
@@ -181,6 +205,7 @@ class SpatialDesigner:
         fims = [self._fim_at(field, z) for z in grid]
         chosen_z: List[float] = []
         gains: List[float] = []
+        audit_curve: Optional[np.ndarray] = None
         occupied = [float(z) for z in (preselected or [])]
         F = F0.copy()
         for z in occupied:
@@ -202,6 +227,13 @@ class SpatialDesigner:
                 break
             scores = np.array([_logdet_floored(F + fims[j])
                                for j in feasible])
+            if self.audit and audit_curve is None:
+                # the FIRST step's marginal log-det gain at every feasible
+                # candidate z - the "information value over z" curve.  These
+                # are the numbers just used to pick this position; keeping
+                # them evaluates nothing new.
+                audit_curve = np.full(len(grid), np.nan)
+                audit_curve[feasible] = scores - current_ld
             jbest = feasible[int(np.argmax(scores))]
             gain = float(np.max(scores) - current_ld)
             if early_stop and chosen_z \
@@ -213,6 +245,16 @@ class SpatialDesigner:
             occupied.append(z_new)
             F = F + fims[jbest]
             current_ld = _logdet_floored(F)
+        if self.audit:
+            self.last_selection = {
+                "mode": self.cfg.mode,
+                "z_grid_m": grid,
+                "marginal_gain_nats": (audit_curve if audit_curve is not None
+                                       else np.full(len(grid), np.nan)),
+                "chosen_z_m": [float(z) for z in chosen_z],
+                "chosen_gain_nats": [float(g) for g in gains],
+                "final_z_m": [float(z) for z in chosen_z],
+                "preselected_z_m": [float(z) for z in (preselected or [])]}
         return chosen_z, gains
 
     def _refine(self, field: SensitivityField, F0: np.ndarray,

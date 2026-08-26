@@ -2,13 +2,44 @@
 Advanced-layer demonstration campaign: Reacnostics CPR (one moving sampling
 capillary) + Bruker Fourier 80 virtual instrument.
 
-Runs a single-seed strategy-F campaign under realistic NMR + transport
-physics next to a strategy-D baseline on the SAME virtual laboratory class,
-and produces Figures A-D (spatial value, position decisions, spectra,
-concentration recovery) plus the campaign history CSV.
+Runs ONE campaign per strategy listed in CONFIG["strategies"], on the
+scenario named in CONFIG["scenario"], on the SAME virtual laboratory class,
+and writes a complete, auditable scientific record of the run.
+
+WHAT THE RUN PRODUCES, under CONFIG["outdir"]:
+
+    config/     the fully resolved configuration, feature switches, scenario
+                definition, reactor validity, NMR and transfer settings
+    data/       the machine-readable record - one CSV per aspect of the
+                campaign, with campaign_rounds.csv as the central per-round
+                table.  THESE FILES ARE AUTHORITATIVE.
+    figures/    the figure set: experimental trajectory, spatial sampling,
+                measured profiles, parameter convergence and accuracy,
+                uncertainty and identifiability, posterior correlation,
+                model probabilities, design and spatial-design diagnostics,
+                NMR deconvolutions, transfer-line decomposition, QC,
+                governor, resources and the final strategy comparison
+    spectra/    the deconvolutions the campaign actually acquired, as CSV
+    report/     campaign_report.html - a readable account of the run that
+                links everything above
+
+REPORTING IS NOT ALLOWED TO CHANGE SCIENCE.  Every table and figure is
+derived AFTER a campaign has returned, from what it retained (`res`,
+`res.history`, the inference/ensemble objects, `lab.meter`, measurement
+metadata and the passive audit recorder).  The reporting layer draws no
+random number and re-evaluates nothing stochastic, so a run with reporting
+on produces exactly the campaign a run without it would have produced -
+tests/test_audit_regression.py asserts that bit-for-bit.
+
+GROUND-TRUTH FIREWALL.  This is a simulation, so the true kinetics exist.
+They are read ONLY after the campaign ends, through the same post-campaign
+scoring the benchmark uses (`param_err_pct`, `blind_rmse_M`) plus
+`lab.reveal_transfer_log()`, which is counted as a truth reveal exactly like
+`reveal_truth()`.  Truth-derived quantities are labelled as validation
+wherever they appear, and no controller-side object is ever handed one.
 
 IDE workflow: edit CONFIG below and press Run.  Everything needed for exact
-reproduction (CONFIG + seeds) is written to <outdir>/config_used.json.
+reproduction (CONFIG + seeds) is written to <outdir>/config/config_used.json.
 """
 
 from __future__ import annotations
@@ -20,15 +51,18 @@ import time
 
 import numpy as np
 
-from sdl import Layer1Bridge, build_candidates, build_fixed_design
+from sdl import Layer1Bridge
+from sdl_advanced import audit_export as aex
 from sdl_advanced import benchmark as bm
+from sdl_advanced import campaign_export as cex
+from sdl_advanced import campaign_figures as cfig
+from sdl_advanced import campaign_html as chtml
 from sdl_advanced import features as feat
 from sdl_advanced import reporting as rep
-from sdl_advanced.bayes_design import NoiseSurrogate
-from sdl_advanced.instrument import InstrumentConfig
+from sdl_advanced.audit import AuditRecorder
 from sdl_advanced.spatial_design import (SensitivityField, SpatialDesigner,
                                          fixed_equal_positions)
-from sdl_advanced.spectral import NMRSimulator, SpectralNuisance
+from sdl_advanced.spectral import NMRSimulator
 from sdl_advanced.spectral_fit import SpectralFitter
 
 CONFIG = {
@@ -41,7 +75,9 @@ CONFIG = {
     # "validation" marks this as a code/figure run, not publication numbers.
     "outdir": "results_advanced_v6/validation/campaign",
     "allow_overwrite": False,
-    "n_recovery_mc": 120,         # Figure D Monte Carlo size
+    # Monte-Carlo size of the instrument-level quantification-recovery
+    # figure (its own generator, run after the campaign)
+    "n_recovery_mc": 120,
 }
 
 # ========================================================================= #
@@ -57,7 +93,7 @@ CONFIG = {
 # describing a different system from the numbers in the benchmark.  That is
 # handled by making divergence VISIBLE rather than impossible - the run
 # prints every knob that differs from the library default, and the complete
-# resolved configuration is written to <outdir>/config_used.json.
+# resolved configuration is written to <outdir>/config/config_used.json.
 KNOBS = {
     # ===================================================================== #
     # (1) FEATURE SWITCHES - WHAT IS SIMULATED AT ALL
@@ -65,7 +101,7 @@ KNOBS = {
     # One True/False per optional effect, exactly as in
     # the benchmark runner.  The catalogue, the three-part explanation
     # of every switch and the routing live in sdl_advanced/features.py, and
-    # the fully resolved state is written to <outdir>/features_resolved.json
+    # the fully resolved state is written to config/features_resolved.json
     # with every run.  Starting from `feat.defaults()` and listing only the
     # DELTAS here is deliberate: duplicating 40 explained switches in two
     # runners is the drift this refactor exists to remove, and the resolved
@@ -357,6 +393,15 @@ KNOBS = {
 }
 
 
+#: files whose presence means a completed run already lives in a directory.
+#: Both the current layout (config/, data/) and the flat layout earlier runs
+#: wrote are listed, so an archive produced by any version of this runner is
+#: still protected.
+_RUN_MARKERS = (os.path.join("config", "config_used.json"),
+                os.path.join("data", "campaign_rounds.csv"),
+                "config_used.json", "campaign_history.csv")
+
+
 def resolve_outdir(outdir: str, allow_overwrite: bool = False) -> str:
     """Resolve the output directory, refusing to overwrite a completed run.
 
@@ -365,7 +410,7 @@ def resolve_outdir(outdir: str, allow_overwrite: bool = False) -> str:
     if not os.path.isabs(outdir):
         outdir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               outdir)
-    existing = [m for m in ("config_used.json", "campaign_history.csv")
+    existing = [m for m in _RUN_MARKERS
                 if os.path.exists(os.path.join(outdir, m))]
     if existing and not allow_overwrite:
         raise FileExistsError(
@@ -377,9 +422,13 @@ def resolve_outdir(outdir: str, allow_overwrite: bool = False) -> str:
     return outdir
 
 
-def _figure_a(outdir: str) -> None:
-    """True profile + equal vs optimized positions + information density."""
-    spec = bm.SCENARIOS["S1_ideal"]
+def _figure_spatial_value(spec, outdir: str) -> str:
+    """True profile + equal vs optimized positions + information density.
+
+    A REFERENCE illustration of why axial positions are not equally
+    valuable, drawn for the configured scenario's truth and reactor at a
+    deliberately curved operating point.  It runs on its own fixed seed
+    after the campaign and shares no RNG with it."""
     lab = bm.make_lab(spec, seed=0)
     from sdl import OperatingConditions
     u = OperatingConditions(T_C=160.0, Q1_mL_min=0.25, Q2_mL_min=0.25,
@@ -388,7 +437,7 @@ def _figure_a(outdir: str) -> None:
                           activity_model="pitzer")
     L = lab.length_m
     z_prof = np.linspace(0.002, L, 120)
-    flat = bridge.concentrations_at(bm.TRUTH, u, z_prof, bm.SPECIES)
+    flat = bridge.concentrations_at(spec.truth, u, z_prof, bm.SPECIES)
     prof = {sp: flat[i * len(z_prof):(i + 1) * len(z_prof)]
             for i, sp in enumerate(bm.SPECIES)}
 
@@ -411,12 +460,18 @@ def _figure_a(outdir: str) -> None:
     z_opt = designer.positions(field, np.zeros((p, p)))
     z_eq = fixed_equal_positions(L, bm.N_PORTS)
     info_z, info_g = designer.information_density(field, np.eye(p) * 1.0)
+    path = os.path.join(outdir, "figure_spatial_value.png")
     rep.figure_a_spatial_value(z_prof, prof, z_eq, z_opt, info_z, info_g,
-                               os.path.join(outdir, "figure_A_spatial.png"))
+                               path)
+    return path
 
 
-def _figure_d(outdir: str, n_mc: int, seed: int) -> None:
-    """Truth vs deconvolved concentration over random compositions."""
+def _figure_recovery(outdir: str, n_mc: int, seed: int) -> str:
+    """Truth vs deconvolved concentration over random compositions.
+
+    Instrument-level validation of the quantification pathway, on its own
+    generator; it is not part of the campaign and consumes none of its
+    randomness."""
     from sdl_advanced.spectral_fit import calibrate_responses
     rng = np.random.default_rng(seed)
     sim = NMRSimulator(bm.ACQ, bm.NMR_NUISANCE_TRUE)
@@ -432,9 +487,129 @@ def _figure_d(outdir: str, n_mc: int, seed: int) -> None:
         truths.append([c[sp] for sp in fitter.species])
         ests.append(res.conc_M)
         sigs.append(np.sqrt(np.diag(res.cov)))
+    path = os.path.join(outdir, "figure_quantification_recovery.png")
     rep.figure_d_truth_vs_recovered(
         np.array(truths), np.array(ests), np.array(sigs), fitter.species,
-        os.path.join(outdir, "figure_D_recovery.png"))
+        path)
+    return path
+
+
+# ========================================================================= #
+# REPORTING.  Everything below runs AFTER every campaign has returned.
+# ========================================================================= #
+def _spatial_mode_of(spec, strategy: str) -> str:
+    """The spatial policy this strategy actually ran, resolved the same way
+    benchmark.campaign_task resolves it."""
+    default = ("optimized" if strategy == "E" or strategy.startswith("F")
+               else "fixed_equal")
+    return str(spec.f_variants.get(strategy, {}).get("spatial_mode", default))
+
+
+def _truth_predictor(spec, geometry):
+    """(u, z, species) -> the hidden TRUE reactor composition.
+
+    POST-CAMPAIGN ONLY.  It is the same truth-side forward model the
+    benchmark already evaluates to score `blind_rmse_M`, built here so the
+    report can draw measured points against the profile that produced them.
+    It is handed to the reporting layer and to nothing else."""
+    bridge = Layer1Bridge(geometry, bm.T_REF_C + 273.15, **bm.TRUTH_CHEMISTRY)
+
+    def predict(u, z, species):
+        return bridge.concentrations_at(spec.truth, u,
+                                        np.asarray(z, dtype=float),
+                                        tuple(species))
+    return predict
+
+
+def _write_tables(recs, paths) -> dict:
+    """Every machine-readable table of the campaign, in `data/`.
+
+    The audit tables come straight from `audit_export`/the passive recorder,
+    concatenated across the strategies that ran; the campaign-centred ones
+    are built by `campaign_export`.  Nothing is computed twice."""
+    data = paths["data"]
+    audit_all: dict = {}
+    for rc in recs:
+        for k, rows in (rc.audit or {}).items():
+            audit_all.setdefault(k, []).extend(rows)
+
+    measurements = cex.measurement_rows(recs)
+    tables = {
+        "campaign_rounds": cex.round_rows(recs),
+        "measurements": measurements,
+        "concentrations": cex.concentration_rows(recs),
+        "kinetic_parameters": cex.parameter_rows(recs),
+        "posterior_covariance": audit_all.get("posterior_covariance_long", []),
+        "model_probabilities": audit_all.get("model_probabilities_long", []),
+        "design_candidate_scores": audit_all.get("design_candidate_scores", []),
+        "spatial_candidate_scores": audit_all.get("spatial_candidate_scores",
+                                                  []),
+        "qc_history": cex.qc_rows(recs, measurements),
+        "governor_history": audit_all.get("governor_diagnostics_long", []),
+        "resource_history": cex.resource_round_rows(recs),
+        "resource_events": audit_all.get("resource_events_long", []),
+        "transfer_history": cex.transfer_rows(recs),
+        "controller_timing": audit_all.get("controller_timing", []),
+        "design_history": audit_all.get("design_history", []),
+        "identifiability": audit_all.get("identifiability_summary", []),
+        "blind_predictions": audit_all.get("blind_predictions_long", []),
+        "nmr_calibration": audit_all.get("nmr_calibration_by_seed", []),
+        "strategy_comparison": cex.strategy_summary_rows(recs),
+    }
+    files = {name: cex.write_rows(rows, os.path.join(data, f"{name}.csv"))
+             for name, rows in tables.items()}
+    return {"tables": tables, "files": files}
+
+
+def _write_figures(recs, tables, paths) -> dict:
+    """Every figure of the campaign, in `figures/`.
+
+    Each builder is handed the exported rows and returns None when this
+    scenario/strategy has nothing to show, so a run omits the figures that
+    would be meaningless rather than drawing empty axes."""
+    fdir = paths["figures"]
+
+    def at(name):
+        return os.path.join(fdir, f"figure_{name}.png")
+
+    figs = {
+        "conditions": cfig.figure_conditions(tables["campaign_rounds"],
+                                             at("conditions")),
+        "positions": cfig.figure_positions(tables["campaign_rounds"],
+                                           at("positions")),
+        "parameters": cfig.figure_parameter_convergence(
+            tables["kinetic_parameters"], at("parameter_convergence")),
+        "param_error": cfig.figure_parameter_error(
+            tables["kinetic_parameters"], at("parameter_error")),
+        "uncertainty": cfig.figure_uncertainty(
+            tables["campaign_rounds"], tables["kinetic_parameters"],
+            tables["posterior_covariance"], at("uncertainty")),
+        "model_probs": cfig.figure_model_probabilities(
+            tables["model_probabilities"], at("model_probabilities")),
+        "qc": cfig.figure_qc(tables["qc_history"], tables["measurements"],
+                             at("qc_diagnostics")),
+        "governor": cfig.figure_governor(tables["governor_history"],
+                                         at("governor_diagnostics")),
+        "resources": cfig.figure_resources(tables["resource_history"],
+                                           at("resources")),
+        "comparison": cfig.figure_strategy_comparison(
+            tables["strategy_comparison"], at("strategy_comparison")),
+    }
+    for rc in recs:
+        s = rc.strategy
+        figs[f"profiles_{s}"] = cfig.figure_concentration_profiles(
+            tables["concentrations"], s, at(f"concentration_profiles_{s}"))
+        figs[f"design_{s}"] = cfig.figure_design_decisions(
+            tables["design_candidate_scores"], s, at(f"design_decisions_{s}"))
+        figs[f"spatial_{s}"] = cfig.figure_spatial_design(
+            tables["spatial_candidate_scores"], s, at(f"spatial_design_{s}"))
+        figs[f"nmr_{s}"] = cfig.figure_nmr_diagnostics(
+            getattr(rc.lab, "spectrum_log", ()), s, at(f"nmr_diagnostics_{s}"))
+        figs[f"transfer_{s}"] = cfig.figure_transfer_diagnostics(
+            tables["transfer_history"], s, at(f"transfer_diagnostics_{s}"))
+        figs[f"correlation_{s}"] = cfig.figure_correlation_matrices(
+            tables["posterior_covariance"], s, at(f"posterior_correlation_{s}"))
+    return {k: v for k, v in figs.items() if v}
 
 
 def main() -> None:
@@ -455,17 +630,21 @@ def main() -> None:
             drift.append(f"{name}={cur!r}")
     outdir = resolve_outdir(cfg["outdir"],
                             bool(cfg.get("allow_overwrite", False)))
+    paths = cex.prepare_outdir(outdir)
     spec = bm.SCENARIOS[cfg["scenario"]]
+    strategies = list(cfg["strategies"])
+    budget = int(cfg["budget"])
+    seed = int(cfg["seed"])
     t0 = time.time()
 
     print("=" * 74)
     print(f"Advanced campaign demo - scenario {spec.name}: "
           f"{spec.description}")
-    print(f"  budget {cfg['budget']} conditions | strategies "
-          f"{cfg['strategies']} | seed {cfg['seed']}")
+    print(f"  budget {budget} conditions | strategies "
+          f"{strategies} | seed {seed}")
     if drift:
         print("  non-default knobs: " + "; ".join(drift))
-    print("  FEATURES (full state in features_resolved.json):")
+    print("  FEATURES (full state in config/features_resolved.json):")
     for line in feat.summary_lines(bm.FEATURES, bm.MODEL_MISMATCH):
         print(line)
     nd = resolved_knobs["FEATURES_RESOLVED"]["non_default"]
@@ -475,46 +654,73 @@ def main() -> None:
           f" | transfer line T: {bm.TRANSFER_TRUE.T_line_C}")
     print("=" * 74)
 
-    histories, results, labs = {}, {}, {}
-    for strategy in cfg["strategies"]:
+    # ---- the campaigns --------------------------------------------------- #
+    # The BLIND validation set and its truth vector are the benchmark's own,
+    # so `param_err_pct` and `blind_rmse_M` here mean exactly what they mean
+    # there.  Both are used only after a campaign has returned.
+    geom = bm.active_geometry(budget)
+    z_val = np.array([bm.GEOMETRY["length_m"] / 3.0, bm.GEOMETRY["length_m"]])
+    y_true = bm._truth_prediction(spec.truth, z_val, geometry=bm.GEOMETRY)
+    truth_predict = _truth_predictor(spec, geom)
+    store_spectra = spec.observation_mode == "nmr"
+
+    recs = []
+    for strategy in strategies:
         print(f"\nStrategy {strategy}:")
-        store = strategy.startswith("F")
+        # ONE passive recorder per campaign: it collects what cannot be
+        # recovered afterwards (discarded design candidates, the spatial
+        # information curves, per-round timings) and changes nothing -
+        # tests/test_audit_regression.py asserts the bit-identity.
+        recorder = AuditRecorder(spec.name, strategy, seed, bm.SPECIES)
         res, lab, extra = bm.run_one_campaign(
-            spec, strategy, cfg["seed"], cfg["budget"], verbose=True,
-            store_spectra=store)
-        results[strategy], labs[strategy] = res, lab
-        if hasattr(res, "history") and res.history and \
-                hasattr(res.history[0], "z_positions"):
-            histories[strategy] = res.history
+            spec, strategy, seed, budget, verbose=True,
+            store_spectra=store_spectra, recorder=recorder,
+            store_transfer_log=True)
+        # ---- POST-CAMPAIGN derivation (audit_export.py) ------------------ #
+        spatial_mode = _spatial_mode_of(spec, strategy)
+        audit = aex.collect_campaign(
+            spec, strategy, seed, res, lab, extra, recorder, z_val, y_true,
+            bm.VALIDATION_CONDS, bm.SPECIES, spatial_mode,
+            scoring_bridge=bm._scoring_bridge)
+        metric_rows, param_rows = bm._round_metrics(
+            spec, strategy, res, lab, extra, z_val, y_true)
+        recs.append(cex.CampaignRecord(
+            scenario=spec.name, strategy=strategy, seed=seed, spec=spec,
+            res=res, lab=lab, extra=extra, recorder=recorder, audit=audit,
+            metric_rows=[dict(r, seed=seed) for r in metric_rows],
+            param_rows=[dict(r, seed=seed) for r in param_rows],
+            species=tuple(bm.SPECIES), length_m=float(lab.length_m),
+            spatial_mode=spatial_mode, budget=budget,
+            observation_mode=spec.observation_mode,
+            # SIMULATION campaign: the truth exists and is used for
+            # post-campaign validation only (see _truth_predictor)
+            truth=dict(spec.truth), truth_predict=truth_predict))
 
-    # ---- figures -------------------------------------------------------- #
-    _figure_a(outdir)
-    if histories:
-        rep.figure_b_position_rounds(
-            histories, labs[cfg["strategies"][0]].length_m,
-            os.path.join(outdir, "figure_B_positions.png"))
-    # Figure C from the first stored F-spectra
-    for strategy in cfg["strategies"]:
-        if not strategy.startswith("F"):
-            continue
-        for cm_meas in (results[strategy].ensemble.best.inference
-                        .measurements):
-            spectra = (cm_meas.meta or {}).get("spectra")
-            if spectra:
-                qc = cm_meas.meta["qc"]
-                pick = list(range(min(3, len(spectra))))
-                rep.figure_c_spectrum(
-                    [spectra[i] for i in pick], [qc[i] for i in pick],
-                    [cm_meas.z_m[i] for i in pick],
-                    labs[strategy].length_m,
-                    os.path.join(outdir, "figure_C_spectra.png"))
-                break
-        break
-    _figure_d(outdir, cfg["n_recovery_mc"], cfg["seed"])
+    # ---- machine-readable record ----------------------------------------- #
+    print("\n" + "-" * 74)
+    print("Campaign record")
+    out = _write_tables(recs, paths)
+    tables, files = out["tables"], out["files"]
+    spectra_index = []
+    for rc in recs:
+        spectra_index += cex.export_spectra(rc, paths["spectra"],
+                                            verbose=False)
+    files["spectra_index"] = cex.write_rows(
+        spectra_index, os.path.join(paths["spectra"], "spectra_index.csv"))
 
-    # ---- reproducibility record ----------------------------------------- #
-    with open(os.path.join(outdir, "config_used.json"), "w",
-              encoding="utf-8") as fh:
+    # ---- figures ---------------------------------------------------------- #
+    figs = _write_figures(recs, tables, paths)
+    # two REFERENCE figures: not products of this campaign, but the
+    # instrument- and design-level context it is read against.  Both run on
+    # their own fixed generators after the campaign.
+    figs["spatial_value"] = _figure_spatial_value(spec, paths["figures"])
+    if spec.observation_mode == "nmr":
+        figs["recovery"] = _figure_recovery(paths["figures"],
+                                            int(cfg["n_recovery_mc"]), seed)
+
+    # ---- reproducibility record ------------------------------------------ #
+    cfg_path = os.path.join(paths["config"], "config_used.json")
+    with open(cfg_path, "w", encoding="utf-8") as fh:
         json.dump({"framework_version": "v6",
                    "run_kind": "validation",
                    "is_publication_run": False,
@@ -534,18 +740,68 @@ def main() -> None:
                                 "family_resolved": list(
                                     bm.scenario_family(spec))},
                    "truth": bm.TRUTH, "geometry": bm.GEOMETRY,
+                   "active_geometry": geom,
                    "design": bm.DESIGN,
                    "nmr_nuisance_true": dataclasses.asdict(
                        bm.NMR_NUISANCE_TRUE),
                    "nmr_nuisance_active_gates":
                        bm.NMR_NUISANCE_TRUE.active_gates(),
-                   "acquisition": dataclasses.asdict(bm.ACQ)},
+                   "acquisition": dataclasses.asdict(bm.ACQ),
+                   "spatial_modes": {rc.strategy: rc.spatial_mode
+                                     for rc in recs},
+                   "output_layout": {k: os.path.relpath(v, outdir)
+                                     for k, v in paths.items()
+                                     if k != "root"}},
                   fh, indent=2, default=str)
-    with open(os.path.join(outdir, "features_resolved.json"), "w",
-              encoding="utf-8") as fh:
+    print(f"saved: {os.path.relpath(cfg_path)}")
+    feat_path = os.path.join(paths["config"], "features_resolved.json")
+    with open(feat_path, "w", encoding="utf-8") as fh:
         json.dump(resolved_knobs["FEATURES_RESOLVED"], fh, indent=2,
                   default=str)
+    print(f"saved: {os.path.relpath(feat_path)}")
+    files["config_used"] = cfg_path
+    files["features_resolved"] = feat_path
+
+    # ---- the human-readable account -------------------------------------- #
+    chtml.build_report(
+        os.path.join(paths["report"], "campaign_report.html"),
+        meta={"scenario": spec.name, "description": spec.description,
+              "strategies": strategies, "seed": seed, "budget": budget,
+              "observation_mode": spec.observation_mode,
+              "spatial_modes": ", ".join(f"{rc.strategy}: {rc.spatial_mode}"
+                                         for rc in recs),
+              "design_space": ("continuous (snapped to instrument "
+                               "resolution)" if bm.DESIGN_SPACE["continuous"]
+                               else "discrete grid"),
+              "reactor": (f"L = {geom['length_m'] * 100:.1f} cm, "
+                          f"ID = {geom['diameter_m'] * 1e3:.1f} mm, "
+                          + ("packed bed" if geom.get("packing_enabled")
+                             else "open tube")),
+              "transfer": (f"enabled, T_line = {spec.transfer.T_line_C} degC, "
+                           f"RTD {spec.transfer.rtd}, carryover "
+                           f"{bool(spec.transfer.carryover)}"
+                           if spec.transfer.enabled else "not used"),
+              "nmr": (f"{bm.ACQ.spectrometer_MHz:.1f} MHz, "
+                      f"{bm.ACQ.n_scans} scan(s), {spec.nmr_mode} mode"
+                      if spec.observation_mode == "nmr"
+                      else "direct concentration observation"),
+              "non_default": ", ".join(nd) if nd else "none",
+              "framework_version": "v6", "run_kind": "validation"},
+        tables=tables, figures=figs, files=files,
+        has_truth=any(rc.has_truth for rc in recs))
+
+    # ---- what the run produced -------------------------------------------- #
+    print("-" * 74)
+    for rc in recs:
+        row = next((r for r in tables["strategy_comparison"]
+                    if r["strategy"] == rc.strategy), {})
+        print(f"  {rc.strategy:>8s}: "
+              f"{int(row.get('rounds_completed', 0))}/{budget} rounds | "
+              f"param err {row.get('param_err_pct_final_vs_truth', float('nan')):.1f}% | "
+              f"blind RMSE {row.get('blind_rmse_M_final_vs_truth', float('nan')):.2e} M | "
+              f"stop: {row.get('stop_reason', '')}")
     print(f"\nDone in {time.time() - t0:.1f} s.  Outputs in: {outdir}")
+    print(f"  report:  {os.path.join(outdir, 'report', 'campaign_report.html')}")
 
 
 if __name__ == "__main__":

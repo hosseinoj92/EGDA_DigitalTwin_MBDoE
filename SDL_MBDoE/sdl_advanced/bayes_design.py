@@ -226,6 +226,16 @@ class AdvancedSelector:
         # decision; it is never consulted, and it never draws a random
         # number, so the decision sequence is identical with and without it.
         self.recorder = recorder
+        #: PASSIVE spatial-audit buffer, keyed by the id() of the
+        #: SensitivityField each screened candidate carries (those objects
+        #: stay alive in `screened` for the whole of one select() call, so
+        #: the key is stable and unique within it).  It holds the position
+        #: curve the designer already produced for that candidate; it is
+        #: written only when a recorder is attached and never read by the
+        #: selector itself.
+        self._spatial_audit: Dict[int, Dict] = {}
+        if recorder is not None:
+            designer.audit = True
         #: instrument resolution used when continuous refinement is on
         self.resolution = resolution or DesignResolution()
         if not candidates:
@@ -302,6 +312,8 @@ class AdvancedSelector:
     def select(self, governor_state: str = GovernorState.NORMAL_LEARNING
                ) -> DesignDecision:
         cfg = self.cfg
+        if self.recorder is not None:
+            self._spatial_audit.clear()      # one decision, one buffer
         F0 = self._accumulated_fim()
         G = (self._reference_G() if cfg.objective == "predictive" else None)
         pv0 = self._pred_var(G, F0) if G is not None else 0.0
@@ -375,6 +387,14 @@ class AdvancedSelector:
             return
         self.recorder.record_candidates(governor_state, mode, screened,
                                         evaluated, chosen_rank, beta)
+        keep = min(int(getattr(self.recorder, "n_candidates_kept", 6)),
+                   len(screened))
+        for rank in range(keep):
+            _score, u, _zs, field = screened[rank]
+            self.recorder.record_spatial(
+                u, self._spatial_audit.get(id(field)), rank,
+                int(rank == chosen_rank), governor_state, mode,
+                length_m=self.designer.length_m)
 
     # ------------------------------------------------------------------ #
     def _screen(self, u: OperatingConditions, F0: np.ndarray,
@@ -385,6 +405,9 @@ class AdvancedSelector:
         optimizer without disturbing the EIG stream."""
         field = self._field_for(u)
         zs = self.designer.positions(field, F0)
+        if self.recorder is not None:
+            # keep (do not recompute) the curve the designer just used
+            self._spatial_audit[id(field)] = self.designer.last_selection
         F = F0.copy()
         for z in zs:
             F = F + self.designer._fim_at(field, float(z))

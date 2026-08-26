@@ -23,9 +23,9 @@ across campaigns and writes one CSV each):
     blind_predictions_long    one row per (validation condition, z, species)
     resource_events_long      one row per metered resource event
 
-plus the three tables the passive recorder collected during the run
-(design_candidate_scores, controller_timing, nmr_measurements_long) and the
-per-seed calibration record.
+plus the four tables the passive recorder collected during the run
+(design_candidate_scores, spatial_candidate_scores, controller_timing,
+nmr_measurements_long) and the per-seed calibration record.
 """
 
 from __future__ import annotations
@@ -37,6 +37,7 @@ import numpy as np
 from sdl.campaign import StrategyResult
 
 TABLES = ("design_history", "design_candidate_scores",
+          "spatial_candidate_scores",
           "model_probabilities_long", "governor_diagnostics_long",
           "blind_predictions_long", "posterior_covariance_long",
           "identifiability_summary", "nmr_measurements_long",

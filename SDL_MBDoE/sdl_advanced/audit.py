@@ -60,6 +60,7 @@ class AuditRecorder:
         self.candidate_rows: List[Dict] = []
         self.timing_rows: List[Dict] = []
         self.acquisition_rows: List[Dict] = []
+        self.spatial_rows: List[Dict] = []
         #: round number the controller is CURRENTLY designing for; the
         #: selector does not know it, so the controller stamps it.
         self._round_for_decision: int = 0
@@ -108,6 +109,87 @@ class AuditRecorder:
                 "resource_penalty": float(ev.get("cost", np.nan)),
                 "utility_total": float(ev.get("utility", np.nan)),
                 "beta_model_weight": float(beta),
+            })
+
+    # -- spatial design: the information curve behind the position set --- #
+    def record_spatial(self, u, curve: Optional[Dict], rank: int,
+                       selected: int, governor_state: str = "",
+                       mode: str = "", length_m: float = float("nan"),
+                       round_no: Optional[int] = None) -> None:
+        """`curve` is `SpatialDesigner.last_selection`: the marginal
+        log-det gain the designer evaluated over its candidate z grid for
+        its own first greedy step, plus the positions it then chose.  Every
+        number here was computed BY the design decision being reported -
+        nothing is re-evaluated, and the designer draws no random numbers,
+        so recording it cannot move a position.
+
+        Three row kinds share the table, distinguished by `row_kind`:
+
+          `candidate_z`  one per grid point, carrying the information curve
+          `selected_z`   one per GREEDY pick, in the order it was taken,
+                         with the log-det gain that pick realized
+          `final_z`      the position set actually handed back, after the
+                         continuous refinement polished and sorted it
+
+        The last two are reported as SEPARATE rows rather than as two
+        columns of one row on purpose: refinement moves the positions and
+        then sorts them, so there is no index correspondence between a
+        greedy pick and a refined position, and inventing one would put a
+        gain next to a position that did not earn it."""
+        if not curve:
+            return
+        rnd = int(self._round_for_decision if round_no is None else round_no)
+        grid = np.asarray(curve.get("z_grid_m", ()), dtype=float)
+        gain = np.asarray(curve.get("marginal_gain_nats", ()), dtype=float)
+        chosen = [float(z) for z in curve.get("chosen_z_m", ())]
+        final = [float(z) for z in curve.get("final_z_m", ())] or chosen
+        gains = [float(g) for g in curve.get("chosen_gain_nats", ())]
+        L = float(length_m) if length_m else float("nan")
+        common = {"scenario": self.scenario, "strategy": self.strategy,
+                  "seed": self.seed, "round": rnd,
+                  "candidate_rank": int(rank) + 1,
+                  "candidate_selected": int(selected),
+                  "governor_state": governor_state,
+                  "design_mode": mode,
+                  "spatial_mode": str(curve.get("mode", "")),
+                  "T_C": float(getattr(u, "T_C", np.nan)),
+                  "Q_total_mL_min": float(getattr(u, "Q1_mL_min", np.nan)
+                                          + getattr(u, "Q2_mL_min", np.nan)),
+                  "C_EGDA_M": float(getattr(u, "C_EGDA_M", np.nan)),
+                  "C_cat_M": float(getattr(u, "C_cat_M", np.nan)),
+                  "n_positions_selected": len(final)}
+        # half a grid step: "this candidate z is one the designer took"
+        step = (float(grid[1] - grid[0]) if grid.size > 1 else 0.0)
+        for j in range(grid.size):
+            z = float(grid[j])
+            taken = any(abs(z - c) <= 0.5 * step for c in chosen)
+            self.spatial_rows.append({
+                **common, "row_kind": "candidate_z",
+                "z_m": z, "z_over_L": z / L if L else float("nan"),
+                "marginal_gain_nats": float(gain[j]) if j < gain.size
+                                      else float("nan"),
+                "is_selected_position": int(taken),
+                "selection_order": -1,
+                "realized_gain_nats": float("nan"),
+            })
+        for i, z in enumerate(chosen):
+            self.spatial_rows.append({
+                **common, "row_kind": "selected_z",
+                "z_m": float(z), "z_over_L": z / L if L else float("nan"),
+                "marginal_gain_nats": float("nan"),
+                "is_selected_position": 1,
+                "selection_order": i + 1,
+                "realized_gain_nats": (gains[i] if i < len(gains)
+                                       else float("nan")),
+            })
+        for z in final:
+            self.spatial_rows.append({
+                **common, "row_kind": "final_z",
+                "z_m": float(z), "z_over_L": z / L if L else float("nan"),
+                "marginal_gain_nats": float("nan"),
+                "is_selected_position": 1,
+                "selection_order": -1,
+                "realized_gain_nats": float("nan"),
             })
 
     # -- QC gate: one row per acquisition ATTEMPT, per species ----------- #
@@ -185,4 +267,5 @@ class AuditRecorder:
         """Picklable primitives only, for the trip back from a worker."""
         return {"design_candidate_scores": self.candidate_rows,
                 "controller_timing": self.timing_rows,
-                "nmr_measurements_long": self.acquisition_rows}
+                "nmr_measurements_long": self.acquisition_rows,
+                "spatial_candidate_scores": self.spatial_rows}

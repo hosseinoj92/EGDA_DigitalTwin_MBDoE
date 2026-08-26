@@ -101,6 +101,14 @@ class InstrumentConfig:
     observation_mode: str = "nmr"        # "nmr" | "direct"
     nmr_mode: str = "realistic"          # "ideal" | "realistic"
     store_spectra: bool = False
+    #: REPORTING ONLY.  Keep a truth-side record of what the sample looked
+    #: like at the reactor sampling point and again at the NMR cell, so a
+    #: post-campaign report can separate TRANSPORT distortion from
+    #: QUANTIFICATION error.  It is written to a private list that only
+    #: `reveal_transfer_log()` exposes - the same firewall `reveal_truth()`
+    #: sits behind - so no controller-side code can reach it, and it is off
+    #: by default.
+    store_transfer_log: bool = False
     species_measured: Tuple[str, ...] = QUANTIFIED_SPECIES
     # pre-campaign per-species response calibration against prepared
     # standards (the real Fourier-80 workflow); absorbs systematic
@@ -163,6 +171,16 @@ class AdvancedVirtualLaboratory:
         self.n_experiments_run = 0
         self.n_acquisitions = 0
         self.n_truth_reveals = 0
+        #: PUBLIC per-acquisition deconvolution record (config.store_spectra).
+        #: Holds only what the fitter itself produced - spectrum, fit,
+        #: residual, component traces, estimates and QC - so it carries no
+        #: truth and needs no firewall.  Written for EVERY acquisition,
+        #: including the ones the QC gate later rejects, which is what makes
+        #: a rejected spectrum inspectable at all.
+        self.spectrum_log: List[Dict] = []
+        #: TRUTH-SIDE transfer record (config.store_transfer_log); private,
+        #: read only through reveal_transfer_log()
+        self._truth_transfer_log: List[Dict] = []
         self._last_u: Optional[OperatingConditions] = None
         #: PUBLIC calibration artifact (prepared-standard results); the
         #: design layer consumes THIS object, so expected and actual
@@ -263,9 +281,14 @@ class AdvancedVirtualLaboratory:
             if self.config.observation_mode == "direct":
                 est, cov_k, meta_k = self._observe_direct(seen)
             else:
-                est, cov_k, meta_k, spec = self._observe_nmr(seen)
+                est, cov_k, meta_k, spec, comps = self._observe_nmr(seen)
                 if self.config.store_spectra:
                     spectra.append(spec)
+                    self._log_spectrum(u, float(z_k), bool(reacquire),
+                                       est, cov_k, meta_k, spec, comps)
+            if self.config.store_transfer_log:
+                self._log_transfer(u, float(z_k), bool(reacquire),
+                                   conc_true, seen, est, cov_k, meta_k)
             for i in range(n_s):
                 y[i * n_z + k] = est[i]
                 for j in range(n_s):
@@ -345,6 +368,8 @@ class AdvancedVirtualLaboratory:
         est = np.array([res.conc_M[list(res.species).index(sp)]
                         for sp in self.species])
         est, n_out = self._inject_outliers(est, res.cov)
+        comps = (self._fitter.component_spectra(res)
+                 if self.config.store_spectra else None)
         meta = {"mode": "nmr", "qc_flags": list(res.qc_flags),
                 "hardware_fault": int(faulted), "n_outliers": int(n_out),
                 "censored": list(res.censored),
@@ -355,7 +380,69 @@ class AdvancedVirtualLaboratory:
                              list(res.species).index("EGMA")])
                 if {"EGDA", "EGMA"} <= set(res.species) else 0.0,
                 "eta": dict(res.eta)}
-        return est, res.cov, meta, (ppm, spec, res.fitted)
+        return est, res.cov, meta, (ppm, spec, res.fitted), comps
+
+    # ------------------------------------------------------------------ #
+    # PASSIVE REPORTING SINKS.  Both are append-only, draw no random number
+    # and are never read back by this class, so an instrument with them on
+    # produces the same spectra, the same estimates and the same QC verdicts
+    # as one with them off.
+    # ------------------------------------------------------------------ #
+    def _log_spectrum(self, u: OperatingConditions, z_m: float,
+                      reacquire: bool, est: np.ndarray, cov: np.ndarray,
+                      meta: Dict, spec: Tuple, comps) -> None:
+        ppm, observed, fitted = spec
+        self.spectrum_log.append({
+            "acquisition_index": int(self.n_acquisitions),
+            "z_m": float(z_m), "reacquisition": int(reacquire),
+            "T_C": float(u.T_C),
+            "Q_total_mL_min": float(u.Q1_mL_min + u.Q2_mL_min),
+            "C_EGDA_M": float(u.C_EGDA_M), "C_cat_M": float(u.C_cat_M),
+            "species": tuple(self.species),
+            "ppm": np.asarray(ppm), "observed": np.asarray(observed),
+            "fitted": np.asarray(fitted),
+            "residual": np.asarray(observed) - np.asarray(fitted),
+            "components": {k: np.asarray(v) for k, v in (comps or {}).items()},
+            "conc_M": np.asarray(est, dtype=float).copy(),
+            "sigma_M": np.sqrt(np.maximum(np.diag(np.asarray(cov, float)),
+                                          0.0)),
+            "qc": dict(meta)})
+
+    def _log_transfer(self, u: OperatingConditions, z_m: float,
+                      reacquire: bool, conc_reactor: Dict[str, float],
+                      conc_cell: Dict[str, float], est: np.ndarray,
+                      cov: np.ndarray, meta: Dict) -> None:
+        """TRUTH-SIDE.  Nothing in this dictionary may reach the controller;
+        it lives behind reveal_transfer_log()."""
+        sig = np.sqrt(np.maximum(np.diag(np.asarray(cov, float)), 0.0))
+        self._truth_transfer_log.append({
+            "acquisition_index": int(self.n_acquisitions),
+            "z_m": float(z_m), "reacquisition": int(reacquire),
+            "T_C": float(u.T_C),
+            "Q_total_mL_min": float(u.Q1_mL_min + u.Q2_mL_min),
+            "C_EGDA_M": float(u.C_EGDA_M), "C_cat_M": float(u.C_cat_M),
+            "T_line_C": (float(self._transfer.cfg.T_line_C)
+                         if self._transfer.cfg.T_line_C is not None
+                         else float(u.T_C)),
+            "transfer_enabled": int(bool(self._transfer.cfg.enabled)),
+            "mean_tau_line_s": float(
+                self._transfer.cfg.mean_tau_s(float(z_m), self.length_m))
+            if self._transfer.cfg.enabled else 0.0,
+            "qc_flags": list((meta or {}).get("qc_flags", [])),
+            "c_reactor_M": {sp: float(conc_reactor.get(sp, np.nan))
+                            for sp in self.species},
+            "c_cell_M": {sp: float(conc_cell.get(sp, np.nan))
+                         for sp in self.species},
+            "c_measured_M": {sp: float(est[i])
+                             for i, sp in enumerate(self.species)},
+            "sigma_M": {sp: float(sig[i])
+                        for i, sp in enumerate(self.species)}})
+
+    def reveal_transfer_log(self) -> List[Dict]:
+        """POST-CAMPAIGN reporting only - counted exactly like
+        reveal_truth(), because it returns truth-side concentrations."""
+        self.n_truth_reveals += 1
+        return [dict(r) for r in self._truth_transfer_log]
 
     # ------------------------------------------------------------------ #
     def reveal_truth(self) -> Dict[str, float]:

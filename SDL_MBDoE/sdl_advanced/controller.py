@@ -436,6 +436,7 @@ def run_strategy_e(lab: AdvancedVirtualLaboratory,
     L = lab.length_m
     designer = SpatialDesigner(
         spatial_cfg, L, _noise_cov_builder(inference.noise, lab.species))
+    designer.audit = recorder is not None      # write-only capture; see audit.py
 
     def field_for(u: OperatingConditions) -> SensitivityField:
         def predict(th, z):
@@ -451,6 +452,10 @@ def run_strategy_e(lab: AdvancedVirtualLaboratory,
         if r > 1 or spatial_cfg.mode != "fixed_equal":
             F0 = inference.fisher_information()
             z_next = designer.positions(field_for(u_next), F0)
+            if recorder is not None:
+                recorder.record_spatial(
+                    u_next, designer.last_selection, rank=0, selected=1,
+                    mode="fim", length_m=L, round_no=r)
         meas = lab.run_profile(u_next, z_next)
         inference.add_measurement(meas)
         inference.fit()
@@ -576,6 +581,13 @@ def run_strategy_f(lab: AdvancedVirtualLaboratory,
                     if ensemble.best.posterior.theta_map is None
                     else ensemble.best.inference.fisher_information(
                         ensemble.best.posterior.theta_map))
+                if recorder is not None:
+                    # the seed round designs its own positions without the
+                    # selector, so the curve is reported from here instead
+                    recorder.record_spatial(
+                        u_next, designer.last_selection, rank=0, selected=1,
+                        governor_state=str(state), mode="seed", length_m=L,
+                        round_no=r)
             meas, n_rej, n_re, fault = measure_with_qc(
                 lab, u_next, zs, qc, recorder=recorder, round_no=r,
                 monitor=qc_monitor)
@@ -692,6 +704,13 @@ def _adaptive_profile_bayes(lab: AdvancedVirtualLaboratory,
              if cm.posterior.theta_map is not None
              else np.zeros((cm.space.n_params,) * 2))
         z_next, gain = designer.next_position(field, F, chosen)
+        if recorder is not None:
+            # one adaptive step = one greedy evaluation over the z grid;
+            # report the curve it just used (nothing re-evaluated)
+            recorder.record_spatial(
+                u, designer.last_selection, rank=0, selected=1,
+                mode="adaptive_sequential", length_m=designer.length_m,
+                round_no=round_no)
         if z_next is None:
             break
         if chosen and cfg.allow_profile_early_stop \
