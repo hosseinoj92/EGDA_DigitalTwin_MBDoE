@@ -1,0 +1,17 @@
+scenario,strategy,seed,round,model,probability,is_selected_model,selected_model,evidence_reliable,probs_reliable_all_models,n_bound_active,bound_active_params,evidence_warning,tracked_correct_model,truth_in_candidate_family
+S3_transport,E,7,1,wls,1.0,1,wls,1,1,1,K2_ref,,,0
+S3_transport,E,7,2,wls,1.0,1,wls,1,1,3,Ea2_J;K1_ref;K2_ref,,,0
+S3_transport,E,7,3,wls,1.0,1,wls,1,1,0,,,,0
+S3_transport,E,7,4,wls,1.0,1,wls,1,1,0,,,,0
+S3_transport,E,7,5,wls,1.0,1,wls,1,1,0,,,,0
+S3_transport,E,7,6,wls,1.0,1,wls,1,1,0,,,,0
+S3_transport,E,7,7,wls,1.0,1,wls,1,1,0,,,,0
+S3_transport,E,7,8,wls,1.0,1,wls,1,1,0,,,,0
+S3_transport,F,7,1,rev-pitzer,1.0,1,rev-pitzer,0,0,0,,"rev-pitzer: Laplace evidence is boundary-affected (pinned=(), bound-mass>0.05: ['k2_ref']); model probability is NOT reliable evidence.",,0
+S3_transport,F,7,2,rev-pitzer,1.0,1,rev-pitzer,1,1,0,,,,0
+S3_transport,F,7,3,rev-pitzer,1.0,1,rev-pitzer,1,1,0,,,,0
+S3_transport,F,7,4,rev-pitzer,1.0,1,rev-pitzer,1,1,0,,,,0
+S3_transport,F,7,5,rev-pitzer,1.0,1,rev-pitzer,1,1,0,,,,0
+S3_transport,F,7,6,rev-pitzer,1.0,1,rev-pitzer,1,1,0,,,,0
+S3_transport,F,7,7,rev-pitzer,1.0,1,rev-pitzer,1,1,0,,,,0
+S3_transport,F,7,8,rev-pitzer,1.0,1,rev-pitzer,1,1,0,,,,0

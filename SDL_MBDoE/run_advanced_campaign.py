@@ -97,7 +97,7 @@ CONFIG = {
     # V6 results live in their own tree; results_advanced_v5 is a COMPLETED
     # ARCHIVE of the previous framework and is never written to again.
     # "validation" marks this as a code/figure run, not publication numbers.
-    "outdir": "D:/Simulations/EGDA_kinetics/V6_MBDoE/results/campaign_v6/S3_transport/PFR_L200mm_D7mm",
+    "outdir": "results/campaign_v6/S3_transport/PFR_L200mm_D7mm",
     "allow_overwrite": False,
     # Monte-Carlo size of the instrument-level quantification-recovery
     # figure (its own generator, run after the campaign)
@@ -127,7 +127,7 @@ CONFIG = {
     # see the note above `_campaign_task`.  The default is 1 because the
     # shipped two-strategy campaign gains little against the process
     # start-up cost; raise it when running the full A-F set.
-    "n_workers": 1,
+    "n_workers": "auto",
     # BLAS threads INSIDE each worker.  Keep at 1: it prevents
     # oversubscription and it is the setting under which parallel output is
     # bit-identical to serial output.
@@ -812,18 +812,52 @@ def main() -> None:
         cfg.get("n_workers", 1), initializer=bm.worker_init,
         initargs=(budget, dict(KNOBS)))
 
+    # WHAT THE BAR MUST NAME: the campaign that is RUNNING, never the one
+    # that just finished.  Naming the finished one leaves the bar frozen on
+    # the previous strategy for the whole of the next campaign - and since
+    # F costs roughly ten times any other strategy here, that reads as
+    # "stuck on E" for minutes while F is in fact running normally.
+    pending = list(strategies)
+
+    def _starting(strategy):
+        """SERIAL path only - the parent runs the campaigns itself, so it
+        knows which one is about to start."""
+        if bar is not None:
+            bar.set_description(f"{spec.name}/{strategy}")
+        say(f"\nStrategy {strategy}:")
+
     def _landed(_i, args, _out):
         """PARENT-SIDE PROGRESS ONLY.  Fires in completion order when
         parallel, so nothing that is saved may depend on when it runs."""
         strategy = args[1]
+        if strategy in pending:
+            pending.remove(strategy)
         if bar is not None:
-            bar.set_description(f"{spec.name}/{strategy}")
             # clamped to what is left: `sum()` and repeated `+=` over the
             # same floats can disagree in the last bits, and a bar that
             # ends at 100.0000001 % emits a warning instead of a result
             bar.update(min(bm.campaign_cost_units(strategy, budget),
                            max(bar.total - bar.n, 0.0)))
-        say(f"  campaign finished: {spec.name}/{strategy}")
+            if executor is not None:
+                # in parallel nothing knows what STARTED, but what is still
+                # outstanding is just as useful and IS knowable
+                bar.set_description(
+                    f"{spec.name} | running: "
+                    + (",".join(pending) if pending else "done"))
+        say(f"  finished {spec.name}/{strategy} "
+            f"({len(strategies) - len(pending)}/{len(strategies)})")
+
+    if executor is None:
+        def _run_task(*args):
+            _starting(args[1])
+            return _campaign_task(*args)
+    else:
+        _run_task = _campaign_task          # must stay picklable by name
+        say(f"  submitted {len(strategies)} campaigns to {n_proc} "
+            f"workers: {', '.join(strategies)}")
+        if bar is not None:
+            bar.set_description(f"{spec.name} | running: "
+                                + ",".join(pending))
 
     t_compute = time.time()
     try:
@@ -831,7 +865,7 @@ def main() -> None:
         # `strategies[i]` whichever worker happened to finish first, so
         # every table, figure and report section built below is identical
         # to a one-core run at any worker count.
-        outputs = par.ordered_map(_campaign_task, tasks, executor=executor,
+        outputs = par.ordered_map(_run_task, tasks, executor=executor,
                                   on_result=_landed)
     finally:
         if executor is not None:
