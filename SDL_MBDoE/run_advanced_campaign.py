@@ -44,41 +44,60 @@ reproduction (CONFIG + seeds) is written to <outdir>/config/config_used.json.
 
 from __future__ import annotations
 
-import dataclasses
-import json
 import os
-import time
 
-import numpy as np
+# --------------------------------------------------------------------- #
+# Numerical threads are pinned BEFORE numpy/scipy are imported, because a
+# BLAS backend reads these at import time and cannot be reconfigured
+# afterwards.  One thread per process is what makes an N-worker run
+# reproduce a one-core run digit for digit (a threaded BLAS reduction sums
+# in a nondeterministic order), and it costs nothing here: the linear
+# algebra is 6x6 parameter blocks.  Spelled out rather than imported from
+# sdl_advanced.parallel because importing anything from that PACKAGE runs
+# sdl_advanced/__init__.py, which imports numpy - too late.
+# --------------------------------------------------------------------- #
+for _var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
+             "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS"):
+    os.environ[_var] = "1"
+
+import dataclasses                                              # noqa: E402
+import json                                                     # noqa: E402
+import multiprocessing                                          # noqa: E402
+import time                                                     # noqa: E402
+
+import numpy as np                                              # noqa: E402
 
 try:                                    # progress bar (optional dependency)
     from tqdm.auto import tqdm
 except ImportError:                     # pragma: no cover - fallback
     tqdm = None
 
-from sdl import Layer1Bridge
-from sdl_advanced import audit_export as aex
-from sdl_advanced import benchmark as bm
-from sdl_advanced import campaign_export as cex
-from sdl_advanced import campaign_figures as cfig
-from sdl_advanced import campaign_html as chtml
-from sdl_advanced import features as feat
-from sdl_advanced import reporting as rep
-from sdl_advanced.audit import AuditRecorder
-from sdl_advanced.spatial_design import (SensitivityField, SpatialDesigner,
+from sdl import Layer1Bridge                                    # noqa: E402
+from sdl_advanced import audit_export as aex                    # noqa: E402
+from sdl_advanced import benchmark as bm                        # noqa: E402
+from sdl_advanced import campaign_export as cex                 # noqa: E402
+from sdl_advanced import campaign_figures as cfig               # noqa: E402
+from sdl_advanced import campaign_html as chtml                 # noqa: E402
+from sdl_advanced import features as feat                       # noqa: E402
+from sdl_advanced import parallel as par                        # noqa: E402
+from sdl_advanced import reporting as rep                       # noqa: E402
+from sdl_advanced.audit import AuditRecorder                    # noqa: E402
+from sdl_advanced.spatial_design import (SensitivityField,      # noqa: E402
+                                         SpatialDesigner,
                                          fixed_equal_positions)
-from sdl_advanced.spectral import NMRSimulator
-from sdl_advanced.spectral_fit import SpectralFitter
+from sdl_advanced.spectral import NMRSimulator                  # noqa: E402
+from sdl_advanced.spectral_fit import SpectralFitter            # noqa: E402
 
 CONFIG = {
     "seed": 7,
-    "budget": 6,                  # reactor conditions per strategy
+    "budget": 8,                  # reactor conditions per strategy
     "scenario": "S3_transport",   # the full-physics demonstration
-    "strategies": ["D", "F"],
+    "strategies": ["A", "B", "C", "D", "E", "F"],
+
     # V6 results live in their own tree; results_advanced_v5 is a COMPLETED
     # ARCHIVE of the previous framework and is never written to again.
     # "validation" marks this as a code/figure run, not publication numbers.
-    "outdir": "results_advanced_v6/validation/campaign",
+    "outdir": "D:/Simulations/EGDA_kinetics/V6_MBDoE/results/campaign_v6/S3_transport/PFR_L200mm_D7mm",
     "allow_overwrite": False,
     # Monte-Carlo size of the instrument-level quantification-recovery
     # figure (its own generator, run after the campaign)
@@ -91,7 +110,28 @@ CONFIG = {
     # Per-round campaign lines.  Left ON by default: this runner exists to
     # watch ONE campaign in detail, and the bar is drawn on stderr while
     # these go to stdout, so they coexist.  Turn it off for a clean bar.
+    # Forced OFF when workers > 1, where six campaigns would interleave
+    # their round lines into noise.
     "verbose_rounds": True,
+
+    # ---- parallelism (identical results at any setting) ---------------- #
+    # ONE STRATEGY = ONE TASK.  The strategies of a campaign are independent
+    # (each seeds its own laboratory and selector from the same
+    # scenario/strategy/seed), so they simply spread over processes:
+    #   1             -> serial, no multiprocessing machinery at all
+    #   None / "auto" -> every core but one
+    #   0             -> every core
+    #   n             -> exactly n processes
+    # Results are reassembled in SUBMISSION order, never completion order,
+    # so every saved file is identical to a one-core run at any setting -
+    # see the note above `_campaign_task`.  The default is 1 because the
+    # shipped two-strategy campaign gains little against the process
+    # start-up cost; raise it when running the full A-F set.
+    "n_workers": 1,
+    # BLAS threads INSIDE each worker.  Keep at 1: it prevents
+    # oversubscription and it is the setting under which parallel output is
+    # bit-identical to serial output.
+    "threads_per_worker": 1,
 }
 
 # ========================================================================= #
@@ -149,18 +189,18 @@ KNOBS = {
     # The factorial grid the classical campaign walks, and the bounds the
     # continuous optimizer is allowed to roam inside.
     "DESIGN": {
-        "T_C_levels": [40, 60, 80, 100, 120, 140, 160],
-        "Q_total_mL_min_levels": [0.5, 2.0, 8.0],
-        "C_cat_M_levels": [0.5, 1.0],
-        "C_EGDA_M_levels": [1.0],
+        "T_C_levels": [40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160],
+        "Q_total_mL_min_levels": [0.5, 1.0, 2.0, 3.0, 4.0],
+        "C_cat_M_levels": [0.1, 0.5, 1.0],
+        "C_EGDA_M_levels": [0.1, 0.5, 1.0],
         "C_EGDA_M": 1.0,            # For the fixed-design baseline, the optimizer is not allowed to change it.
-        "fixed_design_T_C": [40, 60, 80, 100, 120, 140, 160],
+        "fixed_design_T_C": [40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160],
         "nominal_Q_total_mL_min": 1.0,
         "nominal_C_cat_M": 0.5,
         "continuous_bounds": {"T_C": [40.0, 160.0],
-                              "Q_total_mL_min": [0.5, 8.0],
-                              "C_cat_M": [0.5, 1.0],
-                              "C_EGDA_M": [1.0, 1.0]},   # lo == hi -> fixed
+                              "Q_total_mL_min": [0.5, 4.0],
+                              "C_cat_M": [0.1, 1.0],
+                              "C_EGDA_M": [0.1, 1.0]},   # lo == hi -> fixed
     },
     # CONTINUOUS vs DISCRETE design.  False = the classical grid-only
     # campaign (the published v3 behaviour).  True = the optimizer may
@@ -169,13 +209,16 @@ KNOBS = {
     # beats the best grid point - so it can never do worse.
     # `continuous` lives in FEATURES["continuous_design_space"].
     "DESIGN_SPACE": {
-        "resolution": {"T_C": 0.1,             # deg C
-                       "Q_total_mL_min": 0.1,   # mL/min
-                       "C_cat_M": 1.0e-4,       # 0.1 mM
-                       "C_EGDA_M": 1.0e-4},     # 0.1 mM
-        "continuous_maxiter": 40,
-        "continuous_restarts": 2,
+        "resolution": {
+            "T_C": 0.1,
+            "Q_total_mL_min": 0.1,
+            "C_cat_M": 1e-4,
+            "C_EGDA_M": 1e-4,
+        },
+        "continuous_maxiter": 80,
+        "continuous_restarts": 4,
     },
+
 
     # ---- reactor geometry as a DESIGN VARIABLE (optional) --------------- #
     # enabled=False -> "I have this reactor, what experiments?"  (default)
@@ -315,12 +358,12 @@ KNOBS = {
 
     # ---- spatial sampling ------------------------------------------------ #
     "SPATIAL": {
-        "candidate_grid_size": 41,
+        "candidate_grid_size": 101,
         "z_min_fraction": 0.02,
         "z_max_fraction": 1.0,
         "min_spacing_fraction": 0.02,
-        "continuous_refinement": False,
-        "marginal_information_threshold": None,
+        "continuous_refinement": True,
+        "marginal_information_threshold": 0.05,
     },
 
     # ---- quantification error model (magnitudes) ------------------------- #
@@ -341,11 +384,11 @@ KNOBS = {
 
     # ---- Bayesian design (strategy F) ------------------------------------ #
     "ADVANCED_DESIGN": {
-        "top_k": 3,                    # candidates surviving the FIM screen
-        "n_particles": 16,             # posterior particles per EIG estimate
-        "n_outer": 24,                 # outer MC samples per EIG estimate
-        "alpha_param": 1.0,            # weight on parameter EIG
-        "beta_model": 1.0,             # weight on model-discrimination EIG
+        "top_k": 5,
+        "n_particles": 64,
+        "n_outer": 64,
+        "alpha_param": 1.0,
+        "beta_model": 1.0,
         "beta_model_discrimination": 4.0,
     },
 
@@ -506,6 +549,50 @@ def _figure_recovery(outdir: str, n_mc: int, seed: int) -> str:
         np.array(truths), np.array(ests), np.array(sigs), fitter.species,
         path)
     return path
+
+
+# ========================================================================= #
+# THE UNIT OF PARALLEL WORK
+# ========================================================================= #
+def _campaign_task(scenario_name: str, strategy: str, seed: int, budget: int,
+                   store_spectra: bool, verbose: bool):
+    """ONE strategy's campaign, as a picklable function of its labels.
+
+    WHY THE OUTPUT IS THE SAME AT ANY WORKER COUNT.  Three things, none of
+    them accidental:
+
+      1. Each campaign is an INDEPENDENT, pure function of (scenario,
+         strategy, seed, budget).  The laboratory seeds its own
+         `default_rng(seed)` and the selector seeds `default_rng(seed +
+         offset)`; nothing reads global RNG state, so no campaign can
+         observe how many others are running.
+      2. `par.ordered_map` reassembles results by SUBMISSION index, never by
+         completion order, so `recs` is in `CONFIG["strategies"]` order
+         whichever worker finishes first - and every CSV row, every figure
+         and every report section is built by walking `recs`.
+      3. BLAS threads are pinned to one (see the module header), so a
+         floating-point reduction sums in the same order whether a campaign
+         runs alone or beside five others.
+
+    The scenario is looked up by NAME rather than passed in: a spawned
+    worker re-imports the benchmark module and must use ITS definition
+    rather than a pickled copy, and the knobs are replayed into that module
+    by `bm.worker_init` before any task runs.
+
+    Returns the retained campaign objects themselves rather than derived
+    rows.  That is the opposite of the benchmark's `campaign_task`, and
+    deliberately so: this runner's whole reporting layer reads `res`,
+    `lab`, `extra` and the recorder directly, so deriving anything in the
+    worker would mean shipping the objects back as well AND maintaining a
+    second derivation path that could drift from the serial one.
+    """
+    spec = bm.SCENARIOS[scenario_name]
+    recorder = AuditRecorder(spec.name, strategy, seed, bm.SPECIES)
+    res, lab, extra = bm.run_one_campaign(
+        spec, strategy, seed, budget, verbose=verbose,
+        store_spectra=store_spectra, recorder=recorder,
+        store_transfer_log=True)
+    return res, lab, extra, recorder
 
 
 # ========================================================================= #
@@ -682,7 +769,27 @@ def main() -> None:
     # Weighted by the SAME per-strategy cost model the benchmark's bar uses,
     # so the percentage tracks work rather than campaign count.  It is pure
     # telemetry: it reads a clock and a counter and touches nothing else.
-    verbose_rounds = bool(cfg.get("verbose_rounds", True))
+    # ---- parallel plan ---------------------------------------------------- #
+    # Children inherit the environment, so pinning here (before the pool is
+    # created) configures every worker; the parent was already pinned at
+    # import time, and the two must agree for serial and parallel to match.
+    threads = int(cfg.get("threads_per_worker", 1) or 1)
+    par.pin_numerical_threads(threads)
+    n_proc = par.resolve_workers(cfg.get("n_workers", 1))
+    # Per-round lines from six campaigns racing each other are noise, not
+    # detail, so they are forced off whenever more than one process runs.
+    # Nothing about the results changes - `verbose` only prints.
+    verbose_rounds = bool(cfg.get("verbose_rounds", True)) and n_proc == 1
+    print(f"  parallelism: {par.describe_workers(cfg.get('n_workers', 1))}"
+          f", {threads} BLAS thread(s) each")
+    if threads != 1:
+        print("    WARNING: threads_per_worker != 1 - a threaded BLAS "
+              "reduction sums in a nondeterministic order, so bit-identical "
+              "agreement with a serial run is no longer guaranteed.")
+    if n_proc > 1 and bool(cfg.get("verbose_rounds", True)):
+        print("    per-round lines suppressed while workers > 1 "
+              "(set n_workers = 1 to watch a campaign round by round)")
+
     total_units = sum(bm.campaign_cost_units(s, budget) for s in strategies)
     # float total, NOT round(): the updates are floats and their sum is
     # exactly total_units, so a rounded total lets the bar overshoot 100 %
@@ -693,27 +800,49 @@ def main() -> None:
            if bool(cfg.get("progress", True)) and tqdm is not None else None)
     say = (lambda msg: (tqdm.write(msg) if bar is not None else print(msg)))
 
-    recs = []
-    for strategy in strategies:
+    # ---- COMPUTE PHASE ---------------------------------------------------- #
+    # ONE STRATEGY = ONE TASK.  A worker re-imports the benchmark module and
+    # therefore starts from DEFAULTS, so the resolved knobs are replayed
+    # inside every process by `bm.worker_init` - a worker running a different
+    # configuration from the parent is the worst possible failure, because
+    # the numbers would still look plausible.
+    tasks = [(spec.name, strategy, seed, budget, store_spectra,
+              verbose_rounds) for strategy in strategies]
+    executor = par.make_executor(
+        cfg.get("n_workers", 1), initializer=bm.worker_init,
+        initargs=(budget, dict(KNOBS)))
+
+    def _landed(_i, args, _out):
+        """PARENT-SIDE PROGRESS ONLY.  Fires in completion order when
+        parallel, so nothing that is saved may depend on when it runs."""
+        strategy = args[1]
         if bar is not None:
             bar.set_description(f"{spec.name}/{strategy}")
-        say(f"\nStrategy {strategy}:")
-        # ONE passive recorder per campaign: it collects what cannot be
-        # recovered afterwards (discarded design candidates, the spatial
-        # information curves, per-round timings) and changes nothing -
-        # tests/test_audit_regression.py asserts the bit-identity.
-        recorder = AuditRecorder(spec.name, strategy, seed, bm.SPECIES)
-        res, lab, extra = bm.run_one_campaign(
-            spec, strategy, seed, budget, verbose=verbose_rounds,
-            store_spectra=store_spectra, recorder=recorder,
-            store_transfer_log=True)
-        if bar is not None:
             # clamped to what is left: `sum()` and repeated `+=` over the
             # same floats can disagree in the last bits, and a bar that
             # ends at 100.0000001 % emits a warning instead of a result
             bar.update(min(bm.campaign_cost_units(strategy, budget),
                            max(bar.total - bar.n, 0.0)))
-        # ---- POST-CAMPAIGN derivation (audit_export.py) ------------------ #
+        say(f"  campaign finished: {spec.name}/{strategy}")
+
+    t_compute = time.time()
+    try:
+        # SUBMISSION-ORDER reassembly: `outputs[i]` is the campaign of
+        # `strategies[i]` whichever worker happened to finish first, so
+        # every table, figure and report section built below is identical
+        # to a one-core run at any worker count.
+        outputs = par.ordered_map(_campaign_task, tasks, executor=executor,
+                                  on_result=_landed)
+    finally:
+        if executor is not None:
+            executor.shutdown(wait=True)
+    t_compute = time.time() - t_compute
+
+    # ---- POST-CAMPAIGN derivation, in the PARENT, in strategy order ------- #
+    # Deliberately serial and deliberately here: ONE derivation path serves
+    # both the serial and the parallel run, so the two cannot drift apart.
+    recs = []
+    for strategy, (res, lab, extra, recorder) in zip(strategies, outputs):
         spatial_mode = _spatial_mode_of(spec, strategy)
         audit = aex.collect_campaign(
             spec, strategy, seed, res, lab, extra, recorder, z_val, y_true,
@@ -845,9 +974,19 @@ def main() -> None:
               f"param err {row.get('param_err_pct_final_vs_truth', float('nan')):.1f}% | "
               f"blind RMSE {row.get('blind_rmse_M_final_vs_truth', float('nan')):.2e} M | "
               f"stop: {row.get('stop_reason', '')}")
-    print(f"\nDone in {time.time() - t0:.1f} s.  Outputs in: {outdir}")
+    # The two phases are timed apart because only the FIRST one is
+    # parallel: reporting is serial by design, so a single total would
+    # understate what more workers bought.
+    total = time.time() - t0
+    print(f"\nDone in {total:.1f} s "
+          f"({t_compute:.1f} s campaigns on {n_proc} process(es), "
+          f"{total - t_compute:.1f} s reporting).  Outputs in: {outdir}")
     print(f"  report:  {os.path.join(outdir, 'report', 'campaign_report.html')}")
 
 
 if __name__ == "__main__":
+    # Required before any pool is created when this script is frozen into a
+    # Windows executable; a no-op otherwise.  The __main__ guard itself is
+    # what makes `spawn` safe on Windows and macOS.
+    multiprocessing.freeze_support()
     main()

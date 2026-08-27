@@ -230,6 +230,110 @@ def test_a_record_without_truth_omits_every_truth_column():
     assert not cex.transfer_rows([rec])
 
 
+# ---- the campaign runner's own parallelism ------------------------------- #
+def test_parallel_campaigns_reproduce_the_serial_run_exactly():
+    """THE CLAIM: turning workers on changes speed and nothing else.
+
+    Two failure modes are being excluded at once.  The first is a WRONG
+    RESULT - a worker running a different configuration from the parent, or
+    a campaign whose RNG depends on how many others are running.  The second
+    is a WRONG ORDER - results reassembled as they finish rather than as
+    they were submitted, which would silently permute every CSV row and
+    every figure series while leaving each individual number correct.  The
+    second is the more dangerous of the two, because nothing looks broken.
+
+    The strategies are compared by their DERIVED metric rows rather than by
+    the returned objects, because that is what actually reaches the saved
+    files."""
+    import run_advanced_campaign as rc
+    from sdl_advanced import parallel as par
+
+    # The runner's `main()` applies its KNOBS to the benchmark module before
+    # anything runs, and `bm.worker_init` replays them inside each worker.
+    # A test that skips the first half would compare a default-configured
+    # parent against campaign-configured workers and "discover" a
+    # difference that the runner does not have - so it is done here too,
+    # and undone afterwards so the rest of the suite is unaffected.
+    before = bm.resolved_config()
+    bm.apply_config(dict(rc.KNOBS))
+    try:
+        _parallel_body(rc, par)
+    finally:
+        bm.apply_config(before)
+        bm._GEOMETRY_CACHE.clear()
+
+
+def _parallel_body(rc, par):
+    spec = bm.SCENARIOS[SCENARIO]
+    strategies = ["A", "D"]          # two cheap ones; the contract is generic
+    z_val = np.array([bm.GEOMETRY["length_m"] / 3.0, bm.GEOMETRY["length_m"]])
+    y_true = bm._truth_prediction(spec.truth, z_val, geometry=bm.GEOMETRY)
+    tasks = [(spec.name, st, SEED, BUDGET, False, False)
+             for st in strategies]
+
+    def _derive(outputs):
+        out = []
+        for st, (res, lab, extra, _rec) in zip(strategies, outputs):
+            rows, prows = bm._round_metrics(spec, st, res, lab, extra,
+                                            z_val, y_true)
+            out.append((st, rows, prows, lab.meter.totals()))
+        return out
+
+    serial = _derive(par.ordered_map(rc._campaign_task, tasks,
+                                     executor=None))
+    ex = par.make_executor(2, initializer=bm.worker_init,
+                           initargs=(BUDGET, dict(rc.KNOBS)))
+    assert ex is not None, "a 2-worker pool was not created"
+    try:
+        parallel = _derive(par.ordered_map(rc._campaign_task, tasks,
+                                           executor=ex))
+    finally:
+        ex.shutdown(wait=True)
+
+    # ORDER: outputs line up with the submitted strategy list, not with
+    # whichever worker finished first
+    assert [x[0] for x in parallel] == strategies
+    assert [x[0] for x in serial] == strategies
+    # VALUES: identical, to the bit
+    for (st_a, rows_a, prows_a, tot_a), (st_b, rows_b, prows_b, tot_b) \
+            in zip(serial, parallel):
+        assert st_a == st_b
+        assert _same(rows_a, rows_b), (
+            f"{st_a}: PARALLEL CHANGED THE ROUND METRICS")
+        assert _same(prows_a, prows_b), (
+            f"{st_a}: PARALLEL CHANGED THE PARAMETER ROWS")
+        assert tot_a == tot_b, f"{st_a}: parallel changed the resource totals"
+
+
+def test_worker_count_never_changes_which_strategy_owns_a_result():
+    """A cheap, direct guard on the zip that pairs strategies with outputs:
+    if `ordered_map` ever returned completion order, this alignment would
+    silently attribute one strategy's campaign to another."""
+    import run_advanced_campaign as rc
+    from sdl_advanced import parallel as par
+
+    # a deliberately uneven workload: the LAST task is the fastest, so a
+    # completion-ordered implementation would put it first
+    tasks = [(0, 0.30), (1, 0.20), (2, 0.01)]
+    ex = par.make_executor(3)
+    try:
+        got = par.ordered_map(_slow_module_level, tasks, executor=ex)
+    finally:
+        if ex is not None:
+            ex.shutdown(wait=True)
+    assert got == [0, 1, 2], f"reassembly was not in submission order: {got}"
+    assert rc.CONFIG["n_workers"] == 1, (
+        "the shipped default must stay serial so an unchanged config "
+        "reproduces the previous behaviour exactly")
+
+
+def _slow_module_level(i, delay):
+    """Module level so a spawned worker can find it by qualified name."""
+    import time as _t
+    _t.sleep(delay)
+    return i
+
+
 if __name__ == "__main__":
     import time
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

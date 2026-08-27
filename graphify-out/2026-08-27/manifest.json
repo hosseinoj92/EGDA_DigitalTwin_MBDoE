@@ -435,13 +435,13 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/run_advanced_benchmark.py": {
-    "mtime": 1787785057.918474,
-    "ast_hash": "4145d0764146878df0eb9401bfd29a82",
+    "mtime": 1787747210.196864,
+    "ast_hash": "ac23f5e6adc803e2c414096221afea1e",
     "semantic_hash": ""
   },
   "SDL_MBDoE/run_advanced_campaign.py": {
-    "mtime": 1787792041.1973655,
-    "ast_hash": "6a3346fe4d0903d43a4b14ab27fe3fcd",
+    "mtime": 1787742532.7445657,
+    "ast_hash": "14296f4167cd169c83b89aacd0e8741d",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/__init__.py": {
@@ -1104,6 +1104,21 @@
     "ast_hash": "7e9aa851d6cee9849e4943b88edbacce",
     "semantic_hash": ""
   },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/features_resolved.json": {
+    "mtime": 1787673692.7863286,
+    "ast_hash": "d1e918ff147578dbf5df24fb9da8efa9",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/governor_validation.json": {
+    "mtime": 1787673692.7953572,
+    "ast_hash": "f981521979fbaada35701a0cd1172fec",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/run_manifest.json": {
+    "mtime": 1787673692.7963648,
+    "ast_hash": "7539404dcbe2c2b9ba9bc5e60f8c72e2",
+    "semantic_hash": ""
+  },
   "SDL_MBDoE/sdl_advanced/campaign_export.py": {
     "mtime": 1787744567.1623747,
     "ast_hash": "11cbfe465901170c973a1dc141cf01e9",
@@ -1130,8 +1145,8 @@
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_campaign_report.py": {
-    "mtime": 1787791184.825332,
-    "ast_hash": "f2489ab4013c432cbde58cc96cceb872",
+    "mtime": 1787742245.5465224,
+    "ast_hash": "3fe90dfcd60d55ce158eae7d8f31a451",
     "semantic_hash": ""
   },
   "SDL_MBDoE/tests/test_features.py": {
@@ -1142,6 +1157,136 @@
   "SDL_MBDoE/tests/test_reactor_validity.py": {
     "mtime": 1787673692.8042498,
     "ast_hash": "d4cb978ad00f86ee4f20a54d990af83b",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/reactor_validity.txt": {
+    "mtime": 1787673692.7962253,
+    "ast_hash": "ac855db70b78e080032cff4da3dd394e",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/strategy_table.txt": {
+    "mtime": 1787673692.796661,
+    "ast_hash": "8742a6233533189f480a5c3e657f04a3",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_band_S1_ideal_locf.png": {
+    "mtime": 1787673692.780478,
+    "ast_hash": "822dc2fef2f85ebebd771dd6c5c6ef4e",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_band_S1_ideal_observed.png": {
+    "mtime": 1787673692.7809966,
+    "ast_hash": "c3459e779b80f8c4105b0165be0c682b",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_band_S3_transport_locf.png": {
+    "mtime": 1787673692.781399,
+    "ast_hash": "beb68ef690ed1f10a7bcc6f7702c03a1",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_band_S3_transport_observed.png": {
+    "mtime": 1787673692.7818289,
+    "ast_hash": "cac2802ea3edd13cf72a3e18f7e39782",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_band_S5_inadequacy_locf.png": {
+    "mtime": 1787673692.7821982,
+    "ast_hash": "f431ba886bf453b7bb515bfd10181906",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_band_S5_inadequacy_observed.png": {
+    "mtime": 1787673692.7825923,
+    "ast_hash": "3fd1c633ae8c96b1b67b72141848dd7d",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_efficiency_S1_ideal.png": {
+    "mtime": 1787673692.782997,
+    "ast_hash": "164dc684d855c97fd1dddb5e77c1b849",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_efficiency_S3_transport.png": {
+    "mtime": 1787673692.783388,
+    "ast_hash": "f7af97afc1fd2bd458055f57033a233e",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_trajectory_S1_ideal.png": {
+    "mtime": 1787673692.7839599,
+    "ast_hash": "7c844c375d339f45e9e4f4a3bf0a454b",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/audit/figures/figure_trajectory_S3_transport.png": {
+    "mtime": 1787673692.7843177,
+    "ast_hash": "531e61ceab54fe761a12bf63d71b1783",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S1_ideal_per_acquisition.png": {
+    "mtime": 1787673692.7867968,
+    "ast_hash": "bd41e1fa93d8d62d8edec32ed576dd94",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S1_ideal_per_round.png": {
+    "mtime": 1787673692.787622,
+    "ast_hash": "8eec2cab437d1adc5e4c9e498e2832d1",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S1_ideal_per_time.png": {
+    "mtime": 1787673692.788114,
+    "ast_hash": "66193058c16dd43b4aed51256e903632",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S3_transport_per_acquisition.png": {
+    "mtime": 1787673692.788549,
+    "ast_hash": "c38168085e19ea0271c66149ebd1dba2",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S3_transport_per_round.png": {
+    "mtime": 1787673692.7892332,
+    "ast_hash": "d99dfdf2bf9106a14d1f4990a0adef4e",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S3_transport_per_time.png": {
+    "mtime": 1787673692.791198,
+    "ast_hash": "ba2fef1f228eb09f046fc86fbc209324",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S5_inadequacy_per_acquisition.png": {
+    "mtime": 1787673692.791574,
+    "ast_hash": "9f2e9078dd28c9b8aa3b55118989c671",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S5_inadequacy_per_round.png": {
+    "mtime": 1787673692.791992,
+    "ast_hash": "a6b7f13fb6c759feee980ea26dfdca50",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_conv_S5_inadequacy_per_time.png": {
+    "mtime": 1787673692.7925138,
+    "ast_hash": "66f3c75881cde05214fdc01257d35640",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_equilibrium_observability.png": {
+    "mtime": 1787673692.7929456,
+    "ast_hash": "922b8fd2fd7c48016f70d6cf765fa4e7",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_governor_S5.png": {
+    "mtime": 1787673692.7932978,
+    "ast_hash": "fbf3153e3e2ef81636116287ced9901a",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_params_S1_ideal_F.png": {
+    "mtime": 1787673692.7938545,
+    "ast_hash": "bb2c595cf26f1c7bea9a0b003acc1abd",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_params_S3_transport_F.png": {
+    "mtime": 1787673692.7945523,
+    "ast_hash": "ee27d3e377b3722a0b0bb5eeab6eeacb",
+    "semantic_hash": ""
+  },
+  "SDL_MBDoE/results_advanced_v6/validation/smoke2/figure_transport_ablation.png": {
+    "mtime": 1787673692.7950635,
+    "ast_hash": "a6d63c3ea3d4a2b49b4765f29c7bb1d8",
     "semantic_hash": ""
   },
   "SDL_MBDoE/sdl_advanced/benchmark_export.py": {
